@@ -1,202 +1,101 @@
-# I) Mục tiêu & Khái niệm cơ bản
+## 1) Khái niệm & Functional Interface (SAM)
 
-1. Lambda expression ra đời để giải quyết vấn đề gì so với anonymous class?
-2. Cú pháp tổng quát của lambda (`(params) -> body`) gồm những biến thể nào?
-3. Khi nào cần dấu ngoặc quanh tham số, dấu ngoặc nhọn trong body, và `return`?
-4. Lambda có phải là đối tượng (instance) thật sự không? Nó thuộc loại nào ở runtime?
-5. Khác biệt chính giữa lambda và anonymous inner class về từ khóa `this` và capture biến?
-6. Lambda có thể tồn tại độc lập không hay luôn cần “target type”?
-7. Lambda có thể có kiểu trả về `void`/generic không? Compiler suy luận thế nào?
-8. Khác nhau giữa “lambda expression” và “method reference”?
+1. Lambda expression là gì? Nó triển khai **functional interface** (SAM) như thế nào?
+2. `@FunctionalInterface` có tác dụng gì? Thiếu annotation này thì interface còn là functional interface không?
+3. Liệt kê một số functional interfaces chuẩn trong `java.util.function` (Supplier, Consumer, Function, Predicate, Unary/BinaryOperator).
+4. ⚠️ Gài: Vì sao các method thừa kế từ `Object` (equals/hashCode/toString) **không** tính vào số lượng abstract methods khi xác định functional interface?
 
----
+## 2) Cú pháp lambda
 
-# II) Functional Interface (SAM)
+1. Các dạng cú pháp hợp lệ: không tham số `() -> …`, một tham số `x -> …`, nhiều tham số `(x, y) -> …`, khối lệnh `{ … }`, `return`.
+2. Khi nào có thể lược bỏ kiểu tham số? Khi nào buộc phải ghi kiểu?
+3. ⚠️ Gài: `x -> { return x + 1; }` khác gì `x -> x + 1` về ngữ nghĩa và ràng buộc cú pháp (statement vs expression)?
 
-9. Functional interface là gì? Điều kiện tối thiểu để là functional interface?
-10. Annotations `@FunctionalInterface` kiểm soát điều gì? Có bắt buộc không?
-11. Interface có default/ static method có còn là functional interface không?
-12. Trường hợp nào **không** phải functional interface dù có đúng 1 abstract method?
-13. Tại sao nhiều API core (Collections, Streams) chọn dùng functional interface thay vì abstract class?
-14. Những functional interface “chuẩn” trong `java.util.function` nhóm hóa theo gì (Supplier, Consumer, Function, Predicate, Operator)?
-15. Variants primitive (IntConsumer, LongFunction, …) tồn tại để tối ưu điều gì?
+## 3) Target typing & type inference
 
----
+1. **Target typing** là gì? Tại sao cùng một lambda có thể gán cho `Runnable` hoặc `Callable<T>` tuỳ ngữ cảnh?
+2. Suy luận kiểu tham số và kiểu trả về của lambda diễn ra như thế nào?
+3. ⚠️ Gài: Trường hợp **mơ hồ** giữa `overloadedMethod(Runnable)` và `overloadedMethod(Callable<String>)`—compiler chọn thế nào? Cách giải mơ hồ?
 
-# III) Target Typing & Type Inference
+## 4) Method Reference
 
-16. “Target typing” là gì? Tại sao lambda không có “type” nếu đứng một mình?
-17. Quy tắc suy luận tham số của lambda khi bỏ kiểu (`(x, y) -> x + y`)?
-18. Khi inference thất bại cần khai báo kiểu tường minh ở đâu?
-19. Overload resolution với lambda: compiler quyết định chọn method nào khi có nhiều chữ ký?
-20. Ảnh hưởng của tham số generic tới inference của lambda trong method chain?
-21. `var` trong tham số lambda (Java 11+) dùng để làm gì? Khi nào hữu ích?
-22. Kết hợp `var` với annotations trên tham số lambda (e.g., `@Nonnull var x`)—quy tắc?
+1. Bốn dạng method reference: `obj::instanceMethod`, `Class::staticMethod`, `Class::instanceMethod`, `Class::new` (constructor).
+2. Khi nào nên dùng method reference thay cho lambda để code dễ đọc hơn?
+3. ⚠️ Gài: Sự khác nhau giữa `String::toLowerCase` dùng như `Function<String,String>` và `BiFunction<String,Locale,String>` (overload resolution)?
 
----
+## 5) Phạm vi, capture & “effectively final”
 
-# IV) Scope, Capture & “Effectively Final”
+1. Quy tắc **effectively final** là gì? Vì sao lambda **không** sửa được biến local?
+2. ⚠️ Gài: Tại sao đoạn code trong vòng lặp `for (int i...) { tasks.add(() -> use(i)); }` đôi khi không chạy như mong đợi? So sánh với JavaScript closure.
+3. Khác biệt **lớn** giữa lambda và anonymous class về `this`/`super`/shadowing biến là gì?
+4. Lambda có thể truy cập field/method của lớp bao quanh như thế nào? Rủi ro concurrency?
 
-23. Lambda capture biến “tự do” (free variables) như thế nào?
-24. “Effectively final” là gì? Vì sao bắt buộc với biến local được capture?
-25. Tại sao không thể mutate trực tiếp biến local đã capture? Workaround tinh gọn?
-26. Khác biệt “capture-by-value” vs “capture-by-reference” trong Java lambda?
-27. `this` trong lambda trỏ tới đâu? So với anonymous class thì khác thế nào?
-28. Có thể truy cập biến `private` của enclosing class từ lambda không?
-29. Capture biến tham chiếu tới đối tượng mutable: hệ lụy thread-safety?
+## 6) Lambda & Exceptions (checked/unchecked)
 
----
+1. Cách xử lý **checked exception** trong lambda khi dùng các interface chuẩn (Predicate/Function) vốn **không throws**.
+2. ⚠️ Gài: “Sneaky throws”/wrap exception (RuntimeException) — ưu/nhược, khi nào nên tránh?
+3. Thiết kế functional interface **tự định nghĩa** để ném checked exception (`ThrowingFunction`)—ý tưởng và trade-off.
 
-# V) Method References
+## 7) Generics, intersection types & overloading
 
-30. Các dạng method reference: `Class::staticMethod`, `inst::method`, `Class::instanceMethod`, `Class::new`—khác nhau thế nào?
-31. Khi nào nên ưu tiên method reference thay vì lambda inline?
-32. Constructor reference (`Type::new`) mapping sang functional interface có `get()`/`apply()` như thế nào?
-33. “Receiver as first arg” trong `Class::instanceMethod` hoạt động ra sao?
-34. Method reference có giúp inference tốt hơn/ kém hơn lambda không?
+1. Lambda tương tác với **generics** như thế nào (ví dụ `Function<T,R>`, `Comparator<T>`)?
+2. ⚠️ Gài: **Intersection type** trong `(<T extends Runnable & Serializable>)`—làm sao gán một lambda thành `Runnable & Serializable`?
+3. Overload method nhận nhiều SAM khác nhau: quy tắc chọn hàm và kỹ thuật **cast** tường minh.
 
----
+## 8) Bất biến, trạng thái & side-effects
 
-# VI) Exception Handling với Lambda
+1. Lambda **stateless** vs **stateful**: khác nhau, rủi ro khi dùng state mutable (đếm, cộng dồn) trong stream.
+2. ⚠️ Gài: Vì sao side-effect trong `map`/`filter` của stream thường là **mùi**? Trường hợp nào chấp nhận được?
+3. Kỹ thuật gom kết quả đúng cách: dùng `collect`, `reduce` thay cho cập nhật biến ngoài.
 
-35. Lambda có thể ném checked exception không? Ràng buộc của functional interface?
-36. Chiến lược xử lý checked exception trong lambda: bọc (wrap), “sneaky throw”, adapter… trade-offs?
-37. `Stream` operations + exception: patterns để giữ pipeline sạch mà không nuốt lỗi?
-38. `CompletableFuture` + lambda: propagate exception như thế nào?
+## 9) Lambda & Streams
 
----
+1. Viết pipeline điển hình với stream: `map`, `filter`, `flatMap`, `sorted`, `collect`.
+2. ⚠️ Gài: Vì sao `forEach` **không** nên dùng để biến đổi dữ liệu? Thay vào đó nên dùng gì?
+3. Liên hệ comparator: `Comparator.comparing`, `thenComparing`, `reversed`—cách kết hợp method reference & lambda.
 
-# VII) Generics & Higher-Order Functions
+## 10) Hiệu năng & bytecode
 
-39. Lambda như đối số generic: chữ ký `Function<T,R>`/`Predicate<T>` ảnh hưởng inference thế nào?
-40. Lambda trả về lambda (higher-order): cách khai báo type an toàn?
-41. Currying/partial application trong Java: có cần util helper không?
-42. `Comparator.comparing`/`thenComparing`: inference và wildcard `? super T` đóng vai trò gì?
-43. `map` vs `flatMap`: tại sao `flatMap` cần lambda trả về `Stream<U>` thay vì `U`?
+1. Lambda được triển khai bằng `invokedynamic` và `LambdaMetafactory`—ý nghĩa đối với hiệu năng là gì?
+2. ⚠️ Gài: **Capturing lambda** khác **non-capturing lambda** về việc cache/reuse instance thế nào?
+3. Khi nào lambda **nhanh hơn**/tương đương/“không nhanh hơn” so với code imperative? Lưu ý boxing/unboxing.
 
----
+## 11) Concurrency & parallel
 
-# VIII) Streams & Lambda—Thiết kế & Thực hành
+1. Dùng lambda trong `CompletableFuture`, `ExecutorService`: best practices khi truyền hàm.
+2. ⚠️ Gài: Vì sao **stateful lambda** + **parallel stream** có thể gây kết quả sai/`ConcurrentModificationException`?
+3. Kỹ thuật thread-safety khi dùng lambda: dùng collectors concurrent, tránh shared mutable state.
 
-44. Vì sao Streams API đi kèm lambda? Liên hệ lazy vs terminal operations?
-45. Stateless vs stateful intermediate ops: vai trò lambda trong hai loại này?
-46. Side-effects trong lambda của Streams: khi nào chấp nhận được? Khi nào gây bug?
-47. Parallel stream + lambda: thread-safety yêu cầu gì cho capture state?
-48. Biến đổi “I/O heavy” trong lambda: backpressure/`CompletableFuture` kết hợp thế nào?
-49. `Collectors` và lambda: phân tích chữ ký `toMap`, `groupingBy`, `mapping`…
+## 12) Optional & higher-order functions
 
----
+1. Dùng lambda với `Optional`: `map`, `flatMap`, `filter`, `orElseGet`, `ifPresentOrElse`.
+2. **Function composition**: `andThen`, `compose`, `Predicate.and/or/negate`.
+3. ⚠️ Gài: Sự khác nhau về thứ tự với `f.andThen(g)` và `g.compose(f)`; ví dụ gây nhầm.
 
-# IX) Concurrency, Threading & Scheduling
+## 13) Annotation & `var` trong tham số lambda
 
-50. Dùng lambda để truyền `Runnable`, `Callable`: khác biệt về return/exception?
-51. Deadlock/starvation không liên quan lambda, nhưng patterns nào dễ tạo race khi capture mutable?
-52. `ExecutorService`/`CompletableFuture` + lambda: tips tránh nuốt exception và memory leak?
-53. Lambdas có “synchronized” block bên trong—mùi code smell hay hợp lý?
+1. Khi nào cần **kiểu tường minh** hoặc dùng `var` trong tham số lambda? Quy tắc đồng nhất (all-or-none).
+2. ⚠️ Gài: Gắn annotation (ví dụ `@Nonnull`) lên tham số lambda—cú pháp đúng và hạn chế hiện tại?
+
+## 14) So sánh với anonymous class & method handle
+
+1. Ưu/nhược của lambda so với **anonymous inner class** về độ gọn và scoping.
+2. ⚠️ Gài: `this` trong lambda trỏ tới đâu so với anonymous class?
+3. Khi nào cân nhắc **Method Handle** thay vì lambda cho hiệu năng/case framework?
+
+## 15) Serialization, equals/hashCode & logging
+
+1. Lambda có nên/không nên **Serializable**? Hệ quả khi serialize (khả năng vỡ tương thích).
+2. ⚠️ Gài: Hai lambda có cùng code có **equals()** bằng nhau không? Có nên dùng lambda làm key Map?
+3. Thực hành logging với lambda (SLF4J không hỗ trợ supplier như Java Util Logging)—lợi/hại.
 
 ---
 
-# X) Hiệu năng & Bộ nhớ
+## 16) Mini case (thực chiến 2–5 phút/câu)
 
-54. Lambda có overhead runtime không so với anonymous class? (allocation, class loading)
-55. Escape analysis & inlining với lambda: JIT tối ưu ra sao trong hot path?
-56. Boxing/unboxing ẩn trong lambda (đặc biệt với `Stream`): tránh thế nào bằng primitive streams?
-57. `for` truyền thống + `StringBuilder` vs `stream().map(...).collect(...)`: cân nhắc hiệu năng?
-58. Memory footprint của capture variables và life-cycle đối tượng đóng kín (closure)?
-
----
-
-# XI) Bytecode & `invokedynamic`
-
-59. Lambda được biên dịch như thế nào (không tạo inner class cố định)?
-60. Vai trò của `invokedynamic` và `LambdaMetafactory` trong triển khai lambda?
-61. Tại sao hai lambda “giống hệt” có thể chia sẻ implementation?
-62. Ảnh hưởng của thay đổi chữ ký functional interface tới binary compatibility của lambda call site?
-
----
-
-# XII) Overload Resolution & Ambiguity
-
-63. Khi hai overload đều chấp nhận functional interface khác nhau, làm sao disambiguate?
-64. Dùng cast `(Function<A,B>)` để “gợi ý” compiler: khi nào cần?
-65. `removeIf` vs `remove` (Collections): ví dụ đụng độ overload với lambda?
-66. `null` + overload functional interface: compiler chọn kiểu nào?
-
----
-
-# XIII) Design Patterns với Lambda
-
-67. Strategy/Command/Template Method refactor sang lambda: lợi ích và giới hạn?
-68. Event/listener API: khi nào lambda làm code khó test hơn so với class riêng?
-69. Dùng lambda để tạo DSL mini: giới hạn cú pháp ở Java?
-70. Functional core, imperative shell—vai trò lambda trong kiến trúc này?
-
----
-
-# XIV) Testing, Debugging & Readability
-
-71. Lambda có tên không? Ảnh hưởng debug/stacktrace khi crash?
-72. Cách log bên trong lambda mà không phá lazy evaluation hoặc làm nhiễu pipeline?
-73. Viết unit test cho lambda: kiểm tra hành vi hay kiểm tra hàm thuần (pure function)?
-74. Khi nào nên extract lambda thành method có tên để tăng đọc hiểu?
-
----
-
-# XV) Serialization & Framework Interop
-
-75. Lambda có serializable không? Khi nào “được” nhưng không nên dựa vào?
-76. Jackson/Gson có serialize lambda không? Tại sao thường không?
-77. Spring/Spring Data dùng lambda ở đâu (method reference trong repos, specs)? Rủi ro?
-78. MapStruct/BeanUtils có thể xử lý lambda như bean/POJO không?
-
----
-
-# XVI) Bẫy thường gặp (Tricky Bits)
-
-79. Dùng lambda để cập nhật biến local trong loop—vì sao compile lỗi hoặc hành vi khó đoán?
-80. `this`/`super` trong lambda không phải của lambda—hệ quả khi gọi method protected/private?
-81. Lambda “nuốt” exception trong stream + collector: tại sao bug khó thấy?
-82. Lambda tạo reference memory leak tới outer class/context—những tình huống nào?
-83. So sánh `Predicate.isEqual(x)` vs `a -> a.equals(x)`—edge cases `null`?
-84. “Method reference đẹp hơn” không phải lúc nào đúng—khi nào nên ưu tiên lambda rõ ràng?
-85. Recursion với lambda: vì sao không trực tiếp, cần helper (e.g., `UnaryOperator<T>[] ref`)?
-86. Tail-recursion không được tối ưu trong JVM—ảnh hưởng thiết kế hàm đệ quy?
-
----
-
-# XVII) Annotations & Constraints
-
-87. Đặt annotation lên tham số lambda thế nào? So với đặt lên method reference?
-88. Dùng annotations (validation) trên functional interface vs trên lambda param—khác biệt tool support?
-89. JSpecify/Nullness annotations với lambda: compiler hiểu được tới mức nào?
-
----
-
-# XVIII) API Design với Lambda
-
-90. Khi nào nên nhận `Supplier<T>` thay vì `T` để hoãn tính toán?
-91. `Optional.orElse` vs `orElseGet(Supplier)`—lambda giúp tối ưu nhánh đắt?
-92. Thiết kế API có callback lambda: lifecycle, threading model phải document ra sao?
-93. Có nên trả về lambda từ public API? Ảnh hưởng binary compatibility?
-94. Khi chuyển API từ listener interface sang lambda, bảo toàn backward compatibility thế nào?
-
----
-
-# XIX) Interop & Ngôn ngữ khác
-
-95. Kotlin/Scala closures vs Java lambda: những khác biệt quan trọng (reified, inline functions)?
-96. Sử dụng lambda từ Java 8 trong Android cũ bằng desugar tools—giới hạn nào?
-97. Gọi Java lambda từ Kotlin: SAM adapters hoạt động ra sao?
-
----
-
-# XX) Bài tập/Thiết kế (Challenge)
-
-98. Viết `retry(int times, Supplier<T>)` sử dụng lambda để retry có backoff.
-99. Tạo `memoize(Function<A,B>)` an toàn thread dựa trên lambda.
-100. Viết `compose(Function<A,B>, Function<B,C>) -> Function<A,C>`.
-101. Triển khai `debounce(Consumer<T>, long delay)` dùng `ScheduledExecutorService`.
-102. Viết `withResource(Supplier<R>, Function<R,T>)` đóng resource tự động (không dùng try-with-resources).
-103. Viết `time(Supplier<T>)` trả về `Pair<T, Duration>` để benchmark lambda.
-104. Thiết kế `lazy(Supplier<T>)` trả về proxy chỉ tính một lần, thread-safe.
-105. Tạo `guard(Predicate<T>, Function<T,R>, Function<T,R>)` chọn nhánh bằng lambda.
+1. Viết comparator sắp xếp `User` theo `lastName`, rồi `firstName` (nulls last), không phân biệt hoa/thường.
+2. Chuyển một đoạn code imperative lọc–map–sắp xếp sang stream + lambda, đảm bảo **không side-effect**.
+3. Tạo `RetryingFunction<T,R>` (functional interface) cho phép retry N lần với backoff; demo bọc một `Function<T,R>`.
+4. Viết `Collectors.toMap` an toàn khi có key trùng, chỉ định `LinkedHashMap` làm implementation, và **merge function** phù hợp.
+5. Biến danh sách `List<List<String>>` thành một **set** các từ duy nhất, lower-case, bỏ trống—dùng `flatMap`.
+6. Sửa một pipeline song song sai vì cập nhật `ArrayList` trong `forEach`—đưa ra 2 cách đúng (collector thread-safe hoặc thu gọn về sequential phần nguy hiểm).

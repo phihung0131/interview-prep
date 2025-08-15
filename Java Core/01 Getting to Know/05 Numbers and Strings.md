@@ -1,119 +1,111 @@
-# Java Core: Numbers and Strings
+## 1) Kiểu số & wrapper types
 
-## **I. Numbers – Primitive & Wrapper Classes**
+1. Liệt kê 8 kiểu nguyên thủy số trong Java và miền giá trị của từng kiểu.
+2. Wrapper types (`Byte`, `Short`, `Integer`, `Long`, `Float`, `Double`) khác gì so với primitive về bộ nhớ, nullability và hiệu năng?
+3. ⚠️ Gài: `Integer a = 128; Integer b = 128; a == b` cho kết quả gì? Vì sao có **Integer cache**?
+4. Tự động boxing/unboxing diễn ra khi nào? Rủi ro `NullPointerException` nào thường gặp khi unbox?
+5. Khác nhau giữa `new Integer(5)` và `Integer.valueOf(5)`? Ảnh hưởng tới cache và GC?
 
-1. Liệt kê các kiểu dữ liệu số nguyên và số thực nguyên thủy (primitive numeric types) trong Java cùng kích thước và phạm vi giá trị.
-2. Tại sao Java có cả primitive và wrapper class (`int` vs `Integer`)?
-3. Autoboxing và unboxing hoạt động thế nào? Khi nào có thể gây lỗi `NullPointerException`?
-4. Wrapper class (`Integer`, `Long`, …) là immutable—điều này ảnh hưởng thế nào đến hiệu năng?
-5. Cơ chế cache giá trị của wrapper classes (`Integer.valueOf()`) hoạt động ra sao? Khoảng giá trị mặc định? Có thể thay đổi khoảng cache không?
-6. So sánh `==` và `.equals()` khi so sánh wrapper objects.
-7. `parseXxx()` vs `valueOf()` trong wrapper classes khác nhau thế nào?
-8. Sự khác biệt giữa `Double.NaN`, `Double.POSITIVE_INFINITY`, `Double.NEGATIVE_INFINITY`.
-9. So sánh `==` với `Double.compare()` hoặc `Float.compare()` khi so sánh số thực.
-10. Lỗi chính xác khi cộng/trừ/nhân/chia số thực (`double`/`float`). Nguyên nhân từ IEEE 754.
+## 2) Số thực & độ chính xác
+
+1. Tại sao số chấm động (`float/double`) có thể sai số? IEEE-754 là gì?
+2. ⚠️ Gài: Vì sao `0.1 + 0.2 != 0.3` với `double`? Khi nào nên dùng `BigDecimal`?
+3. NaN, Infinity, −0.0 là gì? So sánh bằng `==` với NaN ra sao?
+4. So sánh `StrictMath` và `Math`: hành vi/độ chính xác khác nhau thế nào?
+5. Các phương thức làm tròn: `Math.round`, `ceil`, `floor`, `rint` — chọn cái nào cho yêu cầu nghiệp vụ?
+
+## 3) BigInteger & BigDecimal
+
+1. `BigInteger`/`BigDecimal` giải quyết bài toán gì so với `long`/`double`? Trade-off về hiệu năng.
+2. Khái niệm **scale** trong `BigDecimal` là gì?
+3. ⚠️ Gài: `new BigDecimal(0.1)` vs `BigDecimal.valueOf(0.1)` khác gì? Hậu quả?
+4. `RoundingMode` gồm những chế độ nào? Chọn mode nào cho bài toán tài chính?
+5. So sánh `equals()` và `compareTo()` trên `BigDecimal` (ảnh hưởng của scale).
+6. Chuyển đổi `BigDecimal` → `int/long` an toàn: dùng phương thức nào để **fail-fast** khi tràn?
+
+## 4) Chuyển kiểu số & tràn số
+
+1. Widening vs narrowing conversion; khi nào cần cast tường minh?
+2. ⚠️ Gài: `byte b = (byte) 130;` cho ra giá trị nào? Vì sao có tràn số?
+3. `Math.addExact`, `subtractExact`, `multiplyExact`, `toIntExact`: dùng khi nào và vì sao tốt hơn phép toán thô?
+4. Parse chuỗi thành số: `Integer.parseInt`, `Long.parseLong`, hỗ trợ **radix** ra sao? Xử lý dấu `+/-` thế nào?
+
+## 5) Định dạng & phân tích cú pháp số (Formatting/Parsing)
+
+1. Khác nhau giữa `NumberFormat`/`DecimalFormat` và `String.format`/`Formatter`.
+2. Vai trò của `Locale` khi định dạng số, tiền tệ, phần trăm.
+3. ⚠️ Gài: Vì sao định dạng `"1,234.56"` có thể parse sai ở `Locale` khác? Cách xử lý i18n đúng.
+4. Mẫu định dạng `DecimalFormat` (ký tự `#`, `0`, nhóm, phần trăm, tiền tệ) – các bẫy thường gặp.
+5. In số có leading zeros/width alignment bằng `String.format` (`%03d`, `%10.2f`).
+
+## 6) `String` — bất biến, pool & interning
+
+1. Vì sao `String` là **immutable**? Lợi ích về an toàn & cache.
+2. ⚠️ Gài: `new String("abc")` tạo bao nhiêu object? Ảnh hưởng tới **string pool**?
+3. `String.intern()` làm gì? Khi nào nên/không nên dùng?
+4. So sánh `==` và `equals()` cho `String` — khi nào `==` trả `true` “tình cờ”.
+5. `substring()` từ Java 7u6 trở đi khác gì trước đó về chia sẻ mảng char/bộ nhớ?
+
+## 7) Ghép chuỗi & hiệu năng
+
+1. Khác nhau giữa `String`, `StringBuilder`, `StringBuffer`: thread-safety, hiệu năng, use-case.
+2. ⚠️ Gài: Tại sao `"a" + b + c` trong vòng lặp là anti-pattern? Trình biên dịch có tối ưu ngoài vòng lặp không?
+3. `StringBuilder` nên được tái sử dụng như thế nào để giảm GC?
+4. `String.join`, `StringJoiner`, `Collectors.joining` — khi nào dùng mỗi cái?
+
+## 8) API chuỗi quan trọng
+
+1. `length`, `isEmpty`, `isBlank`, `strip` vs `trim`, `repeat`, `indent`, `transform` (các phiên bản Java khác nhau).
+2. Tìm kiếm/thay thế: `indexOf`/`lastIndexOf`, `replace`, `replaceFirst/All` (regex), `contains`.
+3. ⚠️ Gài: Khác nhau giữa `replace` (literal) và `replaceAll` (regex). Khi nào `PatternSyntaxException` xảy ra?
+4. Cắt/chia: `substring`, `split` (regex) và bẫy khi ký tự đặc biệt.
+5. **Text Blocks** (`"""…"""`): quy tắc escape/indent; khi nào nên dùng để xử lý JSON/SQL.
+
+## 9) Unicode, `char` và code points
+
+1. `char` trong Java là 16-bit UTF-16 code unit — hệ quả với emoji/surrogate pairs.
+2. ⚠️ Gài: `s.length()` đo **code units** hay **code points**? Tính số ký tự “mắt người thấy” thế nào?
+3. Xử lý code point: `codePointAt`, `codePoints`, `Character.isSurrogate`, `offsetByCodePoints`.
+4. Chuẩn hoá Unicode (NFC/NFD) và tác động tới so sánh/so khớp.
+5. So sánh theo văn hoá (collation): dùng `Collator` thay vì `String.compareTo` khi nào?
+
+## 10) So sánh chuỗi & thứ tự sắp xếp
+
+1. `String.compareTo` dựa trên gì? Ảnh hưởng tới sort “từ điển” đa ngôn ngữ.
+2. ⚠️ Gài: Vì sao `equalsIgnoreCase` có thể **không** tương đương chuẩn ở một số ngôn ngữ (tiếng Thổ Nhĩ Kỳ, ß của Đức)?
+3. Khi nào nên dùng `Collator` với `Locale` để sort/tìm kiếm an toàn i18n?
+
+## 11) Quét & phân tách văn bản
+
+1. `Scanner` so với `String.split`/regex: ưu/nhược, khi nào chọn `Scanner`.
+2. ⚠️ Gài: `StringTokenizer` có còn nên dùng không? Khác gì với `split` về khoảng trắng/regex.
+3. Tách token lớn (logfile): kỹ thuật stream dòng và tránh load cả file vào RAM.
+
+## 12) Bảo mật & xử lý dữ liệu nhạy cảm
+
+1. Vì sao **không** nên giữ mật khẩu dưới dạng `String`? Dùng `char[]` hay `java.security` API nào?
+2. ⚠️ Gài: Log dữ liệu nhạy cảm với `toString()` có rủi ro gì? Chính sách mask dữ liệu nên áp dụng ở đâu?
+3. Làm sạch/băm/salt chuỗi trước khi lưu — best practices cơ bản.
+
+## 13) Ngẫu nhiên & chuỗi
+
+1. `Random` vs `SecureRandom`: khác nhau, khi nào bắt buộc dùng `SecureRandom` (token, OTP).
+2. Tạo chuỗi ngẫu nhiên an toàn (bảng ký tự, bias khi dùng modulo).
+3. ⚠️ Gài: `Math.random()` dựa trên gì? Có dùng cho bảo mật được không?
+
+## 14) Hiệu năng & bộ nhớ
+
+1. Ảnh hưởng của tạo nhiều `String` tạm thời; kỹ thuật giảm churn (builder, pooling, `String.concat` trong JDK mới).
+2. Kiểm thử microbenchmark đúng cách cho thao tác số/chuỗi (JMH): warm-up, dead-code elimination.
+3. ⚠️ Gài: Vì sao so sánh `String` bằng `==` đôi khi “có vẻ chạy đúng” trong dev nhưng sai trên prod?
 
 ---
 
-## **II. BigInteger & BigDecimal**
+## 15) Mini case (thực chiến 2–5 phút/câu)
 
-11. Khi nào nên dùng `BigInteger` thay vì `long`?
-12. Khi nào nên dùng `BigDecimal` thay vì `double`?
-13. Tại sao `BigDecimal` phù hợp cho tính toán tài chính?
-14. Cách khởi tạo `BigDecimal` từ `double` vs `String` và sự khác biệt về độ chính xác.
-15. `BigDecimal` có immutable không?
-16. Giải thích `scale` và `precision` trong `BigDecimal`.
-17. Các phương thức làm tròn trong `BigDecimal` (`RoundingMode`) và khi nào dùng từng loại.
-18. Hiệu năng của `BigDecimal` so với `double`.
-19. So sánh `BigDecimal.equals()` và `compareTo()` (vấn đề scale).
-20. Cách cộng/trừ/nhân/chia `BigDecimal` an toàn.
-
----
-
-## **III. Number Formatting & Parsing**
-
-21. `NumberFormat` và `DecimalFormat` dùng để làm gì?
-22. Cách định dạng số với dấu phân tách hàng nghìn và số thập phân.
-23. Cách chuyển đổi số sang chuỗi với locale cụ thể.
-24. Cách parse chuỗi thành số với định dạng tùy chỉnh.
-25. `String.format()` và `System.out.printf()` khác nhau thế nào?
-26. Các ký tự định dạng (`%d`, `%f`, `%e`, `%x`, …) trong `String.format()`.
-27. Cách format số với padding (ví dụ `00123`).
-28. Format số âm với dấu ngoặc hoặc ký hiệu tùy chỉnh.
-
----
-
-## **IV. Strings – Cơ bản & Bất biến**
-
-29. `String` trong Java là immutable—lý do và lợi ích?
-30. String pool là gì? Cơ chế `intern()` hoạt động ra sao?
-31. Khác nhau giữa `String s1 = "abc"` và `String s2 = new String("abc")`.
-32. So sánh `==` và `.equals()` khi so sánh chuỗi.
-33. `equalsIgnoreCase()` hoạt động thế nào? Có an toàn cho tất cả locale?
-34. `compareTo()` và `compareToIgnoreCase()` khác nhau thế nào?
-35. Cách nối chuỗi (`+`, `concat()`, `StringBuilder`, `StringBuffer`) và ưu nhược điểm.
-36. Sự khác nhau về hiệu năng khi nối chuỗi nhiều lần trong vòng lặp.
-37. Cách tách chuỗi với `split()`—lưu ý khi regex đặc biệt (`.`, `|`, `*`, …).
-38. `substring()` hoạt động thế nào? (Java 7+ không giữ nguyên char array).
-39. Cách thay thế chuỗi (`replace()`, `replaceAll()`, `replaceFirst()`) và khác biệt về regex.
-40. Cách kiểm tra chuỗi rỗng hoặc null (`isEmpty()`, `isBlank()`).
-41. Cách loại bỏ khoảng trắng (`trim()`, `strip()`, `stripLeading()`, `stripTrailing()`).
-42. Ảnh hưởng của `strip()` tới Unicode whitespace so với `trim()`.
-
----
-
-## **V. StringBuilder & StringBuffer**
-
-43. Khác nhau giữa `StringBuilder` và `StringBuffer`?
-44. Khi nào nên dùng `StringBuilder` thay vì `String`?
-45. `append()` và `insert()` trong `StringBuilder`.
-46. Cách đảo chuỗi (`reverse()`).
-47. Có thể chain nhiều phương thức của `StringBuilder` không?
-48. Tại sao `StringBuffer` là thread-safe? Ảnh hưởng hiệu năng?
-
----
-
-## **VI. Char & Encoding**
-
-49. Kiểu `char` trong Java lưu mã Unicode?
-50. Ký tự `char` có thể lưu emoji không? Giải thích về surrogate pairs.
-51. `Character` class cung cấp những tiện ích gì?
-52. `codePointAt()` và `charAt()` khác nhau thế nào?
-53. Cách duyệt một chuỗi chứa emoji mà không cắt đôi ký tự?
-54. Charset mặc định trong Java là gì? Cách thay đổi?
-55. Cách encode/decode chuỗi sang byte (`getBytes(Charset)`) và ngược lại (`new String(byte[], Charset)`).
-56. Vấn đề khi encode/decode sai charset.
-57. Sự khác nhau giữa UTF-8, UTF-16, và ISO-8859-1 trong Java.
-
----
-
-## **VII. Regex & String Processing**
-
-58. `String.matches()` hoạt động thế nào?
-59. `Pattern` và `Matcher` class—lợi ích so với `matches()`.
-60. Cách compile pattern để tái sử dụng nhiều lần.
-61. Các flag quan trọng trong regex (`CASE_INSENSITIVE`, `DOTALL`, `MULTILINE`).
-62. Nhóm bắt (capturing groups) và nhóm không bắt (non-capturing).
-63. Lookahead và lookbehind trong regex.
-64. Tối ưu regex để tránh catastrophic backtracking.
-
----
-
-## **VIII. Các vấn đề nâng cao**
-
-65. So sánh `String` với `CharSequence` interface.
-66. Tại sao `String` implement `Comparable` và `CharSequence`?
-67. String interning ảnh hưởng gì tới bộ nhớ? Khi nào nên dùng/không dùng?
-68. `String.intern()` trong Java 6 vs Java 7+.
-69. `StringJoiner` và `String.join()` khác nhau thế nào?
-70. Cách join mảng/collection thành chuỗi.
-71. Tối ưu xử lý chuỗi lớn: streaming, NIO buffers, memory-mapped files.
-72. An toàn khi xử lý dữ liệu nhạy cảm trong chuỗi (ví dụ password)—tại sao nên dùng `char[]` thay vì `String`?
-73. Ảnh hưởng của `final` với biến String.
-74. Cách so sánh String mà không phụ thuộc locale (`Collator`).
-75. Hiệu năng tìm kiếm substring (`indexOf`, `lastIndexOf`, `contains`).
-76. Khi nào nên dùng `regionMatches` thay vì `substring().equals()`.
-77. String deduplication trong G1 GC—cơ chế và lợi ích.
-78. Chuỗi rỗng (`""`) vs `null`—quản lý khác nhau ra sao trong API design.
-79. Sử dụng `Formatter` với `Locale` để xử lý số và chuỗi đồng nhất.
-80. Các vấn đề thường gặp khi xử lý Unicode normalization (NFC, NFD).
+1. Định dạng tiền tệ cho nhiều quốc gia (VN, US, DE): trình bày cách dùng `NumberFormat` + `Locale`, xử lý đầu vào `"1.234,56"`.
+2. Tính lãi kép chính xác theo tháng trong 10 năm: chọn kiểu số, **rounding**, in bảng kết quả đẹp bằng `String.format`.
+3. Làm sạch và chuẩn hoá email/username: trim, lowercase (i18n-safe), chuẩn hoá Unicode để so sánh chính xác.
+4. Tạo `orderId` an toàn: dùng `SecureRandom` sinh chuỗi base62 dài N, chứng minh không bias.
+5. Xử lý text có emoji: đếm số “ký tự người dùng thấy” và cắt chuỗi không làm vỡ surrogate pair.
+6. Chuyển toàn bộ pipeline tính **thuế VAT** từ `double` sang `BigDecimal`: nêu các điểm cần đổi (khởi tạo, scale, rounding, so sánh).

@@ -1,74 +1,136 @@
-## **I) Khái niệm & Cơ bản**
+## 1) Khái niệm & Tổng quan
 
-1. Annotation trong Java là gì? Khác gì so với comment?
-2. Lợi ích của annotation so với config file XML hoặc code convention?
-3. Cú pháp khai báo annotation type (`@interface`) cơ bản như thế nào?
-4. Marker annotation là gì? Ví dụ.
-5. Annotation element có thể có kiểu dữ liệu nào? (liệt kê tất cả kiểu hợp lệ trong Java core)
-6. Tại sao annotation element không thể nhận giá trị `null`?
-7. Ý nghĩa tên đặc biệt `value()` trong annotation?
-8. Có thể áp dụng annotation lên những thành phần nào của code? (class, method, field, parameter, constructor, type parameter, type use)
-9. Có thể áp dụng cùng một annotation nhiều lần trên cùng một target không? Giới thiệu `@Repeatable`.
+1. Annotation là gì? Dùng để làm gì ở **compile-time** và **runtime**?
+2. Sự khác nhau giữa **metadata** qua annotation và **marker interface**/comment/Javadoc.
+3. ⚠️ Gài: Annotation có “kế thừa” nhau không? Có thể `extends` annotation khác không?
+4. Liệt kê **meta-annotations** chuẩn và vai trò của từng cái: `@Retention`, `@Target`, `@Documented`, `@Inherited`, `@Repeatable`.
+5. Ví dụ các annotation chuẩn trong JDK: `@Override`, `@Deprecated`, `@FunctionalInterface`, `@SuppressWarnings`.
 
 ---
 
-## **II) Meta-annotations trong Java Core**
+## 2) `@Retention` & `@Target`
 
-10. `@Retention` có những giá trị nào (`SOURCE`, `CLASS`, `RUNTIME`)? Ảnh hưởng đến thời điểm annotation tồn tại?
-11. `@Target` dùng để làm gì? Liệt kê một số `ElementType` quan trọng như `TYPE`, `METHOD`, `FIELD`, `PARAMETER`, `TYPE_USE`, `TYPE_PARAMETER`.
-12. `@Documented` có tác dụng gì?
-13. `@Inherited` hoạt động thế nào? Giới hạn áp dụng?
-14. `@Repeatable` hoạt động ra sao? Container annotation là gì?
-
----
-
-## **III) Type Annotations (Java 8 – JSR 308)**
-
-15. `@Target(ElementType.TYPE_USE)` khác gì với `@Target(ElementType.TYPE)`?
-16. Ví dụ về annotation áp dụng cho generic type, cast, hoặc throws clause.
-17. `@Target(ElementType.TYPE_PARAMETER)` dùng khi nào?
-18. Cách lấy type-use annotation qua `AnnotatedType` trong reflection.
+1. So sánh `RetentionPolicy.SOURCE`, `CLASS`, `RUNTIME`: hiệu ứng tới **class file** và **reflection**.
+2. `@Target` có những `ElementType` nào? (TYPE, METHOD, FIELD, PARAMETER, CONSTRUCTOR, PACKAGE, MODULE, TYPE\_USE, TYPE\_PARAMETER…)
+3. ⚠️ Gài: Annotation `SOURCE` có thể đọc được bằng reflection không? Vì sao IDE vẫn “biết”?
+4. Khi nào cần `TYPE_USE` và `TYPE_PARAMETER` (JSR 308)? Ví dụ gắn annotation vào generic type.
+5. Có thể đặt **nhiều** `ElementType` cho một annotation không? Công dụng thực tế.
 
 ---
 
-## **IV) Built-in annotations trong Java Core**
+## 3) Khai báo & cấu trúc annotation
 
-19. `@Override` tác dụng gì? Compiler sẽ làm gì nếu method không override thực sự?
-20. `@Deprecated` dùng như thế nào? Ý nghĩa của `since` và `forRemoval`.
-21. `@SuppressWarnings` hoạt động ra sao? Cần lưu ý gì về tên warnings?
-22. `@SafeVarargs` dùng trong trường hợp nào? Giới hạn áp dụng (`static`, `final`, `private` methods).
-23. `@FunctionalInterface` là gì? Compiler kiểm tra những gì?
-24. `@Native` annotation dùng để làm gì?
-
----
-
-## **V) Reflection với annotations**
-
-25. Cách lấy annotation của một class/method/field bằng `getAnnotation()` và `getAnnotations()`.
-26. `getAnnotation()` vs `getDeclaredAnnotation()` khác nhau thế nào?
-27. Sự khác nhau giữa `getAnnotations()` và `getAnnotationsByType()` khi làm việc với `@Repeatable`.
-28. `@Inherited` ảnh hưởng thế nào đến kết quả `getAnnotation()`?
-29. Có thể lấy annotation của parameter method bằng cách nào?
-30. Làm sao lấy annotation áp dụng cho type parameter hoặc type use?
+1. Cú pháp tạo annotation: `public @interface MyAnn { ... }`.
+2. Kiểu dữ liệu hợp lệ cho phần tử (element) của annotation: primitives, `String`, `Class`, enum, annotation khác, **array** của các kiểu trên.
+3. ⚠️ Gài: Có thể dùng `null` làm giá trị mặc định của element không? Vì sao phải chọn sentinels (ví dụ chuỗi rỗng)?
+4. Khai báo **giá trị mặc định** bằng `default`. Quy tắc “constant expression”.
+5. Quy ước đặc biệt với phần tử tên `value()` và cách viết rút gọn khi chỉ truyền `value`.
 
 ---
 
-## **VI) Thiết kế annotation đơn giản**
+## 4) Lặp lại & kế thừa annotation
 
-31. Khi nào nên dùng marker annotation thay vì annotation có element?
-32. Cách đặt `@Retention` đúng cho từng use-case: chỉ compile-time check, hay cần runtime reflection?
-33. Lợi thế và hạn chế khi dùng `Class<?>` làm element thay vì `String` tên class.
-34. Có nên để annotation chứa mảng element không? So với dùng `@Repeatable`?
-35. Cách đảm bảo backward compatibility khi thêm element mới vào annotation.
-36. Khi nào annotation chỉ nên là metadata, và khi nào có thể điều khiển logic chương trình (runtime processing)?
+1. `@Repeatable` hoạt động như thế nào? **Container annotation** là gì và được sinh ở đâu?
+2. Cách lấy annotation lặp lại qua reflection: `getAnnotationsByType` vs `getAnnotation`.
+3. ⚠️ Gài: `@Inherited` áp dụng cho **class** hay cả method/field? Ảnh hưởng thực tế.
+4. Khi override method ở subclass, annotation trên method cha có “chảy xuống” không? Khi nào phải gắn lại?
 
 ---
 
-## **VII) Edge cases trong Java Core**
+## 5) Reflection & truy xuất annotation
 
-37. `@Inherited` không áp dụng cho method/field—tại sao?
-38. Khi override method: annotation của method cha có “tự động” áp dụng cho method con không?
-39. Annotations trên generic type bị mất thông tin type parameter do erasure—ảnh hưởng thế nào?
-40. `@Repeatable` nhưng dùng `getAnnotation()` sẽ chỉ thấy 1 container—tại sao?
-41. Annotation trên local variable (`@Target(LOCAL_VARIABLE)`) có trường hợp sử dụng nào trong core Java?
-42. Annotations trên `package` và `module` được khai báo ở đâu (package-info.java, module-info.java) và cách đọc?
+1. Dùng reflection để lấy annotation trên **class**, **field**, **method**, **parameter**. Khác biệt `getAnnotations` vs `getDeclaredAnnotations`.
+2. Truy xuất annotation ở **tham số phương thức** (`Parameter` API) và ở **type use** (qua `AnnotatedType`).
+3. ⚠️ Gài: Tại sao lấy annotation RUNTIME trên **interface** có thể nhìn thấy từ class **implements**? Có phải do `@Inherited`?
+4. So sánh chi phí hiệu năng khi đọc annotation bằng reflection, cách **cache** để giảm overhead.
+
+---
+
+## 6) Processing ở compile-time (APT)
+
+1. Annotation Processing là gì? Vai trò của `javax.annotation.processing.Processor`.
+2. Dòng chảy APT: từ **source** → **rounds** → sinh mã (Filer) → compile tiếp.
+3. ⚠️ Gài: Annotation có `RetentionPolicy.RUNTIME` có cần thiết để APT đọc được không?
+4. Sự khác nhau giữa xử lý **compile-time** (APT) và **runtime** (reflection).
+5. Khi nào nên viết **annotation processor**: kiểm tra quy ước, sinh builder/mapper, validate contract.
+
+---
+
+## 7) Type Annotations (JSR 308)
+
+1. Ví dụ dùng `@NonNull List<@Email String>`: lợi ích so với chỉ gắn trên declaration.
+2. `ElementType.TYPE_USE` mở ra những vị trí gắn nào (mã generic, mảng, cast, `throws`, `implements`)?
+3. ⚠️ Gài: Trình biên dịch có **bắt buộc** thực thi ý nghĩa của type annotations (ví dụ null-safety) không? Cần gì để có tác dụng?
+4. Tương tác với công cụ tĩnh (Checker Framework/SpotBugs): cơ chế hoạt động tổng quát.
+
+---
+
+## 8) Annotation chuẩn trong JDK — chi tiết
+
+1. `@Override`: compiler kiểm tra điều gì? Trường hợp `@Override` trên interface method trong JDK cũ vs mới.
+2. `@Deprecated`: thuộc tính `since`, `forRemoval` dùng khi nào?
+3. `@SuppressWarnings`: các **key** thường dùng (`unchecked`, `deprecation`, `rawtypes`); phạm vi ảnh hưởng.
+4. ⚠️ Gài: Lạm dụng `@SuppressWarnings("unchecked")` có thể che giấu lỗi gì liên quan generics?
+
+---
+
+## 9) Annotations phổ biến ngoài JDK (tư duy phỏng vấn)
+
+1. Bean Validation (`@NotNull`, `@Email`, `@Size`…): chạy ở đâu, cần `@Validated`/`@Valid` trong Spring?
+2. Jackson (`@JsonProperty`, `@JsonIgnore`, `@JsonCreator`): mapping tên trường và constructor.
+3. Lombok (`@Getter`, `@Builder`): hoạt động ở compile-time kiểu gì (annotation processor).
+4. ⚠️ Gài: Tại sao đổi tên field nhưng **quên** cập nhật `@JsonProperty` có thể phá tương thích JSON?
+
+---
+
+## 10) Meta-annotations nâng cao & composition
+
+1. Dùng annotation này **meta-annotate** annotation khác để tạo **stereotype** (ví dụ Spring `@Service` meta-annotate `@Component`).
+2. `@AliasFor` (trong Spring) giải quyết vấn đề gì khi **liên kết** thuộc tính giữa các annotation?
+3. ⚠️ Gài: Hai annotation meta-annotate chéo nhau gây **mơ hồ** thuộc tính — nhận diện & tránh như thế nào?
+4. Chiến lược đặt **default** thông minh để giảm noise khi dùng nhiều annotation chồng.
+
+---
+
+## 11) Package/Module-level annotations
+
+1. Đặt annotation ở **package** trong `package-info.java` — use case (API docs, constraints).
+2. Gắn annotation lên **module** trong `module-info.java`: khi nào hữu ích?
+3. ⚠️ Gài: Đặt annotation ở package có “phủ” lên các class con cùng package không? Cần gì để truy xuất?
+
+---
+
+## 12) Hạn chế, tương thích & bẫy thường gặp
+
+1. Annotation elements phải là **compile-time constant**: vì sao không thể đặt `new ArrayList<>()` hay `LocalDate.now()`?
+2. Không có `null` trong element: kỹ thuật sentinel/`Optional`-like thay thế.
+3. ⚠️ Gài: Thứ tự phần tử **array** trong annotation có quan trọng không (đối với `equals`/`hashCode` của annotation)?
+4. Binary compatibility: thay đổi **giá trị hằng số** trong annotation lib có thể không phản ánh ở client nếu không **recompile** — vì sao?
+
+---
+
+## 13) Thiết kế annotation tốt
+
+1. Tiêu chí: rõ mục tiêu, minimal surface, default hợp lý, tài liệu hóa (`@Documented`).
+2. Cân nhắc `RUNTIME` vs `CLASS`: **chỉ** bật `RUNTIME` khi cần phản chiếu.
+3. ⚠️ Gài: Biến annotation thành “cấu hình mini-language” quá phức tạp có mùi gì? Khi nào nên chuyển sang code/builder JSON/YAML.
+4. Tên element `value` vs nhiều element có tên: quy ước nhất quán giúp đọc/viết gọn.
+
+---
+
+## 14) Hiệu năng & bảo mật
+
+1. Overhead đọc annotation runtime: khi nào cần **cache** (Map\<Class\<?>, AnnInfo>)?
+2. Ảnh hưởng module system (Java 9+) tới **reflective access** annotation trên **private**/non-exported packages.
+3. ⚠️ Gài: Rủi ro bảo mật khi dựa vào annotation để **bật tính năng** mà không kiểm tra quyền/role ở runtime.
+
+---
+
+## 15) Mini case (thực chiến 2–5 phút/câu)
+
+1. Thiết kế `@Audit(action, actorField)` để tự động log trước/sau khi gọi service; xác định `@Target`, `@Retention`, cách lấy **actor** bằng reflection.
+2. Viết `@Trimmed` (TYPE\_USE) để **normalize** `String` khi binding request → DTO; phác thảo chỗ cắm processor/filter.
+3. Chuyển các flag boolean rải rác thành một annotation `@FeatureToggle("key")` đọc từ config; bàn về **RUNTIME vs CLASS**.
+4. Xây `@Email` tuỳ biến dùng Bean Validation: định nghĩa element, `ConstraintValidator`, thông điệp i18n.
+5. Chuẩn hóa REST error bằng annotation `@Problem(status, code)` đặt trên exception; design cách **mapping** → `ResponseEntity`.
+6. Debug lỗi: `@Repeatable` không lấy được đủ annotations bằng reflection — liệt kê chỗ có thể sai (container, retention, API gọi).

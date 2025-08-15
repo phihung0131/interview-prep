@@ -1,202 +1,182 @@
-# I) Tư duy & Nguyên lý
+## 1) Tư duy & mục tiêu khi refactor sang phong cách hàm (functional)
 
-1. “Lập trình hàm” trong bối cảnh Java Core nghĩa là gì (không phải Haskell)? Mục tiêu khi refactor sang functional là gì?
-2. “Pure function”, “referential transparency”, “side-effect” — định nghĩa và cách kiểm tra trong Java?
-3. “Transform, don’t mutate” nghĩa là gì với cấu trúc dữ liệu Java tiêu chuẩn?
-4. Khi nào **không** nên refactor imperative sang functional (VD: hot path siêu tối ưu, thao tác I/O ràng buộc thứ tự)?
-5. Tiêu chí đánh giá refactor: **độ rõ ràng**, **tính tổng quát**, **khả năng test**, **hiệu năng**, **thread-safety** — bạn ưu tiên thế nào?
-
----
-
-# II) Nhận diện “mùi” imperative & mapping sang functional
-
-6. Những “mùi” thường gặp: biến tích lũy thay đổi liên tục, nhiều `if` lồng, vòng lặp lồng, break/continue nhiều, cờ trạng thái tạm… -> map sang `map/filter/reduce` ra sao?
-7. Khi thấy pattern “lọc rồi thao tác”: `if (…) { list.add(f(x)); }` — chuyển thành pipeline gì?
-8. Pattern “tìm phần tử đầu tiên/any”: thay `for + break` bằng gì?
-9. Pattern “tính tổng/đếm/cực trị”: thay biến tích lũy bằng `sum/count/min/max/reducing` thế nào?
-10. Pattern “nhóm/phân loại/đếm theo nhóm”: thay `Map.put/get` thủ công bằng `groupingBy/partitioningBy` thế nào?
+1. Functional style là gì trong Java “thuần” (không framework thêm)? Mục tiêu chính khi refactor?
+2. Lợi ích so với code mệnh lệnh: tính khai báo, dễ test, ít bug do trạng thái — nêu 3 lợi ích cụ thể.
+3. ⚠️ Gài: “Functional style = dùng Stream ở mọi nơi.” — Nhận định này sai ở đâu?
+4. Khái niệm **referential transparency** và **pure function**; đo lường “độ thuần” thực tế trong Java.
+5. Khi nào **không nên** refactor sang functional? Ví dụ tác vụ CPU nặng, cấu trúc dữ liệu cần thao tác ngẫu nhiên.
 
 ---
 
-# III) Từ loop sang Stream API (đơn cấp)
+## 2) Nhận diện “mùi” mệnh lệnh cần refactor
 
-11. Quy trình cơ bản để refactor `for/foreach` sang `stream()` gồm những bước nào?
-12. Chọn `map`, `filter`, `peek`, `forEach` đúng vai trò; khi nào **không** dùng `peek`?
-13. Khi pipeline có điều kiện phức tạp: nên chia nhỏ thành nhiều `filter` hay gộp một điều kiện lớn? Trade-offs?
-14. Refactor “ép kiểu + bỏ null” thường gặp: `filter(Objects::nonNull)` + `map(Sub::cast)` — có pattern sạch hơn?
-15. `findFirst` vs `findAny` khác gì trong pipeline tuần tự và song song?
-
----
-
-# IV) Từ loop lồng nhau sang `flatMap`
-
-16. Nhận diện loop lồng xử lý cấu trúc lồng (list các list) → `flatMap` ra sao?
-17. Case “sản sinh cặp (Cartesian product)” chuyển thành `flatMap` như thế nào?
-18. Làm sao giữ điều kiện lọc giữa các cấp lồng nhau trong `flatMap` mà vẫn đọc dễ?
-19. Khi dữ liệu lồng quá sâu (>2 cấp), nên dừng `flatMap` ở đâu và trích method phụ thế nào?
+1. Dấu hiệu loop lồng nhau, biến tạm, cờ (flag), break/continue phức tạp.
+2. Tích lũy thủ công bằng `for` + `if/else` để lọc, chuyển đổi, gom nhóm.
+3. ⚠️ Gài: Sử dụng `List` trung gian nhiều bước chỉ để truyền dữ liệu giữa các vòng lặp — tại sao là code smell?
+4. Cập nhật biến đếm/toán tổng toàn cục trong nhiều nhánh — rủi ro race/nhầm logic.
 
 ---
 
-# V) Giảm biến trạng thái & side-effect
+## 3) Mẫu refactor cơ bản: loop → pipeline
 
-20. Biến tích lũy trong loop → chuyển thành `reduce/collect` thế nào?
-21. Tại sao `forEach` + mutate collection bên ngoài là **mùi**? Thay bằng collector nào?
-22. Khi cần cập nhật thống kê nhiều trường cùng lúc, dùng `collectingAndThen`, `teeing` (Java 12+) hay collector tuỳ biến?
-23. Case buộc phải side-effect (ghi log, I/O): chèn ở đâu trong pipeline để không phá semantics?
-
----
-
-# VI) `Optional` & Null-handling
-
-24. Thay `if (x != null) {…}` bằng `Optional` như thế nào để không tạo **Optional of Optional**?
-25. `map/flatMap/orElse/orElseGet/orElseThrow` — chọn đúng để tránh tính toán thừa?
-26. `Optional.stream()` (Java 9+) giúp rút gọn pipeline thế nào?
-27. Tránh lạm dụng `Optional` làm field trong POJO — khi nào hợp lý/chưa hợp lý trong refactor?
+1. `for` lọc phần tử → `stream().filter(...)`.
+2. Ánh xạ (transform) → `map(...)` / primitive streams (`mapToInt`, …) để tránh boxing.
+3. Tích lũy → `reduce(...)` vs `collect(...)`: khi nào chọn cái nào?
+4. ⚠️ Gài: `forEach` có thay thế được `map`/`collect` để biến đổi dữ liệu không?
+5. Bỏ lồng nhau → `flatMap(...)`: ví dụ danh sách các danh sách.
+6. Sắp xếp → `sorted()`/`Comparator.comparing(...)`.
+7. Loại trùng → `distinct()`; điều kiện để distinct làm việc đúng.
+8. Lấy top-N → `sorted(...).limit(n)`; thứ tự đặt `limit` và `sorted` ảnh hưởng gì?
 
 ---
 
-# VII) Primitive streams & boxing
+## 4) Gom nhóm, phân vùng & tạo map bằng Collectors
 
-28. Khi nào chuyển sang `IntStream/LongStream/DoubleStream` để tránh boxing?
-29. Tác động của boxing/unboxing ẩn trong pipeline tới hiệu năng và GC?
-30. Pattern tính tổng `BigDecimal`/`long` an toàn trong stream (đặc biệt overflow)?
-
----
-
-# VIII) `collect`, `Collectors` & cấu trúc dữ liệu
-
-31. Khi nào chọn `collect(toList())` vs `toSet()` vs `toCollection(TreeSet::new)`?
-32. `groupingBy` vs `groupingByConcurrent` — khi nào dùng, có yêu cầu gì về thread-safety?
-33. `mapping`, `filtering`, `flatMapping` collector (Java 9+) dùng để ghép bộ xử lý gọn hơn thế nào?
-34. `partitioningBy` khác `groupingBy(Predicate)` ra sao?
-35. `collectingAndThen` hữu ích khi nào?
-36. Thiết kế **Collector custom**: identity, accumulator, combiner, finisher, characteristics — xác định thế nào?
-37. Ràng buộc **associativity** của combiner/accumulator ảnh hưởng gì tới đúng-sai của kết quả?
+1. `groupingBy(key)` vs `partitioningBy(predicate)` — khác nhau và ứng dụng.
+2. Kết hợp `groupingBy` với `mapping`, `counting`, `summingInt`, `maxBy`.
+3. Tạo `Map` an toàn với key trùng: `toMap(key, value, mergeFn, mapSupplier)`.
+4. ⚠️ Gài: Vì sao `toMap` ném `IllegalStateException` khi key trùng? Viết merge function thế nào cho đúng?
+5. Thu thập vào cấu trúc cụ thể: `toCollection(LinkedList::new)`, `toSet`, `toUnmodifiableList`.
 
 ---
 
-# IX) `reduce` đúng cách
+## 5) Xử lý điều kiện & nhánh phức tạp theo hướng khai báo
 
-38. Khi nào dùng `reduce` thay vì `collect`?
-39. `reduce` ba tham số (identity, accumulator, combiner) — ý nghĩa và bẫy khi identity **không** là phần tử trung tính?
-40. Vì sao `reduce` không thích hợp cho việc mutating container (VD: `reduce` + `addAll`)?
-41. Ví dụ `reduce` sai vì **không** kết hợp được ở parallel; cách sửa sang `collect`?
-
----
-
-# X) Điều khiển luồng chức năng (short-circuit, ordering)
-
-42. `anyMatch`, `allMatch`, `noneMatch` — refactor từ `for + break` thế nào?
-43. Bảo toàn **order**: khi nào cần `sorted`/`distinct`/`dropWhile`/`takeWhile` (Java 9+)?
-44. Cost của `sorted` trong pipeline và cách trì hoãn/giảm chi phí sắp xếp?
-45. Tính **lazy** của stream: làm sao phát hiện code “không thực thi” vì thiếu terminal operation?
+1. Thay thế `if/else` dài bằng **bộ quy tắc** (map từ điều kiện → hành động).
+2. Dùng `Map<Enum, Function<...>>` hoặc `switch` expression để ánh xạ hành vi.
+3. ⚠️ Gài: Lạm dụng `filter(...).findFirst().get()` có ổn không? Cách tránh `NoSuchElementException`.
 
 ---
 
-# XI) Parallel streams (core)
+## 6) `Optional` & loại bỏ `null` mệnh lệnh
 
-46. Khi nào **không** nên dùng parallel stream? Ví dụ kinh điển gây chậm hơn.
-47. Yêu cầu của accumulator/collector trong parallel: không side-effect, associative — kiểm chứng sao?
-48. Ảnh hưởng của **order** tới parallel performance (VD: `findAny` vs `findFirst`)?
-49. Cấu trúc dữ liệu nguồn (`ArrayList`, `LinkedList`, `Spliterator`) quyết định hiệu năng parallel thế nào?
-50. I/O-bound trong parallel stream — vì sao thường không phù hợp?
-
----
-
-# XII) Tái cấu trúc điều kiện & branching
-
-51. Refactor chuỗi `if-else` nhiều nhánh sang `Map` + `Function`/`Supplier` hoặc `Enum` + behavior — khi nào hợp lý?
-52. Dùng `filter`/`map` nhiều tầng vs dùng `switch` (Java 14+ switch expression) — tiêu chí chọn?
-53. “Guard clause” trong functional refactor — cách làm gọn pipeline?
+1. Dùng `Optional` để mô hình “có/không có” thay vì `if (x != null)`.
+2. Chuỗi hoá xử lý: `map`, `flatMap`, `orElse`, `orElseGet`, `orElseThrow`.
+3. ⚠️ Gài: Khác nhau giữa `orElse` và `orElseGet` về **chi phí** thực thi.
+4. `Optional.stream()` trong pipeline — khi nào giúp rút gọn code.
 
 ---
 
-# XIII) Xử lý lỗi & ngoại lệ trong pipeline
+## 7) Trạng thái, bất biến & side-effects
 
-54. Lambda ném checked exception: các chiến lược thuần core (wrap, adapter, `sneaky`) — ưu/nhược?
-55. Thiết kế API thuần Java để đưa **ngữ cảnh lỗi** vào message mà không phá pipeline?
-56. Làm sao log/đếm lỗi trong pipeline mà vẫn giữ tính thuần của transformation?
-
----
-
-# XIV) Testability & Debuggability
-
-57. Vì sao functional style giúp test dễ hơn (pure function, không trạng thái)?
-58. Chiến lược test pipeline: **property-based** vs **example-based** trong Java core?
-59. Debug pipeline: dùng `peek`/`map` phụ hay **trích method** + test riêng lẻ?
-60. Snapshot test cho kết quả `Collector` phức tạp có đáng tin?
+1. Vì sao functional style ưu tiên **bất biến**? Giảm bug race & dễ reasoning.
+2. Tránh cập nhật biến ngoài (captured state) trong lambda/stream.
+3. ⚠️ Gài: Dùng `peek()` để ghi log/đếm có ổn không? Khi nào được phép dùng `peek`.
+4. Thiết kế API trả **bản sao bất biến** hoặc **view không sửa**.
 
 ---
 
-# XV) API & Thiết kế hàm
+## 8) Performance & bộ nhớ khi chuyển sang functional
 
-61. Public API nên trả `Stream<T>` hay `Collection<T>`? Ảnh hưởng tới tài nguyên và lazy?
-62. Tránh “return stream rồi đóng resource” (leak/bug) — nguyên tắc an toàn nào?
-63. Tham số đầu vào nên là `Collection` hay `Stream`? Tác động tới composability?
-64. Hàm nên nhận **behavior** (functional param) ở đâu để tổng quát mà vẫn dễ dùng?
-
----
-
-# XVI) Tạo stream đúng cách
-
-65. Nguồn stream: `collection.stream()`, `Arrays.stream`, `Stream.of`, `Files.lines`, `Pattern.splitAsStream` — chọn đúng theo bài toán?
-66. `Stream.iterate` (Java 9 có pred) vs `Stream.generate` — dùng khi nào cho sequence vô hạn?
-67. `ofNullable` (Java 9): thay `Stream.of(x)` + null-check như thế nào?
-68. Chuyển đổi `Map` sang stream (entrySet/keySet/values) và ngữ cảnh refactor thường gặp?
+1. Chi phí boxing/unboxing; dùng **primitive streams** khi nào.
+2. Tận dụng **short-circuit**: `anyMatch`, `allMatch`, `findFirst`.
+3. ⚠️ Gài: Vì sao pipeline “nhiều `sorted()`/`distinct()`” có thể chậm hơn vòng lặp tối ưu tay?
+4. Hạn chế tạo collection trung gian; ưu tiên pipeline **lazy**.
+5. Khi nào cân nhắc `parallel()`? Nêu điều kiện dữ liệu/chi phí tách/bộ nhớ.
 
 ---
 
-# XVII) Hiệu năng & bộ nhớ (core)
+## 9) Debug & quan sát pipeline
 
-69. Khi nào pipeline tạo nhiều object tạm (boxing, tuple tạm)? Cách giảm phân bổ?
-70. So sánh `for` truyền thống + `StringBuilder` với `stream().collect(joining())`: tiêu chí chọn?
-71. Phân tích chi phí `distinct`/`groupingBy` lớn — memory-bound và chiến lược chia nhỏ pipeline?
-72. Khi nào “pre-sort + linear stream” nhanh hơn “stream + grouping/sorting trong pipeline”?
-
----
-
-# XVIII) Quy ước đặt tên & cấu trúc phương thức
-
-73. Đặt tên method thuần chức năng nên phản ánh **what** hơn **how** — ví dụ?
-74. Tách method cho từng bước `filter/map` lớn để dễ đọc & test — guideline nào là “vừa đủ”?
-75. Khi pipeline dài > 5 bước: khi nào nên **ngắt** bằng biến trung gian vs **trích** thành method?
+1. Chiến lược tách pipeline dài thành biến đặt tên (đọc hiểu tốt hơn).
+2. Dùng `peek()` đúng chỗ; thay thế bằng log tại **đầu/cuối** pipeline.
+3. ⚠️ Gài: Vì sao debug bằng `forEach(System.out::println)` có thể **làm thay đổi thứ tự** hoặc gây side-effect ngoài ý muốn?
 
 ---
 
-# XIX) Edge cases & bẫy thường gặp
+## 10) Functional composition & higher-order functions
 
-76. Dùng `forEach` để mutate nguồn → race/bugs: cách phát hiện & thay thế?
-77. `Optional.map` trả về `Optional<Optional<T>>`: vì sao xuất hiện và dùng `flatMap` ra sao?
-78. `reduce` với identity sai (không trung tính) gây sai kết quả trong parallel — ví dụ điển hình?
-79. `collect(toMap)` đụng key trùng → `IllegalStateException`: cách xử lý với merge function?
-80. `sorted` trước `distinct` vs sau `distinct`: khác biệt hiệu năng/kết quả?
-81. Dùng `peek` để logic nghiệp vụ (side-effect) — vì sao là anti-pattern?
-82. “Stream consumed” — vì sao gọi 2 terminal liên tiếp trên cùng stream nổ lỗi? Giải pháp?
-83. `Files.lines` trả stream phải đóng — pipeline + TWR tổ chức thế nào để an toàn?
-84. Parallel stream + `HashMap` trong collector tự chế → race — nhận diện và sửa?
-85. `mapToObj`/`boxed` lạm dụng gây boxing — khi nào cần primitive chuyên biệt?
+1. Kết hợp `Function` với `andThen`/`compose`; `Predicate.and/or/negate`.
+2. Method reference vs lambda: khi nào tăng độ rõ ràng.
+3. ⚠️ Gài: Sự khác nhau về thứ tự giữa `f.andThen(g)` và `g.compose(f)` minh hoạ bằng ví dụ.
+4. Xây **bộ biến đổi** có thể lắp ghép (pipeline tái sử dụng).
 
 ---
 
-# XX) Bài tập Refactor (challenge – core only)
+## 11) Refactor imperative → functional theo từng bước
 
-86. Refactor: lọc nhân viên active, sort theo lương giảm dần, lấy top N, trả tên — từ `for` sang stream.
-87. Refactor: tính tổng `BigDecimal` tiền giao dịch theo từng ngày (groupingBy + reducing).
-88. Refactor: từ danh sách users → tất cả quyền (roles) duy nhất, theo alphabet (flatMap + distinct + sorted).
-89. Refactor: đọc file lớn, bỏ dòng trống, trim, đếm số dòng bắt đầu bằng prefix (I/O + stream + short-circuit?).
-90. Refactor: thay `if-else` nhiều nhánh xử lý command bằng `Map<String, Runnable>`/`Supplier<?>` + method reference.
-91. Refactor: tìm **bất kỳ** đơn hàng quá hạn → dừng sớm (short-circuit) — từ `for` sang `anyMatch`.
-92. Refactor: ghép 2 danh sách theo khóa (join nội) bằng stream (không framework).
-93. Refactor: chuỗi thao tác số lớn → dùng `LongStream`/`IntStream` để tránh boxing.
-94. Refactor: pipeline có `sorted` tốn kém → đưa `filter` lên trước, chứng minh lợi ích.
-95. Refactor: collector tuỳ biến gộp nhiều thống kê (min/max/avg/count) trong **một pass**.
+1. Bước 1: tách logic thành **hàm thuần** nhỏ có test.
+2. Bước 2: thay vòng lặp + biến tạm bằng `map/filter/collect`.
+3. Bước 3: gom nhóm/phân trang/sắp xếp bằng Collectors.
+4. ⚠️ Gài: “Một PR đổi toàn bộ code sang Stream” — rủi ro gì? Cách **incremental refactor**.
 
 ---
 
-# XXI) Checklist kết thúc refactor
+## 12) Kiểm soát lỗi & đặc tả nghiệp vụ trong functional style
 
-96. Pipeline đã **stateless** chưa? Còn side-effect ẩn không?
-97. Có dùng đúng **primitive streams**? Có tránh boxing nơi cần?
-98. `Optional` có bị lồng nhau/overuse?
-99. Collector có đảm bảo **associativity** & đúng đặc tính khi chạy parallel?
-100. Đã viết unit test cho từng bước (method nhỏ) và test end-to-end cho pipeline chưa?
+1. Ngoại lệ checked trong lambda: chiến lược bọc/adapter.
+2. Dùng `Optional` cho “không tìm thấy” vs dùng exception cho **lỗi nghiệp vụ**.
+3. ⚠️ Gài: Bọc tất cả lỗi thành `RuntimeException` trong pipeline — mùi thiết kế gì?
+
+---
+
+## 13) Concurrency nhẹ nhàng với functional
+
+1. Dùng `CompletableFuture` theo chain `thenApply/thenCompose` thay vì **callback lồng nhau**.
+2. Kết hợp nhiều future: `allOf`/`anyOf`; mapping kết quả có kiểu.
+3. ⚠️ Gài: Vì sao **stateful lambda** + `parallelStream` thường cho kết quả sai? Cách sửa.
+
+---
+
+## 14) Pattern chuyên dụng khi refactor
+
+1. **Map-of-actions**: thay chuỗi `if/else` phân nhánh theo key.
+2. **Collector tuỳ biến**: khi Collectors mặc định không đủ (kết hợp số liệu phức tạp).
+3. ⚠️ Gài: Khi nào `reduce` **không phù hợp** bằng `collect` (vấn đề kết hợp/đơn vị?).
+4. **Windowing/chunking**: mô phỏng theo stream API (khi chưa có API sẵn).
+
+---
+
+## 15) Anti-pattern cần tránh
+
+1. Dùng stream cho task quá nhỏ/1 phần tử → overhead.
+2. Lồng `stream()` trong `stream()` mà không `flatMap`.
+3. ⚠️ Gài: Biến `forEach` thành nơi **mutate** collection khác → `ConcurrentModificationException`.
+4. Pipeline dài khó đọc: thiếu đặt tên cho bước trung gian.
+
+---
+
+## 16) Testing & đảm bảo đúng chức năng sau refactor
+
+1. Viết unit test cho các **hàm thuần** thay vì endpoint lớn.
+2. Property-based testing (đầu vào ngẫu nhiên) cho `map/filter/reduce`.
+3. ⚠️ Gài: So sánh kết quả **trước/sau** refactor với **golden master** — khi nào hữu ích?
+
+---
+
+## 17) Thiết kế API “định hướng hàm”
+
+1. Nhận vào `Function/Predicate/Comparator` thay vì “chiến lược” hard-code.
+2. Trả về **view bất biến**/`Stream` thay vì collection mutable khi phù hợp.
+3. ⚠️ Gài: Trả `Stream` từ method công khai — rủi ro gì nếu caller dùng sau khi nguồn đã đóng?
+
+---
+
+## 18) Sử dụng cấu trúc & tính năng mới hỗ trợ functional
+
+1. Dùng **records** cho DTO bất biến trong pipeline.
+2. Pattern matching (instanceof/switch) để thay chuỗi `if/else`.
+3. ⚠️ Gài: Đệ quy “functional” trong Java không có **TCO** — hệ quả, cách thay thế bằng stream/loop.
+
+---
+
+## 19) Migration & tooling
+
+1. Xác định **điểm nóng** bằng profiler để chọn đoạn refactor trước.
+2. So sánh micro-benchmark (JMH) **trước/sau** refactor.
+3. ⚠️ Gài: Tin vào benchmark không chuẩn (thiếu warm-up, dead-code elimination) dẫn tới kết luận sai như thế nào?
+
+---
+
+## 20) Mini case (thực chiến 2–5 phút/câu)
+
+1. Refactor danh sách `Order` để lấy top 10 khách theo doanh thu, bỏ các đơn `CANCELLED`, gộp theo khách, sắp xếp giảm dần.
+2. Từ danh sách `User`, lấy map `domain -> số lượng email`, không phân biệt hoa/thường, loại null/trống.
+3. Chuyển thuật toán đếm từ khoá trong tệp văn bản (nhiều dòng) sang pipeline: tách từ, normalize, group, top-K.
+4. Biến đoạn code tạo `Map<Id, Product>` với `for` và `putIfAbsent` thành `toMap` có **merge function** đúng.
+5. Refactor chuỗi `if/else` tính phí giao hàng theo khu vực & hạng thành **map-of-functions** + `switch` expression.
+6. Ghép nhiều call REST song song (3 dịch vụ) bằng `CompletableFuture`: log lỗi chuẩn, timeout, và tổng hợp kết quả gọn.
+7. Thay thế đoạn cập nhật `ArrayList` trong `parallelStream` gây lỗi bằng **collector** thread-safe hoặc gom về sequential ở đoạn mutate.
+8. Viết **collector tuỳ biến** tính trung vị (median) cho `IntStream` — bàn về trade-off bộ nhớ/độ phức tạp.
+9. Chuyển xử lý CSV: parse → validate → map DTO → group theo trạng thái → xuất thống kê, không tạo collection trung gian dư thừa.
+10. So sánh hiệu năng hai phiên bản: imperative tối ưu bằng mảng vs functional bằng stream — đề xuất tiêu chí chọn.

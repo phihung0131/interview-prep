@@ -1,129 +1,100 @@
-## I) Khái niệm & Cú pháp cơ bản
+## 1) Khái niệm & mục đích của package
 
-1. Package là gì? Mục tiêu thiết kế của package trong Java là gì (namespace, tổ chức mã, access control)?
-2. Cú pháp khai báo package đầu file `.java` như thế nào? Có bao nhiêu package có thể khai báo trong một file?
-3. Điều gì xảy ra nếu **không** khai báo dòng `package` (default package)? Hệ quả với dự án thực tế?
-4. Mối quan hệ giữa **tên package** và **cấu trúc thư mục** trong source/output?
-5. Quy tắc biên dịch/lưu trữ khi `package` không khớp thư mục (ví dụ `com.example` nhưng file nằm sai chỗ)?
-6. Tên package có phân biệt hoa/thường không? Hậu quả trên hệ điều hành khác nhau (Windows vs \*nix)?
-7. Có thể đổi tên package “tùy hứng” được không? Ảnh hưởng tới FQN (Fully Qualified Name) và tương thích nhị phân?
+1. Package là gì? Nó giải quyết vấn đề gì về tổ chức mã nguồn và không gian tên?
+2. Sự khác nhau giữa **package** và **module** (Java 9+): phạm vi và vai trò.
+3. `java.lang.Package` đại diện cho điều gì ở runtime? Lấy metadata gì từ nó?
 
----
+## 2) Quy tắc đặt tên & cấu trúc thư mục
 
-## II) Quy ước đặt tên & tổ chức
+1. Quy ước đặt tên package (lowercase, domain đảo ngược). Vì sao nên tránh tên ngắn/không có domain?
+2. Cấu trúc thư mục ↔ câu lệnh `package` trong file `.java`: ánh xạ như thế nào?
+3. ⚠️ Gài: **Subpackage** có thừa kế quyền của package cha không? Ví dụ `a.b` vs `a.b.c`.
+4. Tên package hợp lệ gồm ký tự gì? Có nên dùng Unicode/tiếng Việt trong tên package?
 
-8. Quy ước đặt tên package theo reversed domain (vd: `com.mycompany.app`)—lợi ích?
-9. Khi nào nên chia nhỏ thành **subpackage** (vd: `com.app.util`, `com.app.service`)? “Subpackage” có **kế thừa** gì về access control không?
-10. Ký tự hợp lệ trong tên package? Dùng số, `_`, `-` được không?
-11. Tránh trùng tên với package chuẩn (vd: `java.util`)—vì sao?
-12. Tiêu chí nhóm code theo package: theo layer (api, service, repository), theo domain (order, user), hay kết hợp?
-13. Tên package gắn với version (vd `v1`, `v2`)—ưu/nhược?
+## 3) Tầm vực truy cập & package-private
 
----
+1. Bốn mức truy cập (`public`, `protected`, *default*/package-private, `private`) ảnh hưởng ra sao khi khác package?
+2. Quy tắc **`protected`** khi khác package: truy cập hợp lệ trong bối cảnh nào?
+3. ⚠️ Gài: `class` top-level có thể `private`/`protected` không? Nếu không, muốn “ẩn” lớp thì làm thế nào?
+4. Quan hệ truy cập giữa **top-level** class cùng package và **nested class**.
 
-## III) Access control & Visibility (package-level)
+## 4) `package` declaration & nhiều lớp trong một file
 
-14. **Package-private** (default, không ghi modifier) là gì? Ai truy cập được?
-15. `protected` khác gì `package-private` khi khác package nhưng có **kế thừa**?
-16. `public` class trong package A có thể dùng class package-private trong cùng package A không?
-17. `private` top-level class có tồn tại không? Nếu không, vì sao?
-18. Một file có thể chứa nhiều top-level class không? Modifier nào bắt buộc với class trùng tên file?
-19. “Friend-like” access qua package: ưu/nhược điểm so với `public` API?
-20. Access của **nested class** (inner/static nested) tương tác ra sao với package-level visibility?
+1. Cú pháp và vị trí bắt buộc của dòng `package` trong file `.java`.
+2. Một file có thể chứa nhiều lớp top-level không? Lớp nào phải trùng tên file, vì sao?
+3. ⚠️ Gài: Nếu **không** có dòng `package`, lớp thuộc package nào? Hệ quả trong import và classpath.
 
----
+## 5) `import` & `static import`
 
-## IV) Import & tên đầy đủ (FQN)
+1. `import` hoạt động thế nào? Nó có “nạp” class vào bộ nhớ không?
+2. `import a.*` vs `import a.B`: khác biệt, ưu/nhược.
+3. `static import` dùng khi nào (`import static java.util.Collections.*`)? Khi nào **tránh** dùng để giữ code rõ ràng?
+4. ⚠️ Gài: Hai lớp trùng tên ở hai package khác nhau — compiler chọn lớp nào? Cách giải mơ hồ.
 
-21. `import` hoạt động thế nào? Có ảnh hưởng runtime không hay chỉ là cú pháp compile-time?
-22. `import a.b.*;` có import **subpackages** không? Vì sao nhiều người hiểu nhầm?
-23. Khác nhau giữa `import a.b.C;` và `import a.b.*;` về độ rõ ràng và xung đột tên?
-24. **Ambiguous import**: 2 class cùng tên ở 2 package khác nhau—giải quyết ra sao?
-25. Khi nên dùng **FQN** (vd: `java.util.Date`) thay vì import?
-26. Static import (`import static ...`) dùng khi nào? Pitfalls (đọc hiểu, xung đột tên)?
-27. Hiệu năng compile-time khi dùng wildcard import vs import tường minh? Myth vs thực tế.
+## 6) Classpath, JAR & package identity
 
----
+1. Classpath là gì? JVM tìm lớp theo package như thế nào trong thư mục/JAR?
+2. Vai trò của **MANIFEST.MF** (ví dụ `Main-Class`), có ảnh hưởng gì đến package không?
+3. ⚠️ Gài: “**Split package**” là gì (cùng tên package trải trên nhiều JAR)? Vấn đề gì có thể xảy ra trước/sau Java 9?
 
-## V) Classpath, JAR & Tải lớp (core level)
+## 7) Tài nguyên (resources) trong package
 
-28. **Classpath** là gì? Compiler/runtime tìm class theo package như thế nào?
-29. Khác nhau giữa **sourcepath** và **classpath** khi dùng `javac`?
-30. Một package có thể “trải” trên nhiều JAR khác nhau không? (split package ở góc nhìn classpath thuần)
-31. Khi có **trùng FQN** (cùng package + cùng tên class) ở nhiều JAR, classloader chọn cái nào?
-32. **Sealed package** trong JAR manifest là gì (core-level, không JPMS)? Ảnh hưởng vi phạm sẽ ra sao?
-33. Package và **SecurityManager** (di sản): khái niệm “package sealing” và kiểm tra toàn vẹn.
-34. Ảnh hưởng của **đường dẫn trùng lặp** (same class on classpath nhiều lần) với việc nạp lớp theo package?
+1. Cách tổ chức file tài nguyên (properties, images) trong `src/main/resources` và truy xuất bằng `Class#getResource*`.
+2. Khác biệt đường dẫn bắt đầu bằng `/` và không khi gọi `getResource`.
+3. ⚠️ Gài: Vì sao dùng `new File(...)` thường **sai** khi truy cập tài nguyên đóng gói trong JAR?
 
----
+## 8) `package-info.java` & package-level annotations
 
-## VI) Tài nguyên (resources) & package
+1. `package-info.java` dùng để làm gì (Javadoc, annotations ở mức package)?
+2. Cú pháp khai báo annotation cho package và cách đọc ở runtime.
+3. ⚠️ Gài: Đặt `@Nonnull` ở package có “tự động” áp vào tất cả tham số/return không? Cần điều kiện gì để công cụ hiểu?
 
-35. Cách tổ chức **resources** theo package (thư mục) để dùng `Class.getResource(...)`/`getResourceAsStream(...)`?
-36. Đường dẫn tương đối vs tuyệt đối trong `getResource(...)` liên hệ thế nào với package của class gọi?
-37. Tên package ảnh hưởng gì tới **ResourceBundle** (i18n) lookup?
-38. Loading resource trong JAR theo package có khác gì so với filesystem?
-39. Bẫy phổ biến khi build ra JAR: resource không nằm đúng package → load thất bại.
+## 9) Sealed package & bảo toàn tính toàn vẹn (JAR sealing)
 
----
+1. “Package sealing” là gì trong MANIFEST (`Sealed: true`)? Mục đích, lợi/hại.
+2. ⚠️ Gài: Điều gì xảy ra nếu hai JAR **sealed** cùng package tên giống nhau nằm trên classpath?
 
-## VII) `package-info.java` & Annotations ở cấp package
+## 10) Tương tác với Security/Module (nhẹ)
 
-40. `package-info.java` dùng để làm gì? Có thể chứa những thứ gì (javadoc, annotations)?
-41. Làm sao gắn **annotation** vào package? (khai báo ở `package-info.java`)
-42. Sự khác nhau khi đọc annotation ở cấp **package** so với class (Reflection API nào)?
-43. `@Documented`/`@Retention` lựa chọn nào phù hợp cho annotation cấp package?
-44. Có thể có nhiều `package-info.java` cho cùng một package ở nhiều thư mục nguồn không? Hợp nhất thế nào lúc compile?
+1. Quan hệ giữa package và **module exports** (Java 9+): `exports`/`opens` khác nhau thế nào?
+2. Ảnh hưởng của module đến **reflective access** vào class/field ở package không `open`.
+3. ⚠️ Gài: Code chạy tốt ở Java 8 nhưng phản chiếu (reflection) **fail** ở Java 17 — liên quan đến package và module như thế nào?
 
----
+## 11) Thiết kế phân tầng & thực hành tốt
 
-## VIII) Công cụ & Quy trình biên dịch (javac/jar)
+1. Cách chia package theo **domain** (feature-based) vs **layer** (controller/service/repo). Trade-off mỗi cách.
+2. Quy tắc ổn định phụ thuộc (tầng **api** không phụ thuộc **impl**).
+3. ⚠️ Gài: “God package” chứa quá nhiều lớp — dấu hiệu và chiến lược tách nhỏ.
+4. Tên package là **một phần hợp đồng công khai**: ảnh hưởng đến binary compatibility và tài liệu.
 
-45. `javac -d out src/...` sắp xếp output theo package ra sao?
-46. `jar` đóng gói: sơ đồ thư mục trong JAR phải khớp package như thế nào?
-47. Khi đổi package, cần cập nhật những đâu (import, build scripts, shade/relocate)?
-48. Ảnh hưởng của **obfuscation/shading** tới tên package (relocation) và tương thích nhị phân?
-49. Có nên dùng package tên ngắn để giảm kích thước classfile/JAR? (thực tế vs ảnh hưởng đọc hiểu)
+## 12) Testing & packages
 
----
+1. Sử dụng **package-private** để test: đặt test cùng package hay dùng **test fixtures**?
+2. ⚠️ Gài: Test ở module khác không truy cập được package-private — các cách giải (opens cho test, move test vào same module).
 
-## IX) Quan hệ với OOP & Thiết kế API
+## 13) Collisions & refactoring
 
-50. Dùng package để **ẩn chi tiết triển khai** và chỉ public hóa “API surface” nhỏ—cách bố trí thư mục hợp lý?
-51. “Feature package” (gom theo module nghiệp vụ) vs “layer package” (controller/service/repo): trade-offs?
-52. Tách `api` và `impl` theo package: cách giảm rò rỉ type nội bộ ra public API?
-53. Kết hợp **package-private** với **factory pattern** để kiểm soát tạo đối tượng?
-54. Tổ chức test theo package: test có thể truy cập package-private không (cùng package)?
-55. Thiết kế tên package phản ánh **bounded context** trong DDD: lợi ích lâu dài?
+1. Xử lý xung đột tên lớp ở các thư viện khác nhau (FQCN, adapter).
+2. Chiến lược refactor đổi tên package an toàn: IDE refactor, kiểm thử, kiểm tra tài nguyên/`package-info.java`.
+3. ⚠️ Gài: Đổi tên package **breaking** serialization (FQCN trong stream) — phát hiện & xử lý.
+
+## 14) Hiệu năng & class loading
+
+1. Package ảnh hưởng gì tới tốc độ class loading không? Yếu tố thực sự chi phối là gì (I/O, classloader).
+2. ⚠️ Gài: Dùng **Class.forName** với FQCN sai package gây lỗi nào? Phân biệt `ClassNotFoundException` vs `NoClassDefFoundError`.
+
+## 15) Best practices & quy ước nhóm
+
+1. Quy ước tên package ổn định, không lặp viết tắt khó hiểu.
+2. Tách **api** (interfaces, DTO) ra package riêng với tài liệu rõ; **impl** ẩn ở package khác.
+3. ⚠️ Gài: Lộ lớp **internal** qua `public` trong package API — rủi ro đối với người dùng thư viện.
 
 ---
 
-## X) Tương tác với `protected`/kế thừa & packages
+## 16) Mini case (thực chiến 2–5 phút/câu)
 
-56. Quy tắc chi tiết của `protected` khi **khác package** nhưng **có kế thừa** (ai truy cập được, qua tham chiếu nào)?
-57. `protected` + package-private members khác package: ví dụ dễ gây hiểu nhầm?
-58. Subclass cùng package vs khác package: khác biệt thực quyền truy cập?
-59. “Friend package” (không có thật): cách mô phỏng bằng packaging & design?
-
----
-
-## XI) ClassLoader & Packages (ở mức core)
-
-60. Mỗi `Class` biết mình thuộc package nào như thế nào? (`Class.getPackage()`) trả về gì khi không có `package-info`?
-61. Hai class cùng **tên package** nhưng do **ClassLoader khác** nạp—chúng có “cùng package” theo JVM không?
-62. Tác động của việc override `getResource` ở custom classloader tới resource lookup theo package?
-63. Có thể tạo `Package` đối tượng runtime (`Package.getPackage`) và metadata (Implementation-Version…) như thế nào?
-
----
-
-## XII) Edge cases & Bẫy thường gặp
-
-64. Không thể **import** từ **default package**—vì sao?
-65. Import static với tên đụng `java.lang.Math.*` và constant trùng tên—làm sao tránh nhập nhằng?
-66. Wildcard import từ **nhiều package** gây khó đọc—quy tắc dọn dẹp?
-67. **Tên trùng** giữa class và package (vd: package `util` và class `util`)—hệ quả?
-68. “Shadowing” class chuẩn bằng class cùng tên trong package tự tạo—tác hại?
-69. Tải tài nguyên với đường dẫn sai (thiếu `/` đầu) khi dùng `getResource`—khác biệt giữa call từ instance vs từ class?
-70. `package-info.java` bị IDE bỏ qua khi không có javadoc: cách đảm bảo nó vẫn compile/đóng gói?
-
----
+1. Bạn có hai thư viện đều chứa lớp `com.example.util.Strings`. Hãy trình bày 3 cách loại bỏ mơ hồ khi sử dụng.
+2. Ứng dụng Monorepo: tổ chức packages theo **feature** để giảm phụ thuộc vòng—đưa ra sơ đồ mẫu và nguyên tắc import.
+3. Tích hợp Java 17 modules: gói `com.acme.internal` cần reflection bởi Jackson trong test—trình bày cấu hình `opens` an toàn.
+4. Refactor hệ thống đổi domain từ `com.startup` sang `io.product`: kế hoạch cutover, kiểm tra tài nguyên & serialization.
+5. Đóng gói JAR **sealed** cho package `com.acme.crypto` để ngăn can thiệp — nêu tác dụng phụ có thể gặp trong môi trường plugin.

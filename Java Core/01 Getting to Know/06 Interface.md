@@ -1,164 +1,102 @@
-## I) Khái niệm & Cú pháp cơ bản
+## 1) Khái niệm & cú pháp cơ bản
 
-1. Interface là gì? Khác gì với abstract class ở mục tiêu thiết kế?
-2. Vì sao Java cần interface trong hệ thống type single-inheritance?
-3. Khai báo interface tối thiểu trông như thế nào? Có access modifiers nào hợp lệ?
-4. Interface mặc định “extends” gì? Có thể `final`/`sealed`/`non-sealed` không?
-5. Một class có thể đồng thời `extends` class và `implements` nhiều interface như thế nào?
-6. Interface có thể `implements` interface khác không? (so sánh với `extends` của interface)
-7. So sánh “contract-based design” của interface với “template-based” của abstract class.
-8. Khi nào nên bắt đầu từ interface thay vì class cụ thể?
+1. Interface là gì? Khác gì so với **class trừu tượng** ở mục tiêu thiết kế và khả năng kế thừa?
+2. Quy tắc khai báo interface (top-level vs nested). Tên file, package, visibility.
+3. ⚠️ Gài: Interface có “trạng thái” (state) không? Nếu có thì là kiểu gì và giới hạn ra sao?
+4. Một class “implements” nhiều interface được không? Trình bày ưu/nhược so với kế thừa lớp duy nhất.
+5. Sự khác nhau giữa **implements** và **extends** (interface có thể `extends` nhiều interface).
 
----
+## 2) Thành phần trong interface (fields & members)
 
-## II) Thành phần trong interface
+1. Mặc định field trong interface có modifiers gì (visibility, static, final)?
+2. ⚠️ Gài: Vì sao thay đổi giá trị hằng số trong interface có thể **không** ảnh hưởng tới code đã biên dịch khác module? (inlining & binary compatibility)
+3. Interface có thể chứa **nested types** không (class/interface/enum)? Modifiers mặc định là gì?
+4. Interface có được phép có **initializer blocks** hay constructor không? Vì sao?
 
-9. Những thành phần hợp lệ: abstract method, default method, static method, private method (từ Java 9), nested types?
-10. Tại sao field trong interface luôn là `public static final` (implicit)?
-11. Có thể có instance field trong interface không? Vì sao bị cấm?
-12. Thứ tự khởi tạo static field/initializer trong interface so với class?
-13. Có thể khai báo `public`/`private`/`protected` cho method trong interface không? Trường hợp nào hợp lệ?
-14. Có cần (hoặc nên) ghi rõ `public abstract` trước method không?
-15. Interface có thể chứa `record`, `enum`, hoặc class lồng nhau không? Quy tắc truy cập?
+## 3) Methods trong interface
 
----
+1. `abstract` method mặc định là `public` — có thể hạ xuống `protected`/`private` không?
+2. `default` method là gì? Dùng để làm gì trong việc **evolve API**?
+3. `static` method trong interface khác gì `default` method về cách gọi và thừa kế?
+4. Từ Java 9: `private` method trong interface dùng lúc nào và vì sao hữu ích?
+5. ⚠️ Gài: Có thể khai báo `synchronized`/`final`/`native` cho method trong interface không? Lý do.
 
-## III) Default methods (Java 8+)
+## 4) Default methods & quy tắc phân giải xung đột
 
-16. Default method giải quyết vấn đề gì về tiến hóa API (API evolution)?
-17. Khi hai interface cung cấp default method trùng chữ ký, class implement phải xử lý xung đột ra sao?
-18. Có thể gọi default method của interface cụ thể từ class con như thế nào?
-19. Default method có thể `synchronized`/`final`/`native` không?
-20. Thứ tự chọn implementation: method override của class vs default method của interface?
-21. Default method có nên chứa logic phức tạp? Best practices?
+1. Khi một class implements **hai** interface có default method trùng chữ ký, chuyện gì xảy ra? Cách giải xung đột (override + `A.super.m()`).
+2. Quy tắc “**class wins**” và “**more specific interface wins**” là gì? Ví dụ minh họa.
+3. ⚠️ Gài: Default method có thể “override” các method từ `Object` (equals/hashCode/toString) không? Hành vi thực tế thế nào?
+4. Ảnh hưởng của default method tới **binary compatibility** khi thêm method mới vào interface công khai.
 
----
+## 5) Functional Interface & Lambda
 
-## IV) Static & Private methods
+1. Functional interface là gì (SAM type)? Vai trò của `@FunctionalInterface`.
+2. ⚠️ Gài: Vì sao các method từ `Object` **không tính** vào số lượng abstract methods của functional interface?
+3. Một functional interface có thể chứa **default** và **static** methods không? Ảnh hưởng tới “độ đơn” SAM?
+4. Ví dụ các functional interfaces chuẩn: `Runnable`, `Callable`, `Supplier`, `Function`, `Consumer`, `Predicate`, `Comparator`.
+5. Phân biệt lambda, method reference, anonymous class khi gán cho functional interface (khác biệt về captured variables & overhead).
 
-22. Static method trong interface có được kế thừa không? Cách gọi đúng?
-23. Khác biệt giữa utility static trong interface vs utility class thuần (e.g. `Math`)?
-24. Private method trong interface dùng để làm gì? Có giới hạn nào khi gọi?
-25. Có thể `private static` method trong interface không? Use-cases?
+## 6) Kế thừa interface & đa thừa
 
----
+1. Interface có thể `extends` nhiều interface khác — quy tắc khi trùng **constant**/method signature.
+2. Trường hợp **diamond** giữa nhiều cấp interface: trình bày cách compiler phân giải.
+3. ⚠️ Gài: Hai super-interface khai báo **method abstract** trùng chữ ký nhưng khác `throws` — hợp lệ không?
+4. Sub-interface có thể **hẹp** kiểu trả về (covariant return type) cho method kế thừa không?
 
-## V) Kế thừa interface, Multiple inheritance & Diamond
+## 7) Generics với interface
 
-26. Một interface có thể `extends` nhiều interface? Thứ tự ảnh hưởng gì?
-27. Diamond problem với interface xuất hiện khi nào? Cách giải quyết trong Java?
-28. Ưu/nhược của multiple inheritance ở mức interface so với mixins?
-29. Interface inheritance có hỗ trợ “state sharing” không? Tại sao không?
+1. Khai báo **generic interface** (`interface Repo<T>`). Ưu/nhược so với generic class.
+2. ⚠️ Gài: **Type erasure** ảnh hưởng gì tới overload/bridge methods khi implement generic interface?
+3. Bất biến, `? extends`, `? super` trong ngữ cảnh method của interface — áp dụng quy tắc **PECS**.
+4. Raw types với interface generic: rủi ro và cảnh báo unchecked.
 
----
+## 8) Exceptions & hợp đồng phương thức
 
-## VI) Functional interfaces & Lambdas
+1. Interface method có thể khai báo `throws` checked exceptions: lớp triển khai được **nới rộng** hay **thu hẹp** `throws`?
+2. ⚠️ Gài: Default method ném checked exception—class implement **không** khai báo gì thêm có compile được không?
+3. Tài liệu hoá (Javadoc) về exceptions ở interface vs ở lớp triển khai — best practice.
 
-30. Functional interface là gì? Điều kiện ràng buộc (Single Abstract Method) cụ thể?
-31. Dùng `@FunctionalInterface` để làm gì? Nó bắt lỗi gì ở compile-time?
-32. SAM + default methods: có phá tính “functional” không?
-33. Lambda có thể ném checked exception không? Chiến lược xử lý checked exception trong lambda?
-34. Method reference tương tác với functional interface như thế nào?
-35. So sánh anonymous class vs lambda về capture biến và this/equals/hashCode.
+## 9) Sealed interfaces (Java 17+)
 
----
+1. Sealed interface là gì? Cú pháp `sealed interface X permits A, B`.
+2. ⚠️ Gài: Khác nhau giữa `sealed`/`non-sealed`/`final` đối với **hệ phân cấp đóng**.
+3. Lợi ích của sealed đối với **pattern matching** trong `switch` và exhaustiveness checking.
 
-## VII) Generics & Type System
+## 10) Interface vs Abstract Class — so sánh sâu
 
-36. Interface generic: `interface Repository<T>` — cách ràng buộc `T extends ...`?
-37. Raw type với interface generic: hậu quả và cảnh báo?
-38. Wildcards `? extends` / `? super` trong method của interface: khi nào dùng?
-39. Bridge methods và type erasure: tác động đến interface generic?
-40. Covariant return types khi override method từ interface?
-41. Có thể tạo “self-referential generic interface” (F-bounded polymorphism)? Dùng khi nào?
+1. Khi nào chọn interface thay vì abstract class? Tiêu chí: đa thừa vs chia sẻ state.
+2. ⚠️ Gài: Có thể mô phỏng **đa kế thừa hành vi** bằng interface + default methods, nhưng có nhược điểm gì (độ phức tạp, mùi thiết kế)?
+3. Giao diện **SPI/API**: dùng interface để đảo ngược phụ thuộc (DIP) như thế nào?
 
----
+## 11) Marker Interface & so sánh với Annotation
 
-## VIII) Exceptions & throws trong interface
+1. Marker interface là gì (vd: `Serializable`, `Cloneable`)? Giá trị của nó trong **type system**.
+2. ⚠️ Gài: Khi nào **annotation** là lựa chọn tốt hơn marker interface và ngược lại?
+3. Ảnh hưởng tới `instanceof`, generic bounds và toolchain (framework, runtime checks).
 
-42. Interface method có thể khai báo `throws` checked exceptions? Ảnh hưởng tới implementors?
-43. Khi override, có thể mở rộng danh sách checked exceptions không?
-44. `default`/`static` method ném exception thì ai bắt? Best practices khi thiết kế API.
+## 12) Khởi tạo interface & class loading
 
----
+1. Khi nào **khởi tạo** interface diễn ra? Truy cập **compile-time constant** có kích hoạt khởi tạo không?
+2. ⚠️ Gài: Constant trong interface được **inline** vào bytecode — hệ quả khi đổi giá trị ở thư viện nhưng không recompile client.
 
-## IX) Visibility, Modules & Packages
+## 13) Thiết kế API dựa trên interface
 
-45. Interface `public` vs package-private khác gì về API design?
-46. Ảnh hưởng của Java Platform Module System (JPMS) lên việc export interfaces giữa modules?
-47. Split packages và interface: rủi ro/khuyến nghị?
-48. Khi refactor location của interface giữa modules, giữ binary compatibility ra sao?
+1. Tách **interface** (hợp đồng) và **implementation** để giảm coupling như thế nào?
+2. **ISP** (Interface Segregation Principle): chia nhỏ interface để tránh “fat interface”.
+3. ⚠️ Gài: Lạm dụng interface “cho mọi thứ” có mùi gì? Khi nào class cụ thể là đủ?
+4. Versioning & compatibility: chiến lược thêm method mới (default), thêm constant, đổi tên method.
 
----
+## 14) Logging, equals/hashCode & toString trong interface
 
-## X) Thiết kế, Patterns & Thực tiễn
+1. Có nên đặt **hằng số** logger (`Logger`) trong interface rồi **implements** để “thừa kế” logger? Ưu/nhược?
+2. ⚠️ Gài: Đặt `equals/hashCode/toString` dạng **default** trong interface liệu có tác dụng? Tác động tới lớp triển khai?
+3. Tổ chức **utility static methods** trong interface vs trong class `final` utility (ví dụ `Comparator`, `Map` có static factory).
 
-49. Dùng interface để tách abstraction/implementation (Bridge, Strategy, State): ví dụ nào “sạch”?
-50. Interface segregation principle (ISP): chia nhỏ interface thế nào để tránh “fat interface”?
-51. Marker interfaces (e.g., `Serializable`, `Cloneable`) vs annotations: khi nào dùng cái nào?
-52. Lạm dụng interface (over-abstraction) gây hại gì?
-53. “SPI vs API” với interface: khác biệt câu chuyện mở rộng ở runtime?
-54. Interface + Dependency Injection: tips để viết testable code?
-55. Interface-stability: quy tắc thay đổi chữ ký/return type mà không phá backward compatibility?
-56. `equals/hashCode` contract khi tham chiếu qua interface thay vì class cụ thể?
-57. Kỹ thuật “role interface” trong domain: lợi ích & pitfalls.
+## 15) Mini case (thực chiến 2–5 phút/câu)
 
----
-
-## XI) Interop với class, enum, record, sealed types
-
-58. Enum có thể implement interface? Use-cases phổ biến (strategy per-constant)?
-59. Record (value carrier) implement interface: phù hợp khi nào?
-60. Abstract class + interface cùng tồn tại: chọn đặt logic mặc định ở đâu?
-61. Sealed interfaces: model hóa closed hierarchies và exhaustive `switch`?
-62. Tương tác pattern matching (instanceof + switch) với các implementors của một interface?
-63. Có nên cho interface biết quá nhiều về loại implementor (leaky abstraction)?
-
----
-
-## XII) Reflection & Runtime
-
-64. Làm sao kiểm tra một `Class<?>` là interface (Reflection API)?
-65. Lấy danh sách method/field của interface bằng reflection có khác gì class?
-66. Dynamic proxies (`java.lang.reflect.Proxy`) xây dựng implementor runtime như thế nào?
-67. Hạn chế của `Proxy` so với bytecode generation (ByteBuddy, ASM)?
-68. InvocationHandler xử lý equals/hashCode/toString thế nào cho interface proxy?
-
----
-
-## XIII) Serialization & Frameworks
-
-69. Interface và Java serialization: object graph chứa reference kiểu interface có yêu cầu gì với implementor?
-70. JSON binding (Jackson/Gson) với trường có type là interface: cách polymorphic deserialization?
-71. Spring bean injection theo interface vs theo class: ưu/nhược?
-72. MapStruct mappper qua interface: cơ chế generate implementation?
-73. JAX-RS/Feign clients định nghĩa contract bằng interface: lưu ý checked exceptions, default methods?
-
----
-
-## XIV) Hiệu năng & ABI/Binary Compatibility
-
-74. Gọi qua interface (invokeinterface) vs qua class (invokevirtual): khác biệt hiệu năng/JIT?
-75. Devirtualization & inlining khi call site là interface — khi nào JIT tối ưu được?
-76. Thêm default method mới vào interface public: có phá binary compatibility không?
-77. Xoá/đổi chữ ký method interface: hậu quả runtime?
-78. Sử dụng sealed interface để giúp JIT tối ưu các `switch` exhaustiveness?
-
----
-
-## XV) Edge cases & Câu hỏi gài
-
-79. Có thể tạo instance của interface không? (anonymous class, proxy) Các giới hạn?
-80. Interface có thể khai báo `main` static method và chạy không?
-81. Interface có thể tham chiếu tới `this` trong default method? Ngữ nghĩa?
-82. Field `public static final` trong interface được “inlined” — rủi ro khi thay đổi giá trị?
-83. Default method gọi đến method abstract khác: thứ tự ràng buộc và nguy cơ `NullPointerException`/override trap?
-84. Default method ném exception checked mà interface không khai báo? Có hợp lệ?
-85. Kế thừa hai interface có method cùng tên nhưng khác return type: xử lý thế nào?
-86. Hai interface có method trùng chữ ký nhưng khác `throws` checked exceptions: xung đột?
-87. Interface tham chiếu tới generic type erasure: khi runtime cast, có `ClassCastException` bất ngờ?
-88. Có thể gán tham chiếu `null` cho biến kiểu interface không? Ý nghĩa thiết kế?
-89. Làm sao mô hình hoá “optional capability” bằng interface nhỏ (role-based design)?
-90. Khi viết thư viện, làm sao thiết kế interface “mở rộng dần” (evolution-friendly) mà không buộc người dùng sửa code mỗi phiên bản?
-
----
+1. Thiết kế **PricingStrategy** (interface) với 3 biến thể: `Flat`, `Tiered`, `Promo` — xử lý xung đột default method tính thuế.
+2. Refactor một API “God interface” 15 method thành 3 interface nhỏ theo **ISP**.
+3. Xử lý xung đột default: `Auditable.log()` và `Traceable.log()` trùng chữ ký; viết lớp `Service` giải quyết bằng `A.super.log()`.
+4. Tạo `@FunctionalInterface` `RetryPolicy<T>` + ví dụ lambda/method reference; thảo luận checked exception.
+5. Dùng **sealed interface** cho phân hệ `Event` (`UserCreated`, `OrderPlaced`). Viết `switch` exhaustiveness.
+6. Minh hoạ lỗi binary-compat: app A dùng `Config.MAX = 10` từ interface của lib B; đổi `MAX=20` ở B nhưng không recompile A — kết quả gì?
