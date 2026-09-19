@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luồng 4: Vận Hành Nội Bộ, Châm Hàng & Gia Công Combo (Internal & Replenishment)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            internal: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              700: '#b45309',
+              900: '#78350f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-amber-500 selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+      <!-- Title & Flow Badge -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 text-white font-bold text-base">
+          L4
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg text-white tracking-tight">LUỒNG 4: Vận Hành Nội Bộ & Châm Hàng (Internal & Replenishment)</h1>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">Min-Max & Combo Kitting</span>
+          </div>
+          <p class="text-xs text-slate-400">Giám sát tồn kho an toàn • Châm hàng định kỳ & khẩn cấp • Tháo dỡ set combo • Xử lý thùng rác ma (Ghost Bin) • Sổ cái Submission WIV</p>
+        </div>
+      </div>
+
+      <!-- Quick Knowledge & Story Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="btnOpenGlossary" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>📚</span>
+          <span>Cẩm Nang Vận Hành Nội Bộ</span>
+        </button>
+        <button id="btnOpenStory" class="px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>📦</span>
+          <span>Chuyện Cú Giải Cứu Phút 89</span>
+        </button>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60 shadow-inner">
+        <button id="btnPrev" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước trước">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button id="btnPlay" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow transition-all active:scale-95">
+          <svg id="iconPlay" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span id="txtPlay">Tự động phát</span>
+        </button>
+        <button id="btnNext" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước kế">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div class="h-4 w-px bg-slate-700 mx-1"></div>
+        <select id="selSpeed" class="bg-slate-900 text-xs text-slate-300 font-mono rounded px-2 py-1 border border-slate-700 outline-none focus:border-amber-500">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2.0x</option>
+        </select>
+        <button id="btnReset" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 rounded-lg transition-colors" title="Khởi động lại">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+
+      <!-- Quick Search Bar -->
+      <div class="relative w-full lg:w-60">
+        <input id="apiSearchInput" type="text" placeholder="Tìm API, Min-Max, Ghost Bin..." 
+               class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors font-mono">
+        <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <section class="bg-slate-900/40 border-b border-slate-800/80 px-4 py-2.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto pb-1" id="stepProgressList">
+      <!-- Populated dynamically via renderStepProgressBar() -->
+    </div>
+  </section>
+
+  <main class="max-w-7xl mx-auto p-4 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+    
+    <!-- LEFT COLUMN: Canvas Animation & Physical Warehouse Matrix (7 Cols) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      
+      <!-- Interactive 4-Lanes Animation Canvas Card -->
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl relative overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+              Sơ Đồ Tương Tác 4 Lớp Vận Hành Nội Bộ (4-Lanes Internal Engine)
+            </h2>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400">Trạng thái gói tin:</span>
+            <span id="packetTransmissionStatus" class="font-mono text-amber-400 font-medium">Sẵn sàng giám sát tồn</span>
+          </div>
+        </div>
+
+        <!-- Animation Canvas Container -->
+        <div class="relative w-full h-[360px] bg-slate-950/80 rounded-xl border border-slate-800/90 overflow-hidden shadow-inner">
+          <canvas id="flowCanvas" class="w-full h-full block"></canvas>
+          
+          <!-- Physical Warehouse Mini Visualizer Overlay (Bottom-Right) -->
+          <div class="absolute bottom-3 right-3 bg-slate-900/95 border border-slate-700/80 backdrop-blur rounded-xl p-3 max-w-xs text-xs shadow-xl pointer-events-none">
+            <div class="flex items-center gap-2 font-semibold text-slate-200 mb-1">
+              <span id="warehouseStageIcon" class="text-base">📊</span>
+              <span id="warehouseStageTitle">Bàn Giám Sát Tồn An Toàn Min-Max</span>
+            </div>
+            <p id="warehouseStageDesc" class="text-slate-400 text-[11px] leading-snug">
+              WES liên tục đối soát số lượng trên kệ nhặt lẻ với định mức an toàn để tự động sinh lệnh châm hàng định kỳ hoặc khẩn cấp.
+            </p>
+          </div>
+
+          <!-- Step Badge Overlay -->
+          <div class="absolute top-3 left-3 bg-amber-950/85 border border-amber-500/40 backdrop-blur px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg">
+            <span class="text-xs font-bold text-amber-300" id="stepBadgeNumber">BƯỚC 1</span>
+            <span class="text-xs text-slate-200 font-medium" id="stepBadgeTitle">Giám sát ngưỡng tồn & Kích hoạt châm hàng</span>
+          </div>
+        </div>
+
+        <!-- 4 Lanes Legend Info -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs">
+          <div class="bg-blue-950/30 border border-blue-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-400 shadow-sm shadow-blue-400/50"></span>
+            <div>
+              <div class="font-bold text-blue-200">1. Kệ Nhặt Lẻ / Bàn Combo</div>
+              <div class="text-[10px] text-slate-400">Picking Zone, Kitting Bench</div>
+            </div>
+          </div>
+          <div class="bg-amber-950/30 border border-amber-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+            <div>
+              <div class="font-bold text-amber-200">2. WES Replenishment</div>
+              <div class="text-[10px] text-slate-400">Bộ não Min-Max & Dispatcher</div>
+            </div>
+          </div>
+          <div class="bg-emerald-950/30 border border-emerald-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+            <div>
+              <div class="font-bold text-emerald-200">3. Sổ Cái WIV Submission</div>
+              <div class="text-[10px] text-slate-400">Xử lý ghi sổ 10 luồng Member</div>
+            </div>
+          </div>
+          <div class="bg-purple-950/30 border border-purple-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-purple-400 shadow-sm shadow-purple-400/50"></span>
+            <div>
+              <div class="font-bold text-purple-200">4. Kho Cao Tầng / Cần Trục & Xe Nâng</div>
+              <div class="text-[10px] text-slate-400">High-Bay ASRS, Forklift, WCS</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Physical Transformation Matrix Card -->
+      <div class="glass-panel rounded-2xl p-4 shadow-xl border border-slate-800 flex flex-col gap-2.5">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Chuyển Đổi Thực Thể & Trạng Thái Vật Lý Nội Bộ (Internal Transformation)
+        </h3>
+        
+        <div id="transformationContainer" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center text-xs">
+          <!-- Populated dynamically via JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Step Business Explorer & Deep Dive (5 Cols) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl flex-1 flex flex-col min-h-[580px]">
+        
+        <!-- Header with 3 Tabs -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <span id="tabHeadingText">Nghiệp Vụ Bước Này</span>
+              <span id="apiCountBadge" class="bg-amber-600/30 text-amber-300 border border-amber-500/40 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">6 APIs</span>
+            </h2>
+            <p class="text-xs text-slate-400" id="currentStepSubtitle">Chi tiết hành vi châm hàng, gia công combo và ghi sổ tồn kho</p>
+          </div>
+          <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+            <button id="tabBtnDeepDive" class="px-2.5 py-1 rounded bg-amber-600 text-white font-medium transition-all text-[11px]">Nghiệp vụ</button>
+            <button id="tabBtnList" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Danh sách API</button>
+            <button id="tabBtnDiagram" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Sơ đồ tuần tự</button>
+          </div>
+        </div>
+
+        <!-- TAB 1: Business Deep Dive View -->
+        <div id="stepDeepDiveContainer" class="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderStepDeepDive() -->
+        </div>
+
+        <!-- TAB 2: List View of APIs -->
+        <div id="apiListContainer" class="hidden flex-1 overflow-y-auto space-y-2 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderApiList() -->
+        </div>
+
+        <!-- TAB 3: Sequence Diagram View -->
+        <div id="sequenceDiagramContainer" class="hidden flex-1 overflow-y-auto max-h-[520px] p-3 bg-slate-950/90 rounded-xl border border-slate-800/80 font-mono text-[11px] leading-relaxed text-slate-300">
+          <!-- Populated dynamically via renderSequenceDiagram() -->
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JARGON BUSTER MODAL (CẨM NANG NGHIỆP VỤ VẬN HÀNH NỘI BỘ) -->
+  <div id="glossaryModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-amber-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">📚</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cẩm Nang Nghiệp Vụ Vận Hành Nội Bộ Kho (Internal & Replenishment)</h3>
+            <p class="text-xs text-amber-300">Giải mã cốt lõi: Min-Max, Châm khẩn cấp, Gia công Combo, Thùng rác ma (Ghost Bin) và Kiến trúc Submission WIV</p>
+          </div>
+        </div>
+        <button id="closeGlossaryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 text-xs uppercase mb-1">1. Châm hàng định kỳ (Regular) vs Châm hàng khẩn cấp (Urgent Replenishment) khác nhau thế nào?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            • <strong>Châm hàng định kỳ (Regular):</strong> Dựa trên công thức Min-Max. Khi lượng tồn trên kệ nhặt lẻ rớt xuống dưới mức Min (ví dụ: dưới 20 cái), WES tự động tạo lệnh hạ cả pallet hoặc thùng nguyên từ giàn kệ dự trữ cao (High-Bay) xuống để lấp đầy tới mức Max (ví dụ: 100 cái). Việc này thường diễn ra đầu ca hoặc khi sàn kho rảnh rỗi.<br>
+            • <strong>Châm hàng khẩn cấp (Urgent):</strong> Xảy ra khi có một đơn hàng xuất (B2B hoặc TMĐT) đang chờ nhặt nhưng kệ nhặt lẻ đã rỗng hoàn toàn (Stockout). Hệ thống kích hoạt ngắt ưu tiên cao nhất, ra lệnh cho cần trục kho tự động ASRS rút ngay thùng hàng xuống để giải phóng đơn hàng bị nghẽn (Blocker Resolution).
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 text-xs uppercase mb-1">2. Nghiệp vụ Tháo dỡ Combo (Assortment Disassembling / Kitting) là gì?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Trong bán lẻ thời trang, nhà sản xuất thường giao theo bộ combo nguyên set: "1 Bộ thể thao nam gồm 1 áo thun + 1 quần jogger". Tuy nhiên, khi bán lẻ trên mạng hoặc tại cửa hàng, khách hàng lại có nhu cầu mua <strong>áo riêng</strong> hoặc <strong>quần riêng</strong>. Công nhân sẽ mang 100 bộ combo ra bàn gia công, rạch bao bì bóc tách thành 100 áo lẻ và 100 quần lẻ. Sổ cái WIV phải thực hiện giao dịch bù trừ logic phức tạp: trừ 100 bộ mã COMBO-01 và lập tức cộng thêm 100 áo SKU-AO và 100 quần SKU-QUAN mà không làm sai lệch tổng giá trị tài sản kho.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 text-xs uppercase mb-1">3. Khái niệm "Thùng rác ma" (Ghost Bin) và Khu cách ly (Quarantine)</h4>
+          <p class="text-slate-300 leading-relaxed">
+            • <strong>Ghost Bin (Thùng rác ma):</strong> Khi hệ thống phần mềm báo vị trí Kệ A-12-04 đang chứa 50 chiếc áo, nhưng khi Robot chạy đến lấy thì cảm biến phát hiện ô kệ... trống rỗng hoàn toàn! Lệnh <code class="font-mono text-amber-300">Mark As Ghost Bin</code> lập tức phong tỏa vị trí ma này để ngăn robot tiếp theo chạy đến vô ích, đồng thời phát còi báo cho thủ kho vào kiểm tra thực địa.<br>
+            • <strong>Khu cách ly (Quarantine):</strong> Khi khay hàng bị rơi rớt, móp méo rách bao bì hoặc cảm biến robot báo quá tải trọng tải an toàn, khay hàng bị chuyển hướng thẳng vào khu cách ly kiểm tra chất lượng (QA Zone), không cho phép xuất bán.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 text-xs uppercase mb-1">4. Cơ chế Sổ Cái Nộp Phiếu (Submission Flow) 10 Luồng Member của WIV</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Để đảm bảo tốc độ sàn kho không bị đơ giật vì khóa cơ sở dữ liệu (Database Deadlock), WES không bao giờ trực tiếp trừ số dư trên bảng tổng của WIV. Thay vào đó, WES nộp một bản ghi giao dịch gọi là <strong>Submission Ticket</strong>. Hệ thống WIV phía sau khởi chạy cụm 10 tiến trình batch song song (Member 1/10 đến 10/10) để phân chia dữ liệu theo mã sản phẩm, kiểm tra khóa phân tán và cộng/trừ số dư an toàn tuyệt đối. Sau khi xử lý xong, WIV phát thông báo hoàn tất ngược lại cho WES.
+          </p>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeGlossaryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đã hiểu, đóng cẩm nang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORY MODE MODAL (CHUYỆN CÚ GIẢI CỨU ĐƠN HÀNG PHÚT 89) -->
+  <div id="storyModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-amber-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">📦</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cú Giải Cứu Đơn Hàng Phút 89 & Pha Xử Lý Thùng Rác Ma</h3>
+            <p class="text-xs text-amber-300">Chuyện một ca trực gay cấn tại kho thông minh khi kệ hết hàng, robot gặp ô trống và chiến dịch bóc tách 200 bộ combo</p>
+          </div>
+        </div>
+        <button id="closeStoryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center font-bold shrink-0">1</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-rose-300 text-xs mb-1">10:15 Sáng - Kệ nhặt cạn kiệt & Đơn hàng hỏa tốc bị kẹt</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Tại ô kệ nhặt lẻ A-04, anh Tuấn chuẩn bị lấy một chiếc quần jogger xám size L cho đơn giao hỏa tốc 2 giờ của khách TMĐT thì phát hiện trên kệ chỉ còn đúng... 0 chiếc! Đơn hàng lập tức bị treo ở trạng thái chờ hàng (Stockout Blocker).
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-bold shrink-0">2</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-amber-300 text-xs mb-1">10:16 Sáng - Còi báo châm hàng khẩn cấp & Cần trục High-Bay xuất kích</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Ngay lập tức, API <code class="font-mono text-amber-300">IV_AP_0003_05_DC</code> kích hoạt lệnh châm khẩn cấp (Urgent Replenishment). Cần trục tự động Stacker Crane cao 18 mét lập tức lao tới dãy kệ dự trữ trên cao, hạ nguyên một pallet chứa 20 thùng quần jogger xuống sàn. Xe nâng điện nhận lệnh từ máy quét cầm tay đưa thẳng pallet tới bổ sung cho ô kệ A-04. Đơn hàng của khách được giải phóng chỉ sau 4 phút!
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold shrink-0">3</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-purple-300 text-xs mb-1">11:00 Trưa - Phát hiện "Thùng rác ma" (Ghost Bin) trên giàn tự động</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Cùng lúc đó, một chú robot tự động chạy đến ô kệ C-09-02 để lấy khay áo khoác gió theo lệnh chuyển hàng. Nhưng khi cánh tay cơ học vươn ra, cảm biến quang học báo: Ô kệ trống trơn, không có khay nào! Hệ thống không bị treo mà tự động gọi <code class="font-mono text-amber-300">IV_AP_0004_17 Mark As Ghost Bin</code> để khóa ô ma này lại, đồng thời điều hướng robot sang một ô kệ dự phòng khác để lấy hàng mà không làm chậm tiến độ chung.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold shrink-0">4</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-emerald-300 text-xs mb-1">13:30 Chiều - Chiến dịch tháo dỡ 200 bộ combo thể thao tại bàn gia công</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Nhận thấy nhu cầu áo phông lẻ tăng đột biến trên sàn Shopee trong khi bộ combo thể thao đang thừa nhiều, phòng điều hành ra lệnh tháo dỡ qua <code class="font-mono text-amber-300">IV_AP_0011_02_DC</code>. Tại bàn Kitting, hai nhân viên rạch mở 200 bộ combo, phân loại thành 200 áo phông lẻ và 200 quần đùi lẻ, dán tem mã vạch mới. Batch <code class="font-mono text-amber-300">IV_BT_0001_04_DC</code> lập tức trừ tồn combo và bơm thêm tồn hàng lẻ cho kênh bán trực tuyến.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold shrink-0">5</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-blue-300 text-xs mb-1">14:00 Chiều - Cụm 10 Luồng Sổ Cái WIV hoàn tất ghi nhận an toàn</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Mọi biến động dịch chuyển từ tầng cao xuống tầng thấp, tháo dỡ combo và xử lý thùng cách ly được nộp thành các phiếu <code class="font-mono text-amber-300">Submission</code> sang sổ cái WIV. Cụm batch 10 tiến trình song song băm nhỏ dữ liệu, khóa trừ theo từng mã PLU và gửi câu trả lời xác nhận: Toàn bộ số dư vật lý và sổ cái kế toán cân khớp 100%, không lệch một chiếc áo nào!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeStoryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đóng câu chuyện
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API INSPECTOR MODAL -->
+  <div id="apiModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-slate-700/80 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div class="flex items-center gap-3">
+          <span id="modalMethodBadge" class="px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider">PUT</span>
+          <div>
+            <h3 id="modalApiCode" class="text-sm font-mono font-bold text-white tracking-wide">IV_AP_0003_05_DC</h3>
+            <p id="modalApiName" class="text-xs text-slate-300">Register Urgent Replenishment Instruction</p>
+          </div>
+        </div>
+        <button id="modalCloseBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Systems Involved Route -->
+      <div class="px-5 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between gap-3 text-center font-mono text-xs">
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Nguồn Gửi (Source)</span>
+          <span id="modalSourceSystem" class="text-amber-400 font-bold text-xs">WES Outbound Blocker Monitor</span>
+        </div>
+        <div class="text-slate-600 flex items-center">
+          <span class="text-amber-400 font-bold">━━━━ ➔ </span>
+        </div>
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Hệ Nhận & Xử Lý (Target)</span>
+          <span id="modalTargetSystem" class="text-purple-400 font-bold text-xs">Cần trục tự động High-Bay / Xe nâng</span>
+        </div>
+      </div>
+
+      <!-- 4 Inspection Tabs inside Modal -->
+      <div class="flex border-b border-slate-800 bg-slate-950/80 px-5 pt-2 gap-2 text-xs">
+        <button id="modalTabBtnBusiness" class="pb-2 px-2 border-b-2 border-amber-500 text-white font-semibold">1. Nghiệp vụ cốt lõi</button>
+        <button id="modalTabBtnPhysical" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">2. Thao tác sàn kho</button>
+        <button id="modalTabBtnRisk" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">3. Rủi ro & Khóa Lock</button>
+        <button id="modalTabBtnTech" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">4. Sổ cái WIV & JSON</button>
+      </div>
+
+      <!-- Modal Body (Tab Contents) -->
+      <div class="p-5 overflow-y-auto space-y-3 text-xs flex-1">
+        
+        <!-- Tab Content 1: Business -->
+        <div id="modalTabContentBusiness" class="space-y-3">
+          <div class="bg-amber-950/20 border border-amber-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-amber-300 uppercase tracking-wider text-[11px] mb-1">Mục đích & Tại sao phải có hàm này?</h4>
+            <p id="modalWhyNeeded" class="text-slate-200 leading-relaxed">Nội dung giải thích chi tiết...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-orange-300 uppercase tracking-wider text-[11px] mb-1">Ví dụ thực tế đời thường (Analogy):</h4>
+            <p id="modalRealLifeAnalogy" class="text-slate-300 leading-relaxed">Ví dụ đời thường...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 2: Physical Work -->
+        <div id="modalTabContentPhysical" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Hành động của công nhân & thiết bị:</h4>
+            <p id="modalPhysicalActionDetailed" class="text-slate-300 leading-relaxed">Mô tả thao tác...</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Thiết bị phần cứng sử dụng</span>
+              <p id="modalDevicesUsed" class="text-slate-200 font-medium mt-0.5">Cần trục Stacker Crane, Xe nâng điện, Handy Terminal</p>
+            </div>
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Khu vực vật lý (Physical Zone)</span>
+              <p id="modalPhysicalZone" class="text-slate-200 font-medium mt-0.5">Khu kệ dự trữ cao tầng High-Bay ASRS</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content 3: Risk & Lock -->
+        <div id="modalTabContentRisk" class="hidden space-y-3">
+          <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-rose-300 uppercase tracking-wider text-[11px] mb-1">Nếu hàm này bị lỗi hoặc bỏ qua thì sao?</h4>
+            <p id="modalRiskConsequence" class="text-rose-200/90 leading-relaxed">Hậu quả rủi ro...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Quy tắc kiểm tra (Validation) & Xử lý lỗi:</h4>
+            <p id="modalErrorHandling" class="text-slate-300 leading-relaxed">Quy tắc nghiệp vụ...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-amber-300 uppercase tracking-wider text-[11px] mb-1">Cơ chế khóa Lock (Concurrency):</h4>
+            <p id="modalLockMechanism" class="text-amber-200/90 leading-relaxed">Cơ chế lock...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 4: Tech & WIV -->
+        <div id="modalTabContentTech" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-emerald-300 uppercase tracking-wider text-[11px] mb-1">Tác động Sổ Cái Tồn Kho WIV:</h4>
+            <p id="modalInventoryDetailed" class="text-slate-300 leading-relaxed">Biến động tồn kho...</p>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] font-mono">Dữ Liệu Mẫu (Payload / Response JSON)</h4>
+              <button id="modalCopyBtn" class="text-amber-400 hover:text-amber-300 text-[11px] font-medium flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Sao chép JSON
+              </button>
+            </div>
+            <pre id="modalJsonPayload" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] font-mono text-amber-300 overflow-x-auto max-h-40">
+              { "loading": true }
+            </pre>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+        <span class="text-slate-500 text-[11px]">Nhấn <kbd class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">ESC</kbd> để đóng</span>
+        <button id="modalCloseActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors">
+          Đóng cửa sổ
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* Complete Specification of LUỒNG 4: VẬN HÀNH NỘI BỘ, CHÂM HÀNG & GIA CÔNG COMBO */
+    const FLOW_DATA = {
+      id: "FLOW_4",
+      title: "LUỒNG 4: VẬN HÀNH NỘI BỘ, CHÂM HÀNG & GIA CÔNG COMBO (INTERNAL & REPLENISHMENT)",
+      description: "Mô phỏng các dịch vụ diễn ra bên trong 4 bức tường của kho: Tự động châm hàng từ kho dự trữ sang kệ nhặt lẻ, di chuyển pallet giữa các tầng, xử lý khay hàng bị lỗi (Ghost Bin) và tháo rời các set đồ (combo) thành sản phẩm lẻ.",
+      steps: [
+        {
+          id: 1,
+          name: "Bước 1: Giám sát ngưỡng tồn & Kích hoạt châm hàng (Replenishment Trigger)",
+          shortTitle: "1. Giám sát tồn & Lệnh châm",
+          badge: "BƯỚC 1",
+          icon: "📊",
+          warehouseTitle: "Bàn Giám Sát Tồn An Toàn Min-Max & Trạm Châm Khẩn Cấp",
+          warehouseDesc: "WES liên tục quét số lượng tồn tại các ô kệ nhặt lẻ, đối chiếu định mức Min-Max để kích hoạt lệnh châm hàng định kỳ theo ca hoặc phát lệnh châm hàng khẩn cấp khi đơn xuất bị thiếu hàng.",
+          businessDeepDive: {
+            coreMeaning: "Tại kho bán lẻ và TMĐT, diện tích kệ nhặt lẻ (Picking Location) luôn có giới hạn và sản phẩm vơi đi rất nhanh sau mỗi đợt nhặt. Nếu để kệ nhặt bị rỗng (Stockout), công nhân nhặt hàng sẽ phải dừng lại chờ đợi, làm vỡ tiến độ đóng gói và xuất hàng. Thuật toán Min-Max liên tục so sánh tồn kho thực tế với ngưỡng an toàn: Khi tồn kho giảm dưới ngưỡng Min, hệ thống tự động sinh nhu cầu bổ sung hàng từ kho dự trữ tầng cao (High-Bay Storage) xuống để làm đầy tới mức Max.",
+            whyCritical: "Phân biệt rạch ròi giữa Châm hàng định kỳ (Regular) và Châm hàng khẩn cấp (Urgent): Châm định kỳ chạy theo đợt lớn khi kho rảnh rỗi. Châm khẩn cấp xảy ra khi có một đơn hàng đang cần xuất ngay nhưng trên kệ nhặt không còn chiếc áo nào. Lệnh châm khẩn cấp sẽ cướp quyền ưu tiên cao nhất trên hệ thống điều khiển cần trục để giải phóng đơn hàng bị nghẽn.",
+            physicalProcess: [
+              "1. API IV_AP_0010_01/02_DC định kỳ quét toàn bộ vị trí nhặt hàng lẻ theo từng phân khu trong kho.",
+              "2. Module logic IV_ML_0002_02 tính toán nhu cầu bổ sung dựa trên công thức Min-Max và các đơn hàng đang chờ phân bổ.",
+              "3. Nếu là chu kỳ đầu ca: Điều phối viên gọi IV_AP_0003_06_DC để tạo lệnh châm hàng định kỳ cả pallet/thùng nguyên.",
+              "4. Nếu phát hiện đơn xuất hàng bị nghẽn do thiếu tồn: Hệ thống kích hoạt IV_AP_0003_05_DC để phát lệnh châm hàng khẩn cấp (Urgent Replenishment).",
+              "5. Màn hình quản lý gọi IV_AP_0009_01_DC hiển thị danh sách các đề xuất châm khẩn cấp để giám sát viên phê duyệt ngay lập tức."
+            ],
+            riskMitigation: "Nếu kho dự trữ tầng cao cũng hết sạch mặt hàng đó, WES tự động kích hoạt cảnh báo thiếu hàng toàn kho (Global Shortage Alert) và chuyển đơn hàng sang hàng đợi chờ nhập hàng mới, không làm tắc nghẽn các đơn khác trong đợt sóng."
+          },
+          transformation: {
+            before: "Kệ nhặt lẻ có số lượng tồn rớt xuống dưới mức Min (Sắp cạn kiệt)",
+            action: "Quét Min-Max + Tính toán số lượng bù + Kích hoạt lệnh châm định kỳ/khẩn cấp",
+            after: "Lệnh châm hàng sinh ra trên hệ thống, sẵn sàng phát lệnh cho cần trục và xe nâng"
+          },
+          animation: {
+            sourceLane: 0,
+            targetLane: 1,
+            packetLabel: "Min-Max Scan & Replenish Trigger",
+            packetColor: "#f59e0b"
+          },
+          apis: [
+            {
+              code: "IV_AP_0010_01_DC & IV_AP_0010_02_DC",
+              name: "Retrieve Replenishment Requirement by In Warehouse Area & Retrieve Regular Replenishment Requirement",
+              type: "API",
+              method: "POST",
+              source: "Màn hình Quản trị Tồn kho WES (Inventory UI)",
+              target: "WES Replenishment Engine",
+              whyNeeded: "Quét toàn bộ các vị trí nhặt hàng lẻ tại từng phân khu kho để lọc ra các ô kệ có số lượng tồn rớt xuống dưới mức tồn an toàn tối thiểu (Min threshold).",
+              realLifeAnalogy: "Như nhân viên siêu thị đi kiểm tra quầy kệ sữa tươi: quầy nào chỉ còn dưới 5 hộp thì ghi vào sổ để vào kho lấy thêm ra bày lên kệ.",
+              physicalAction: "Hệ thống truy vấn cơ sở dữ liệu vị trí ô kệ trong 150 mili-giây, liệt kê danh sách 85 ô kệ cần được châm hàng.",
+              devicesUsed: "Máy chủ WES Server & Màn hình giám sát ca trực",
+              physicalZone: "Phòng điều hành kho trung tâm",
+              riskConsequence: "Không phát hiện kịp các ô kệ sắp hết hàng, dẫn đến công nhân nhặt hàng đến nơi thì kệ đã rỗng.",
+              errorHandling: "Lọc bỏ các ô kệ đang trong diện bảo trì hoặc bị phong tỏa kiểm kê.",
+              lockMechanism: "Replenishment Requirement Read Lock.",
+              inventoryImpact: "Ghi nhận trạng thái CẦN_BỔ_SUNG_HÀNG trên các vị trí nhặt lẻ.",
+              payload: { areaId: "AREA_PICK_ZONE_B", scannedLocationsCount: 450, needReplenishCount: 24, timestamp: "2026-09-19T03:00:00Z" }
+            },
+            {
+              code: "IV_ML_0002_02",
+              name: "Calculate Regular Replenishment Requirement",
+              type: "MODULE",
+              method: "MODULE",
+              source: "WES Calculation Core",
+              target: "WES Replenishment Work Queue",
+              whyNeeded: "Tính toán chính xác số lượng sản phẩm cần lấy ra từ kho dự trữ để vừa đủ làm đầy ô kệ lên mức Max mà không gây tràn kệ.",
+              realLifeAnalogy: "Tính xem bình xăng xe máy dung tích 5 lít, hiện còn 1 lít thì cần bơm đúng 4 lít là vừa đầy tràn.",
+              physicalAction: "Thuật toán đối chiếu kích thước khay, dung tích ô kệ và quy cách đóng gói (thùng 24 chiếc) để làm tròn số lượng châm tối ưu.",
+              devicesUsed: "Bộ xử lý tính toán logic WES",
+              physicalZone: "Tầng logic máy chủ WES",
+              riskConsequence: "Châm quá nhiều hàng làm rơi vãi khỏi kệ hoặc châm quá ít khiến công nhân phải đi châm nhiều lần trong ngày.",
+              errorHandling: "Tự động làm tròn theo đơn vị thùng nguyên (Carton) hoặc khay tiêu chuẩn (Tote) của kho.",
+              lockMechanism: "Algorithm Calculation Semaphore.",
+              inventoryImpact: "Xác định chính xác số lượng cần lấy từ vị trí nguồn sang vị trí đích.",
+              payload: { sku: "POLO-SHIRT-BLK-L", currentQty: 8, minLevel: 20, maxLevel: 100, calculatedReplenishQty: 92, unitType: "CARTON" }
+            },
+            {
+              code: "IV_AP_0003_06_DC",
+              name: "Register Regular Replenishment Instruction",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Điều phối viên Châm hàng",
+              target: "WES Work Dispatcher",
+              whyNeeded: "Tạo lệnh châm hàng định kỳ chính thức trên hệ thống, phân bổ công việc lấy các pallet/thùng nguyên từ kho trên cao xuống sàn nhặt.",
+              realLifeAnalogy: "Trưởng ca ký duyệt phiếu giao việc đầu ca cho đội xe nâng: 'Đi lấy 10 pallet quần áo từ tầng 4 hạ xuống dãy kệ A'.",
+              physicalAction: "Hệ thống sinh 24 chỉ thị châm hàng, gán độ ưu tiên tiêu chuẩn (Priority: Standard) và đẩy vào hàng đợi thiết bị.",
+              devicesUsed: "Màn hình điều độ kho & Máy chủ giao việc",
+              physicalZone: "Khu vực điều hành xuất nhập",
+              riskConsequence: "Hàng nghẽn không được đưa xuống, ca làm việc bị chậm năng suất.",
+              errorHandling: "Khớp đối soát tồn kho nguồn: Nếu vị trí kho trên cao không đủ hàng nguyên, chuyển sang tìm vị trí dự phòng lân cận.",
+              lockMechanism: "Replenishment Instruction Lock.",
+              inventoryImpact: "Khóa giữ chỗ số lượng hàng trên kho dự trữ (RESERVED_FOR_REPLENISHMENT).",
+              payload: { instructionId: "REP_REG_20260919_012", fromLocation: "HIGH_BAY_R08_L04", toLocation: "PICK_SLOT_A_12", qtyToTransfer: 48 }
+            },
+            {
+              code: "IV_AP_0003_05_DC & IV_AP_0009_01_DC",
+              name: "Register Urgent Replenishment Instruction & Retrieve Urgent Replenishment Offer",
+              type: "API",
+              method: "PUT/POST",
+              source: "Hệ thống Bắt lỗi Thiếu hàng Xuất kho (WES Blocker Detector)",
+              target: "Bộ điều khiển Thiết bị Ưu tiên Khẩn cấp (High Priority Dispatcher)",
+              whyNeeded: "Tạo lệnh châm hàng khẩn cấp tức thời khi đơn hàng xuất (B2B hoặc TMĐT) đang chờ nhặt mà kệ lại rỗng; cướp quyền ưu tiên của cần trục tự động.",
+              realLifeAnalogy: "Xe cứu thương bật còi ưu tiên vượt qua các xe khác trên đường để đưa bệnh nhân vào cấp cứu nhanh nhất.",
+              physicalAction: "Màn hình điều hành nhấp nháy đèn đỏ báo động, cần trục tự động kho cao tầng ngắt tác vụ bình thường để ưu tiên gắp thùng hàng cần thiết.",
+              devicesUsed: "Còi cảnh báo âm thanh & Màn hình hiển thị lệnh khẩn cấp",
+              physicalZone: "Khu vực Kệ nhặt lẻ và Kệ cao tầng High-Bay",
+              riskConsequence: "Đơn hàng hỏa tốc bị trễ giờ xuất bến xe tải, vi phạm cam kết giao hàng với khách hàng hoặc siêu thị.",
+              errorHandling: "Xác thực mã đơn hàng bị nghẽn (Blocker Order ID); tự động tìm thùng hàng gần mặt đất nhất để giảm thời gian hạ hàng.",
+              lockMechanism: "Urgent Queue Preemption Lock.",
+              inventoryImpact: "Gắn cờ ƯU_TIÊN_KHẨN_CẤP cho dòng hàng được điều chuyển.",
+              payload: { urgentInstructionId: "URG_REP_9921", blockedOrderId: "ORD_EXPRESS_8819", sku: "HOODIE-WINTER-NVY-M", pickupUrgency: "IMMEDIATE" }
+            }
+          ]
+        },
+        {
+          id: 2,
+          name: "Bước 2: Phân bổ và Điều động thiết bị lấy hàng (Transfer Execution)",
+          shortTitle: "2. Điều động thiết bị & Lấy hàng",
+          badge: "BƯỚC 2",
+          icon: "🚜",
+          warehouseTitle: "Kho Kệ Dự Trữ Cao Tầng (High-Bay) & Cần Trục Stacker Crane",
+          warehouseDesc: "Hệ thống phân rã lệnh chuyển hàng, ra lệnh cho cần trục tự động ASRS rút thùng hàng khỏi giàn cao tầng hoặc điều động tài xế xe nâng tới bốc pallet đưa sang kệ nhặt lẻ.",
+          businessDeepDive: {
+            coreMeaning: "Sau khi lệnh châm hàng được duyệt, hàng hóa không tự bay từ kho dự trữ sang kệ nhặt lẻ được. Kho hiện đại chia làm hai nhóm thiết bị: (1) Khu tự động (ASRS High-Bay) do cần trục Stacker Crane và robot thực thi thông qua lệnh điện tử WCS; (2) Khu kệ thông thường do tài xế xe nâng điện (Forklift) lái tới lấy. Cụm batch phân tán 3 giai đoạn (Producer -> Member -> Aggregator) đảm bảo việc chia việc cho các máy và xe nâng không bao giờ bị đụng độ hoặc trùng lệnh.",
+            whyCritical: "Cần trục tự động di chuyển với vận tốc lên tới 4m/giây ở độ cao 18 mét. Nếu lệnh truyền sai tọa độ hoặc hai xe nâng cùng tranh chấp một vị trí lấy hàng, sự cố va chạm cơ khí có thể làm đổ sập cả pallet hàng và gây đình trệ toàn bộ phân khu.",
+            physicalProcess: [
+              "1. Cụm batch phân tán IV_BT_0011_01/02/03 xử lý danh sách các lệnh chuyển hàng, phân bổ cho từng phân khu và cập nhật trạng thái.",
+              "2. Batch IV_BT_0011_04 và API IV_AP_0003_10 phát lệnh lấy hàng xuống bộ điều khiển cần trục tự động Stacker Crane của kho cao tầng.",
+              "3. Đối với khu kệ xe nâng cơ học: API IV_AP_0003_02 phát lệnh di chuyển hàng lên màn hình thiết bị gắn trên xe nâng.",
+              "4. Tài xế xe nâng hoặc cần trục tự động di chuyển hàng tới vị trí kệ đích.",
+              "5. Người vận hành quét mã vạch xác nhận qua IV_AP_0004_01 (chuyển có lệnh) hoặc IV_AP_0004_02 (chuyển linh hoạt không lệnh)."
+            ],
+            riskMitigation: "Nếu cần trục tự động bị kẹt cơ khí giữa giàn kệ, hệ thống tự động ngắt kết nối ô đó và chuyển hướng lệnh sang ô dự phòng khác, đồng thời gửi thông báo sự cố về trung tâm bảo trì kỹ thuật."
+          },
+          transformation: {
+            before: "Thùng/Pallet hàng nằm im trên tầng cao 18 mét của kho dự trữ",
+            action: "Cần trục ASRS hạ hàng + Xe nâng chở tới kệ nhặt + Quét Barcode xác nhận hạ hàng",
+            after: "Hàng hóa đã nằm trên kệ nhặt lẻ, sẵn sàng cho công nhân và robot bốc xuất"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 3,
+            packetLabel: "ASRS Crane Retrieval & Forklift Move",
+            packetColor: "#c084fc"
+          },
+          apis: [
+            {
+              code: "IV_BT_0011_01 / 02 / 03",
+              name: "Get Inventory Transfer Allocation Result (Producer) -> Assign (Member) -> Update Status (Aggregator)",
+              type: "BATCH",
+              method: "BATCH CLUSTER",
+              source: "WES Transfer Orchestration Pipeline",
+              target: "WES Task Database",
+              whyNeeded: "Cụm batch 3 giai đoạn phân tán: Lấy toàn bộ các yêu cầu điều chuyển nội bộ, gán việc cho từng khu vực/thiết bị phụ trách và cập nhật trạng thái sẵn sàng thực thi.",
+              realLifeAnalogy: "Như ban điều hành cảng biển chia các container cho từng cẩu trục và từng đội xe đầu kéo theo ca làm việc.",
+              physicalAction: "Hệ thống phân tán băm nhỏ hàng trăm việc chuyển hàng, gán việc thông minh để các xe nâng không chạy chéo đường nhau.",
+              devicesUsed: "Cụm Worker Node tính toán luồng di chuyển",
+              physicalZone: "Hệ thống máy chủ điều hành WES",
+              riskConsequence: "Các xe nâng bị điều động dồn vào cùng một lối đi (Aisle Congestion), gây tắc nghẽn giao thông kho.",
+              errorHandling: "Kiểm tra giới hạn tải trọng của từng thiết bị và khoảng cách di chuyển tối ưu ngắn nhất.",
+              lockMechanism: "Distributed Transfer Allocation Lock.",
+              inventoryImpact: "Cập nhật trạng thái lệnh chuyển sang ĐÃ_PHÂN_BỔ_THIẾT_BỊ.",
+              payload: { batchCluster: "IV_BT_0011", processedTransfers: 140, assignedCranes: 4, assignedForklifts: 8 }
+            },
+            {
+              code: "IV_BT_0011_04 & IV_AP_0003_10",
+              name: "Send Retrieval Instruction & Send Retrieval Instruction Or Transfer Between Units Instruction To Automated Warehouse",
+              type: "BATCH/API",
+              method: "PUT/BATCH",
+              source: "WES Outbound Engine",
+              target: "Hệ thống Cần Trục Tự Động Kho Cao Tầng (ASRS Crane Controller / WCS)",
+              whyNeeded: "Gửi tọa độ ô kệ (Dãy - Tầng - Cột) sang phần mềm điều khiển cần trục Stacker Crane để cần trục tự động vươn càng gắp pallet mang xuống băng chuyền tầng trệt.",
+              realLifeAnalogy: "Bạn bấm thang máy gọi tầng: buồng thang máy tự động chạy tới đúng tầng và đón bạn xuống sảnh tầng 1.",
+              physicalAction: "Cần trục Stacker Crane cao 18m trượt trên thanh ray với tốc độ 3.5m/s, vươn nĩa nâng pallet nặng 800kg và hạ xuống cửa xuất.",
+              devicesUsed: "PLC điều khiển cần trục Siemens & Cảm biến định vị laser quang học",
+              physicalZone: "Giàn kệ tự động cao tầng High-Bay ASRS Zone",
+              riskConsequence: "Cần trục không nhận được lệnh, hàng nằm chết trên tầng cao khiến sàn kho thiếu hàng hoạt động.",
+              errorHandling: "Giao thức truyền tin có xác nhận (ACK/NACK Handshake); kiểm tra cảm biến tải trọng tránh quá tải nĩa nâng.",
+              lockMechanism: "ASRS Crane Hardware Semaphore.",
+              inventoryImpact: "Chuyển trạng thái pallet sang ĐANG_HẠ_TỪ_GIÀN_CAO_TẦNG.",
+              payload: { craneId: "CRANE_ASRS_02", sourceCoordinates: "BAY-14-LVL-08-POS-01", targetOutfeed: "OUTFEED_CONV_03", palletWeightKg: 640 }
+            },
+            {
+              code: "IV_AP_0003_02",
+              name: "Register Normal Inventory Transfer Instruction",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Điều phối Thiết bị Thủ công",
+              target: "Máy tính gắn trên xe nâng (Vehicle Mounted Terminal - VMT)",
+              whyNeeded: "Phát lệnh di chuyển hàng cho các khu vực kệ thông thường, chỉ định tài xế xe nâng tới đúng vị trí nguồn lấy hàng mang sang vị trí đích.",
+              realLifeAnalogy: "Ứng dụng tài xế công nghệ báo cuốc xe: 'Đến địa chỉ A đón khách chở sang địa chỉ B'.",
+              physicalAction: "Màn hình gắn trên xe nâng hiển thị mũi tên dẫn đường tới Kệ B-08, tài xế nâng pallet và lái xe theo lộ trình vạch sẵn.",
+              devicesUsed: "Máy tính công nghiệp gắn trên xe nâng & Máy quét mã vạch tầm xa",
+              physicalZone: "Khu vực lối đi giữa các dãy kệ kho",
+              riskConsequence: "Tài xế nâng nhầm pallet của mã hàng khác hoặc để nhầm vị trí kệ đích gây thất lạc hàng tồn.",
+              errorHandling: "Yêu cầu tài xế quét mã vạch kiểm tra (Check Digit) tại vị trí nguồn trước khi cho phép nhấc hàng lên.",
+              lockMechanism: "Forklift Task Assignment Lock.",
+              inventoryImpact: "Chuyển vị trí hàng sang trạng thái ĐANG_TRÊN_XE_NÂNG.",
+              payload: { forkliftId: "FL_ELECTRIC_04", driverId: "DRV_882", sourceBin: "RACK_B_08_02", targetBin: "PICK_FACE_A_01" }
+            },
+            {
+              code: "IV_AP_0004_01 & IV_AP_0004_02",
+              name: "Register Inventory Transfer Result With Instruction & Register Inventory Transfer Result Without Instruction",
+              type: "API",
+              method: "PUT",
+              source: "Máy quét cầm tay của công nhân (Handy Terminal)",
+              target: "WES Inventory Core",
+              whyNeeded: "Ghi nhận kết quả pallet/thùng hàng đã được đặt an toàn vào vị trí kệ đích (áp dụng cho cả chuyển có lệnh từ trước hoặc chuyển dọn dẹp linh hoạt đột xuất không có lệnh).",
+              realLifeAnalogy: "Tài xế giao hàng bấm 'Đã giao hàng thành công' trên ứng dụng sau khi khách đã nhận đồ.",
+              physicalAction: "Công nhân hạ pallet xuống kệ nhặt lẻ, quét mã vạch mác hàng và quét mã vạch dán trên thanh dầm kệ để xác nhận hoàn tất.",
+              devicesUsed: "Máy quét mã vạch cầm tay Zebra TC57",
+              physicalZone: "Vị trí kệ nhặt lẻ (Picking Location)",
+              riskConsequence: "Hàng đã nằm trên kệ nhưng phần mềm vẫn báo chưa có hàng, khiến công nhân nhặt hàng không được phép lấy.",
+              errorHandling: "Kiểm tra đúng tọa độ kệ đích; nếu đặt nhầm ô, máy quét rung mạnh và phát chuông cảnh báo lỗi.",
+              lockMechanism: "Bin Location Placement Lock.",
+              inventoryImpact: "Cập nhật chính thức số lượng tồn khả dụng tại vị trí nhặt lẻ.",
+              payload: { confirmedLocation: "PICK_FACE_A_01", scannedItem: "POLO-SHIRT-BLK-L", actualQtyPlaced: 48, transferCompletedAt: "2026-09-19T03:25:00Z" }
+            }
+          ]
+        },
+        {
+          id: 3,
+          name: "Bước 3: Gia công tháo dỡ / Đóng bộ Combo (Assortment Disassembling)",
+          shortTitle: "3. Gia công tháo dỡ Combo",
+          badge: "BƯỚC 3",
+          icon: "✂️",
+          warehouseTitle: "Bàn Gia Công Phụ Trợ (Kitting / Value-Added Services)",
+          warehouseDesc: "Tháo dỡ các set combo (ví dụ: Bộ thể thao gồm 1 áo + 1 quần) thành các sản phẩm đơn lẻ để bổ sung cho kênh bán online. Sổ cái WIV tự động trừ tồn bộ combo và cộng tăng tồn từng món lẻ.",
+          businessDeepDive: {
+            coreMeaning: "Đây là nghiệp vụ gia tăng giá trị (VAS - Value Added Services) cực kỳ quan trọng trong ngành thời trang. Nhiều lúc nhà sản xuất đóng sẵn 10.000 bộ combo thể thao. Nhưng khi mở bán online, áo thun bán rất chạy trong khi combo lại bán chậm. Để tối đa hóa doanh thu, ban giám đốc quyết định 'phá set' 500 bộ combo để lấy 500 áo lẻ bán trên mạng. Công nhân mang hàng ra bàn Kitting rạch mở bao bì, dán tem mã vạch riêng cho áo và quần. Sổ cái WIV phải thực hiện bù trừ logic tài chính tức thời.",
+            whyCritical: "Nếu chỉ bóc tách vật lý mà không gọi batch WIV xử lý sổ cái, hệ thống sẽ bị vênh: sổ sách vẫn báo còn 500 bộ combo (trong khi thực tế đã bị xé lẻ) và kênh online không thấy 500 chiếc áo lẻ để bán, gây thất thoát doanh thu và sai lệch kế toán.",
+            physicalProcess: [
+              "1. Điều phối viên gọi IV_AP_0011_01/02_DC để xem nhu cầu và lập lệnh tháo dỡ 200 bộ combo thể thao.",
+              "2. Cụm batch IV_BT_0007_01/02 phân bổ 200 bộ combo từ kệ lưu trữ đưa ra bàn làm việc Kitting.",
+              "3. Công nhân mở túi niêm phong của từng bộ combo, tách riêng áo và quần, dán tem mã vạch PLU đơn lẻ lên từng mác.",
+              "4. Công nhân quét mã xác nhận hoàn tất qua IV_AP_0014_01_DC.",
+              "5. Batch IV_BT_0001_04_DC kích hoạt trên sổ cái WIV: Trừ 200 bộ mã COMBO-01 và lập tức cộng 200 chiếc SKU-AO và 200 chiếc SKU-QUAN vào số dư tồn kho."
+            ],
+            riskMitigation: "Kiểm tra tỷ lệ bảo toàn số lượng (Quantity Conservation Check): 1 bộ combo gồm đúng 1 áo + 1 quần; nếu bóc 200 bộ mà chỉ thu được 198 chiếc quần (do thất lạc 2 chiếc), hệ thống chặn lại và bắt khai báo chênh lệch hao hụt (Loss & Gain)."
+          },
+          transformation: {
+            before: "200 bộ quần áo combo nguyên set đóng chung trong túi nilông lớn",
+            action: "Bóc tách bao bì + Dán tem mã vạch đơn lẻ + Gọi Batch WIV bù trừ cơ cấu danh mục",
+            after: "200 chiếc áo thun lẻ + 200 chiếc quần đùi lẻ có mã SKU riêng sẵn sàng bán online"
+          },
+          animation: {
+            sourceLane: 0,
+            targetLane: 2,
+            packetLabel: "Combo Disassembly & WIV Ratio Fluctuation",
+            packetColor: "#10b981"
+          },
+          apis: [
+            {
+              code: "IV_AP_0011_01_DC & IV_AP_0011_02_DC",
+              name: "Retrieve Assortment Disassembling Instruction & Register Assortment Disassembling Instruction",
+              type: "API",
+              method: "POST/PUT",
+              source: "Màn hình Kế hoạch Gia công Kho (VAS Planning UI)",
+              target: "WES Work Order Module",
+              whyNeeded: "Tra cứu và lập chỉ thị tháo dỡ các sản phẩm bộ combo thành các mã linh kiện/sản phẩm đơn lẻ dựa trên công thức định mức BOM (Bill of Materials).",
+              realLifeAnalogy: "Như tiệm bánh trung thu dỡ các hộp quà 4 bánh ra để bán lẻ từng chiếc bánh nướng, bánh dẻo cho khách đi đường.",
+              physicalAction: "Tạo lệnh xuất 200 bộ combo thể thao mã SPORT-SET-01 ra bàn gia công Kitting Bench số 02.",
+              devicesUsed: "Màn hình quản lý phân bổ gia công",
+              physicalZone: "Khu vực gia công giá trị gia tăng (VAS Kitting Area)",
+              riskConsequence: "Không lập được lệnh khiến công nhân tự ý tháo dỡ thủ công ngoài sổ sách, làm lệch kho nghiêm trọng.",
+              errorHandling: "Khớp đúng công thức cấu tạo bộ combo từ Master Data; kiểm tra hàng tồn bộ combo có đủ 200 bộ không.",
+              lockMechanism: "Assortment Disassembling Work Order Lock.",
+              inventoryImpact: "Khóa giữ chỗ 200 bộ combo tại vị trí lưu trữ (ALLOCATED_FOR_DISASSEMBLY).",
+              payload: { workOrderId: "VAS_DIS_20260919_04", comboSku: "SET-SPORT-SUMMER-01", disassemblingQty: 200, targetStation: "KITTING_BENCH_02" }
+            },
+            {
+              code: "IV_BT_0007_01 & IV_BT_0007_02",
+              name: "Get Assortment Disassembling Allocation Result (Producer) -> Assign (Member)",
+              type: "BATCH",
+              method: "BATCH CLUSTER",
+              source: "WES Allocation Engine",
+              target: "WES Task Workstation Queue",
+              whyNeeded: "Cụm batch phân bổ nguyên liệu: Tìm chính xác các thùng chứa bộ combo trên kệ và sinh lệnh đưa tới bàn làm việc của công nhân.",
+              realLifeAnalogy: "Bếp trưởng phân chia nguyên liệu thịt cá từ kho lạnh mang ra bàn sơ chế cho từng phụ bếp.",
+              physicalAction: "Hệ thống điều phối xe đẩy hàng lấy 10 thùng chứa 200 bộ combo mang đến đặt trước mặt công nhân gia công.",
+              devicesUsed: "Cụm Batch Server WES",
+              physicalZone: "Lối vận chuyển nội bộ khu VAS",
+              riskConsequence: "Công nhân ngồi chờ tại bàn gia công mà không có hàng chuyển tới, lãng phí giờ công lao động.",
+              errorHandling: "Ưu tiên chọn các thùng hàng có hạn lưu kho lâu nhất (FIFO) để tháo dỡ trước.",
+              lockMechanism: "BOM Component Allocation Lock.",
+              inventoryImpact: "Chuyển trạng thái hàng sang ĐANG_TRUNG_CHUYỂN_RA_BÀN_GIA_CÔNG.",
+              payload: { batchId: "IV_BT_0007_EC_01", allocatedBoxes: 10, totalSets: 200, assignedWorkerId: "WORKER_LAN_08" }
+            },
+            {
+              code: "IV_AP_0014_01_DC",
+              name: "Register Assortment Disassembling Result",
+              type: "API",
+              method: "PUT",
+              source: "Máy quét để bàn tại Trạm Gia Công Kitting",
+              target: "WES Execution Core",
+              whyNeeded: "Ghi nhận công nhân đã tháo dỡ xong, dán tem mã vạch thành công cho từng sản phẩm lẻ và đóng gói vào các khay hàng mới.",
+              realLifeAnalogy: "Thợ may xác nhận đã may xong 200 chiếc áo và xếp gọn gàng vào rổ để chuyển sang khâu hoàn thiện.",
+              physicalAction: "Công nhân quét mã xác nhận hoàn tất 200 áo lẻ và 200 quần lẻ, in nhãn dán lên từng khay nhựa chứa hàng.",
+              devicesUsed: "Máy in tem mã vạch Zebra & Máy quét mã vạch để bàn Honeywell",
+              physicalZone: "Bàn gia công Kitting Bench 02",
+              riskConsequence: "Hàng đã tháo xong nhưng chưa được ghi nhận, dẫn đến việc hàng lẻ nằm đọng tại bàn mà không đưa lên kệ bán được.",
+              errorHandling: "Kiểm tra đúng số lượng đầu ra: Tổng số áo + quần thu được phải khớp đúng với tỷ lệ cấu tạo của 200 bộ combo.",
+              lockMechanism: "Disassembly Station Completion Lock.",
+              inventoryImpact: "Ghi nhận hoàn tất thao tác vật lý tại trạm gia công.",
+              payload: { workOrderId: "VAS_DIS_20260919_04", finishedShirts: 200, finishedShorts: 200, discrepancyQty: 0, status: "DISASSEMBLED_SUCCESS" }
+            },
+            {
+              code: "IV_BT_0001_04_DC",
+              name: "Fluctuate Inventory Batch By Assortment Assemble Disassemble",
+              type: "BATCH",
+              method: "WIV BATCH",
+              source: "WIV Ledger Engine",
+              target: "Sổ Cái Tồn Kho WIV (Core Inventory Ledger Database)",
+              whyNeeded: "Thực hiện biến động số dư tồn kho kế toán: Trừ tồn kho bộ combo và cộng tăng tồn kho cho từng mã sản phẩm lẻ trong cùng một Transaction nguyên tử.",
+              realLifeAnalogy: "Giao dịch đổi tiền chẵn lấy tiền lẻ tại ngân hàng: Giảm 1 tờ 500.000đ và tăng 5 tờ 100.000đ, tổng giá trị tiền không đổi.",
+              physicalAction: "Tiến trình batch chạy trên cơ sở dữ liệu WIV trong 80 mili-giây, trừ tồn 200 bộ combo và cộng 200 áo, 200 quần vào bảng số dư.",
+              devicesUsed: "Máy chủ cơ sở dữ liệu WIV Database Server",
+              physicalZone: "Data Center",
+              riskConsequence: "Bị lệch tài chính giữa giá trị hàng combo và hàng lẻ, gây sai lệch báo cáo kế toán kiểm toán.",
+              errorHandling: "Giao dịch cơ sở dữ liệu nguyên tử (ACID Transaction): Nếu có lỗi ở bất kỳ dòng hàng con nào, toàn bộ giao dịch tự động Rollback.",
+              lockMechanism: "Multi-Level Item Ledger Atomic Lock.",
+              inventoryImpact: "TRỪ 200 bộ COMBO; CỘNG 200 Áo SKU-SHIRT và 200 Quần SKU-SHORT.",
+              payload: { transactionType: "ASSORTMENT_DISASSEMBLE", deductedComboQty: -200, addedComponents: [{ sku: "TOP-SPORT-01", qty: 200 }, { sku: "BOTTOM-SPORT-01", qty: 200 }] }
+            }
+          ]
+        },
+        {
+          id: 4,
+          name: "Bước 4: Xử lý sự cố kho tự động (Quarantine & Ghost Bin)",
+          shortTitle: "4. Sự cố & Thùng rác ma",
+          badge: "BƯỚC 4",
+          icon: "⚠️",
+          warehouseTitle: "Trạm Cách Ly Kiểm Tra Lỗi & Khắc Phục Lỗi Mạng WCS",
+          warehouseDesc: "Tự động phát hiện và cách ly các khay hàng móp méo, đánh dấu phong tỏa 'Thùng rác ma' (Ghost Bin) khi robot phát hiện ô kệ rỗng, và tự động khôi phục các lệnh chuyển hàng bị kẹt mạng.",
+          businessDeepDive: {
+            coreMeaning: "Kho tự động vận hành hàng chục ngàn khay hàng mỗi ngày khó tránh khỏi sự cố phần cứng. Hai tình huống kinh điển nhất là: (1) Khay hàng bị biến dạng, rơi rớt vải ra ngoài làm kẹt băng chuyền; (2) Sự cố 'Thùng rác ma' (Ghost Bin) - tức là phần mềm báo có hàng nhưng khi robot chạy tới gắp thì ô kệ lại trống trơn (do công nhân lấy trộm, làm rơi hoặc nhập sai vị trí). Hệ thống phải có khả năng tự phát hiện, tự phong tỏa vị trí ma để bảo vệ robot và tự động tìm nguồn hàng thay thế mà không dừng cả nhà kho.",
+            whyCritical: "Nếu không có hàm 'Mark As Ghost Bin', các chú robot tiếp theo sẽ liên tục chạy vào ô kệ trống đó để tìm hàng, gây ra hiệu ứng dây chuyền nghẽn mạng điều khiển robot (Fleet Congestion) và hàng trăm đơn hàng phía sau bị đứng bánh.",
+            physicalProcess: [
+              "1. Cảm biến quang học hoặc camera AI trên băng chuyền phát hiện khay hàng bị rách nát hoặc quá tải trọng.",
+              "2. Hệ thống gọi IV_AP_0004_14 chuyển hướng khay hàng vào Làn cách ly (Quarantine Lane) để công nhân kiểm tra qua IV_AP_0004_15.",
+              "3. Robot Exotec hoặc cần trục ASRS chạy tới ô kệ nhưng cảm biến laser phát hiện ô rỗng: WCS bắn tín hiệu báo lỗi về WES.",
+              "4. WES lập tức kích hoạt IV_AP_0004_17 đánh dấu ô kệ là 'Ghost Bin' và phong tỏa tọa độ này trên bản đồ số.",
+              "5. Nếu có sự cố rớt mạng chập chờn giữa WES và WCS, batch IV_BT_0022_01 tự động quét hàng đợi, phục hồi và gửi lại các lệnh chuyển hàng bị treo."
+            ],
+            riskMitigation: "Cơ chế Tự phục hồi ngoại lệ (Self-Healing Failover): Khi một ô bị đánh dấu Ghost Bin, WES tự động kích hoạt truy vấn ô dự trữ khác để cấp hàng cho đơn xuất mà không cần can thiệp thủ công của con người."
+          },
+          transformation: {
+            before: "Khay hàng bị lỗi móp méo trên băng chuyền; Robot gặp ô kệ trống trơn",
+            action: "Đánh dấu Ghost Bin phong tỏa ô kệ + Cách ly khay lỗi + Phục hồi lệnh chuyển bị kẹt",
+            after: "Kho tự động vận hành thông suốt; Ô lỗi được cách ly an toàn chờ bảo trì kiểm tra"
+          },
+          animation: {
+            sourceLane: 3,
+            targetLane: 1,
+            packetLabel: "Quarantine Divert & Ghost Bin Isolation",
+            packetColor: "#ef4444"
+          },
+          apis: [
+            {
+              code: "IV_AP_0004_14 & IV_AP_0004_15",
+              name: "Register Inventory Quarantine From Automated Warehouse & Retrieve Quarantining Item",
+              type: "API",
+              method: "PUT/POST",
+              source: "Hệ thống Cảm biến An toàn Robot WCS",
+              target: "Khu vực Bàn Kiểm Tra Chất Lượng (QA Inspection Station)",
+              whyNeeded: "Cách ly khay hàng bị robot làm đổ, rách nát bao bì hoặc cảm biến phát hiện dị vật rơi vào khay; chuyển hướng khay sang khu cách ly để chuyên viên kiểm tra.",
+              realLifeAnalogy: "Cửa kiểm soát an ninh sân bay phát hiện hành lý có dấu hiệu bất thường, chuyển túi đồ sang phòng soi chiếu riêng để mở ra kiểm tra.",
+              physicalAction: "Tay gạt khí nén trên băng tải tự động đẩy khay hàng lỗi rẽ nhánh vào làn kiểm tra thủ công của bộ phận QA.",
+              devicesUsed: "Cảm biến laser đo biên dạng khay & Máng chuyển hướng Reject Spur",
+              physicalZone: "Làn cách ly phế phẩm / lỗi kỹ thuật (Quarantine Lane)",
+              riskConsequence: "Khay hàng móp méo tiếp tục trôi vào giàn tự động có thể làm kẹt cứng tay gắp robot, sập hệ thống ray trượt.",
+              errorHandling: "Khóa trạng thái xuất bán của các sản phẩm trong khay (LOCKED_FOR_INSPECTION).",
+              lockMechanism: "Quarantine Status Hold Lock.",
+              inventoryImpact: "Chuyển tồn kho từ KHẢ_DỤNG sang TRẠNG_THÁI_CÁCH_LY_NGOẠI_LỆ.",
+              payload: { quarantinedToteBarcode: "TOTE-ERR-9912", reason: "CONVEYOR_JAM_RISK_DEFORMED_BOX", divertedToStation: "QA_BENCH_01" }
+            },
+            {
+              code: "IV_AP_0004_17",
+              name: "Mark As Ghost Bin",
+              type: "API",
+              method: "PUT",
+              source: "Bộ điều khiển Robot Exotec / Cần trục ASRS",
+              target: "WES Physical Layout Engine",
+              whyNeeded: "Đánh dấu 'Thùng rác ma' phong tỏa ô kệ khi phần mềm ghi nhận có hàng nhưng cảm biến thực tế phát hiện ô trống rỗng; chặn các robot khác tiếp tục chạy vào.",
+              realLifeAnalogy: "Đặt biển báo 'Ngõ cụt - Đang sửa chữa' ở đầu ngõ để các xe khác không đi vào rồi phải lùi xe ra.",
+              physicalAction: "Trên sơ đồ 3D của nhà kho, ô kệ lập tức chuyển sang màu tím than nhấp nháy cảnh báo 'GHOST BIN', cấm mọi lệnh xuất nhập.",
+              devicesUsed: "Cảm biến siêu âm / laser đo khoảng cách trên tay robot",
+              physicalZone: "Tọa độ ô kệ giàn tự động",
+              riskConsequence: "Hàng chục robot tiếp tục xếp hàng chờ lấy hàng tại ô rỗng, gây tắc nghẽn toàn bộ hạm đội robot trong kho.",
+              errorHandling: "Tự động sinh phiếu yêu cầu kiểm kê đột xuất (Discrepancy Stocktake Task) gửi cho thủ kho kiểm tra tận mắt.",
+              lockMechanism: "Ghost Bin Quarantine Exclusion Lock.",
+              inventoryImpact: "Đóng băng ô kệ và trừ tồn kho tạm thời chờ điều tra chênh lệch.",
+              payload: { ghostLocationCode: "RACK_ASRS_C09_02", expectedSku: "JACKET-WIND-BLK-XL", expectedQty: 12, actualDetectedQty: 0, status: "GHOST_BIN_LOCKED" }
+            },
+            {
+              code: "IV_BT_0022_01",
+              name: "Recover Inventory Transfer Waiting Item By In Warehouse Area For WCS",
+              type: "BATCH",
+              method: "BATCH",
+              source: "WES Network Resilience Daemon",
+              target: "Hệ thống WCS Băng chuyền & Robot",
+              whyNeeded: "Tự động quét và phục hồi các chỉ thị chuyển hàng bị treo ở trạng thái 'Đang chờ' (Waiting) do mạng chập chờn giữa WES và WCS, truyền lại lệnh để robot tiếp tục chạy.",
+              realLifeAnalogy: "Trình duyệt web tự động bấm tải lại trang (Retry) khi phát hiện đường truyền internet vừa khôi phục kết nối.",
+              physicalAction: "Batch chạy ngầm mỗi 3 phút, kiểm tra các lệnh chuyển hàng quá hạn 10 phút chưa có phản hồi ACK thì tự động bắt tay lại.",
+              devicesUsed: "Tiến trình giám sát Daemon ngầm",
+              physicalZone: "Tầng mạng điều hành Middleware",
+              riskConsequence: "Các khay hàng nằm im trên băng chuyền giữa chừng không ai điều khiển, kho tự động bị đình trệ cục bộ.",
+              errorHandling: "Đối soát trạng thái vật lý thực tế của khay hàng qua cảm biến băng chuyền trước khi gửi lại lệnh, tránh gửi lệnh đúp.",
+              lockMechanism: "Recovery Transaction Idempotency Lock.",
+              inventoryImpact: "Khôi phục luồng luân chuyển tồn kho bị gián đoạn.",
+              payload: { recoveredJobsCount: 6, targetArea: "AUTOMATED_ZONE_1", networkStatus: "RECONNECTED", recoveryTimestamp: "2026-09-19T03:45:00Z" }
+            }
+          ]
+        },
+        {
+          id: 5,
+          name: "Bước 5: Đồng bộ biến động sang Sổ cái WIV (Submission Flow)",
+          shortTitle: "5. Đồng bộ Sổ cái WIV (10 Luồng)",
+          badge: "BƯỚC 5",
+          icon: "📑",
+          warehouseTitle: "Cụm Máy Chủ Sổ Cái Tồn Kho WIV (Submission Architecture)",
+          warehouseDesc: "WES nộp phiếu ghi nhận biến động (Submission). Cụm 10 tiến trình batch song song của WIV (Member 1/10 đến 10/10) băm nhỏ dữ liệu và thực hiện cộng/trừ số dư kế toán an toàn, phản hồi xác nhận ngược lại cho WES.",
+          businessDeepDive: {
+            coreMeaning: "Đây là kiến trúc cốt lõi phân tách giữa Bộ não điều hành sàn kho (WES) và Sổ cái kế toán tồn kho (WIV). Nếu để hàng trăm thiết bị sàn kho cùng lúc gọi trực tiếp vào bảng số dư chính của cơ sở dữ liệu WIV, hệ thống chắc chắn sẽ bị sập vì tắc nghẽn khóa dòng (Row-Level Deadlock). Do đó, WES chỉ nộp một tấm phiếu 'Submission'. Cụm 10 luồng Member phân tán của WIV sẽ nhận phiếu, chia việc theo mã sản phẩm (Hash Partitioning) và trừ tồn kho mượt mà trong tích tắc.",
+            whyCritical: "Đảm bảo tính toàn vẹn dữ liệu tài chính (ACID Compliance) ở quy mô hàng trăm ngàn giao dịch/giờ. Không một chiếc áo nào bị trừ hai lần (Double-deduction) và không có giao dịch nào bị thất lạc khi mạng gián đoạn.",
+            physicalProcess: [
+              "1. Sau khi di chuyển hàng thành công, WES gọi IV_AP_0003_02/03 (WIV API) để nộp phiếu Submission ghi nhận biến động vị trí.",
+              "2. Batch Producer IV_BT_0001_01 của WIV quét gom toàn bộ các phiếu Submission chưa xử lý trong hàng đợi.",
+              "3. Cụm 10 tiến trình batch Member IV_BT_0001_02 (từ Luồng 1/10 đến 10/10) đồng loạt chạy song song, chia theo mã PLU để trừ/cộng tồn kho.",
+              "4. Batch Producer IV_BT_0002_01 gom kết quả của các giao dịch đã hoàn tất thành công.",
+              "5. Batch Member IV_BT_0002_02 gửi gói tin thông báo trả lời (Notice Fluctuation Answer) xác nhận về cho WES: 'Đã ghi sổ thành công 100%'."
+            ],
+            riskMitigation: "Cơ chế Idempotency Token: Mỗi phiếu Submission mang một mã UUID duy nhất; nếu WES gửi lặp lại do lỗi mạng, WIV phát hiện mã cũ và từ chối ghi sổ lần hai, loại bỏ triệt để nguy cơ sai lệch số dư."
+          },
+          transformation: {
+            before: "Hàng hóa đã dịch chuyển vật lý nhưng số dư trên sổ cái WIV chưa được cập nhật",
+            action: "Nộp phiếu Submission ➔ Cụm 10 luồng Member WIV xử lý song song ➔ Bắn tin Answer xác nhận",
+            after: "Sổ cái WIV chính thức ghi nhận vị trí và trạng thái tồn kho mới; WES nhận thông báo hoàn tất"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 2,
+            packetLabel: "Submission Ticket & 10-Worker Fluctuation",
+            packetColor: "#34d399"
+          },
+          apis: [
+            {
+              code: "IV_AP_0003_02 & IV_AP_0003_03 (WIV API)",
+              name: "Register Inventory Update Submission & Register Inventory Transfer Submission",
+              type: "API",
+              method: "PUT",
+              source: "WES Completion Dispatcher",
+              target: "Cổng Nạp Giao Dịch WIV Submission Gateway",
+              whyNeeded: "Đóng gói toàn bộ thông tin dịch chuyển hàng hóa nội bộ thành một phiếu 'Submission' nộp sang hàng đợi của sổ cái WIV để chờ ghi sổ bất đồng bộ.",
+              realLifeAnalogy: "Công nhân nộp tập hóa đơn bán lẻ vào hòm thư của phòng kế toán công ty vào cuối ngày để kế toán viên hạch toán sau.",
+              physicalAction: "WES nộp 80 phiếu giao dịch dịch chuyển vị trí hàng vào hàng đợi bảng tạm trong 40 mili-giây.",
+              devicesUsed: "High-Throughput Submission Queue",
+              physicalZone: "Tầng giao tiếp WES - WIV Middleware",
+              riskConsequence: "Nếu không nộp phiếu Submission, hàng đã chuyển đi nơi khác nhưng sổ cái vẫn ghi nhận ở vị trí cũ, gây sai lệch nghiêm trọng.",
+              errorHandling: "Sinh mã giao dịch duy nhất (Submission Idempotency Key) để chống ghi sổ trùng lặp.",
+              lockMechanism: "Submission Ingestion Lock.",
+              inventoryImpact: "Ghi nhận phiếu giao dịch chuyển hàng đang chờ hạch toán sổ cái.",
+              payload: { submissionId: "SUB_TRF_20260919_881", fromLocation: "HIGH_BAY_R08", toLocation: "PICK_SLOT_A_12", qty: 48, status: "PENDING_WIV_PROCESSING" }
+            },
+            {
+              code: "IV_BT_0001_01 & IV_BT_0001_02",
+              name: "Retrieve Unprocessed Submission (Producer) -> Fluctuate Inventory By Multi Level Item (Member 1/10 to 10/10)",
+              type: "BATCH",
+              method: "WIV BATCH CLUSTER",
+              source: "Cụm Worker Node Sổ Cái WIV",
+              target: "Sổ Cái Tồn Kho WIV (Multi-Level Item Inventory Ledger Table)",
+              whyNeeded: "Trái tim của hệ thống ghi sổ: Tiến trình Producer gom các phiếu chờ, chia đều cho 10 tiến trình Member chạy song song theo mã sản phẩm để cộng/trừ số dư tồn kho.",
+              realLifeAnalogy: "Như 10 nhân viên kế toán cùng lúc mở 10 cuốn sổ cái khác nhau để ghi chép các giao dịch, không ai tranh chấp cuốn sổ của ai.",
+              physicalAction: "10 tiến trình luân phiên xử lý hàng ngàn dòng hàng, cập nhật số dư tồn khả dụng và khóa dòng siêu tốc.",
+              devicesUsed: "Cụm máy chủ xử lý phân tán 10 Nodes",
+              physicalZone: "Data Center",
+              riskConsequence: "Nếu chạy đơn luồng, hệ thống sẽ bị nghẽn hàng đợi (Queue Lag) hàng giờ khi kho vận hành cường độ cao.",
+              errorHandling: "Cơ chế phân vùng theo Hash mã SKU; nếu 1 Member gặp lỗi, các Member khác vẫn hoạt động bình thường.",
+              lockMechanism: "SKU Hash Partitioning Row-Level Lock.",
+              inventoryImpact: "Chính thức CẬP NHẬT SỐ DƯ TỒN KHO VẬT LÝ VÀ LOGIC TRÊN SỔ CÁI.",
+              payload: { producerBatchId: "IV_BT_0001_01_P", activeMembers: 10, processedSubmissions: 340, throughputLinesPerSec: 1250 }
+            },
+            {
+              code: "IV_BT_0002_01 & IV_BT_0002_02",
+              name: "Retrieve Processed Submission (Producer) -> Notice Inventory Fluctuation Answer (Member)",
+              type: "BATCH",
+              method: "WIV BATCH CLUSTER",
+              source: "WIV Notification Dispatcher",
+              target: "WES Event Callback Listener",
+              whyNeeded: "Sau khi sổ cái WIV đã ghi nhận thành công, tiến trình gom kết quả và gửi thông báo xác nhận chính thức (Answer) về lại cho WES để đóng giao dịch.",
+              realLifeAnalogy: "Kế toán đóng dấu đỏ 'ĐÃ VÀO SỔ' lên tờ phiếu và gửi lại giấy biên nhận cho thủ kho yên tâm.",
+              physicalAction: "Gửi gói tin phản hồi HTTP REST kèm mã trạng thái COMPLETED về WES, giải phóng các khóa giữ chỗ tạm thời trên sàn kho.",
+              devicesUsed: "Event Notification Bus",
+              physicalZone: "Tầng tích hợp hệ thống",
+              riskConsequence: "WES không nhận được phản hồi sẽ tiếp tục giữ trạng thái chờ, không giải phóng ô kệ cho các tác vụ tiếp theo.",
+              errorHandling: "Tự động gửi lại thông báo (Webhook Retry) tối đa 5 lần nếu WES bận xử lý.",
+              lockMechanism: "Notification Acknowledgment Lock.",
+              inventoryImpact: "Khép lại chu trình biến động tồn kho nội bộ, đồng bộ 100% giữa WES và WIV.",
+              payload: { answerBatchId: "IV_BT_0002_02_M", confirmedSubmissions: 340, status: "ALL_PROCESSED_SUCCESS", syncedAt: "2026-09-19T03:50:00Z" }
+            }
+          ]
+        }
+      ]
+    };
+
+    let currentStepIndex = 0;
+    let isPlaying = false;
+    let playInterval = null;
+    let playbackSpeed = 1.0;
+    let activeApiForModal = null;
+    let packetAnimationProgress = 0;
+    let animationFrameId = null;
+
+    const canvas = document.getElementById('flowCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    function resizeCanvas() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      drawSimulation();
+    });
+
+    const LANES = [
+      { id: 0, name: "1. Kệ Nhặt Lẻ / Bàn Combo", color: "#60a5fa", y: 0.16, icon: "🛒" },
+      { id: 1, name: "2. WES Replenishment", color: "#fbbf24", y: 0.38, icon: "⚡" },
+      { id: 2, name: "3. Sổ Cái WIV Submission", color: "#34d399", y: 0.60, icon: "📑" },
+      { id: 3, name: "4. Kho Cao Tầng / Cần Trục & Xe Nâng", color: "#c084fc", y: 0.83, icon: "🚜" },
+    ];
+
+    function drawSimulation() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Draw Lane Backgrounds & Guides
+      LANES.forEach((lane) => {
+        const laneY = h * lane.y;
+
+        ctx.strokeStyle = "rgba(51, 65, 85, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(30, laneY);
+        ctx.lineTo(w - 30, laneY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Lane badge
+        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.strokeStyle = lane.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(14, laneY - 14, 215, 28, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "bold 11px Inter, sans-serif";
+        ctx.fillStyle = lane.color;
+        ctx.fillText(`${lane.icon} ${lane.name}`, 22, laneY + 4);
+      });
+
+      // 2. Active Step Connection & Glowing Packet
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      const sourceLaneObj = LANES[step.animation.sourceLane];
+      const targetLaneObj = LANES[step.animation.targetLane];
+
+      const startX = 260;
+      const endX = w - 80;
+      const startY = h * sourceLaneObj.y;
+      const endY = h * targetLaneObj.y;
+
+      // Draw connection flow path curve
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.25)";
+      ctx.lineWidth = 3;
+      ctx.moveTo(startX, startY);
+      
+      const cp1X = startX + (endX - startX) * 0.5;
+      const cp1Y = startY;
+      const cp2X = startX + (endX - startX) * 0.5;
+      const cp2Y = endY;
+      ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
+      ctx.stroke();
+
+      // Flow direction arrow particles
+      const t = packetAnimationProgress;
+      const curX = Math.pow(1 - t, 3) * startX + 
+                   3 * Math.pow(1 - t, 2) * t * cp1X + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2X + 
+                   Math.pow(t, 3) * endX;
+      const curY = Math.pow(1 - t, 3) * startY + 
+                   3 * Math.pow(1 - t, 2) * t * cp1Y + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2Y + 
+                   Math.pow(t, 3) * endY;
+
+      // Packet Glow Outer
+      const glowGrad = ctx.createRadialGradient(curX, curY, 2, curX, curY, 20);
+      glowGrad.addColorStop(0, step.animation.packetColor);
+      glowGrad.addColorStop(0.5, step.animation.packetColor + "66");
+      glowGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(curX, curY, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Packet Core Dot
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(curX, curY, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Floating Packet Tooltip Label
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx.strokeStyle = step.animation.packetColor;
+      ctx.lineWidth = 1;
+      const tagText = `${step.animation.packetLabel}`;
+      ctx.font = "500 10px 'JetBrains Mono', monospace";
+      const tagWidth = ctx.measureText(tagText).width;
+      
+      ctx.beginPath();
+      ctx.roundRect(curX - tagWidth / 2 - 8, curY - 26, tagWidth + 16, 20, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillText(tagText, curX - tagWidth / 2, curY - 13);
+
+      // Source and Target Terminal Nodes
+      drawNode(ctx, startX, startY, sourceLaneObj.color);
+      drawNode(ctx, endX, endY, targetLaneObj.color);
+    }
+
+    function drawNode(context, x, y, color) {
+      context.fillStyle = color;
+      context.beginPath();
+      context.arc(x, y, 7, 0, Math.PI * 2);
+      context.fill();
+
+      context.strokeStyle = "rgba(255,255,255,0.8)";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(x, y, 9, 0, Math.PI * 2);
+      context.stroke();
+    }
+
+    function animateLoop() {
+      packetAnimationProgress += 0.012 * playbackSpeed;
+      if (packetAnimationProgress > 1) {
+        packetAnimationProgress = 0;
+      }
+
+      drawSimulation();
+      animationFrameId = requestAnimationFrame(animateLoop);
+    }
+
+    function renderStepProgressBar() {
+      const container = document.getElementById('stepProgressList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      FLOW_DATA.steps.forEach((step, idx) => {
+        const isActive = idx === currentStepIndex;
+        const btn = document.createElement('button');
+        btn.className = `flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all ${
+          isActive 
+            ? 'bg-amber-600/30 border-amber-500 text-white shadow-md shadow-amber-500/20 font-semibold' 
+            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+        }`;
+        btn.innerHTML = `
+          <span class="w-5 h-5 rounded-full ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-[10px] font-mono font-bold">
+            ${step.id}
+          </span>
+          <span class="whitespace-nowrap">${step.shortTitle}</span>
+        `;
+        btn.addEventListener('click', () => {
+          goToStep(idx);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderCurrentStepDetails() {
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      // Update Header Badges
+      const badgeNum = document.getElementById('stepBadgeNumber');
+      const badgeTitle = document.getElementById('stepBadgeTitle');
+      const whIcon = document.getElementById('warehouseStageIcon');
+      const whTitle = document.getElementById('warehouseStageTitle');
+      const whDesc = document.getElementById('warehouseStageDesc');
+      const statusText = document.getElementById('packetTransmissionStatus');
+      const apiCount = document.getElementById('apiCountBadge');
+
+      if (badgeNum) badgeNum.textContent = step.badge;
+      if (badgeTitle) badgeTitle.textContent = step.name.split(':')[1]?.trim() || step.name;
+      if (whIcon) whIcon.textContent = step.icon;
+      if (whTitle) whTitle.textContent = step.warehouseTitle;
+      if (whDesc) whDesc.textContent = step.warehouseDesc;
+      if (statusText) statusText.textContent = `Truyền: ${step.animation.packetLabel}`;
+      if (apiCount) apiCount.textContent = `${step.apis.length} APIs/Batch`;
+
+      // Update Physical Transformation Matrix Box
+      const transContainer = document.getElementById('transformationContainer');
+      if (transContainer) {
+        transContainer.innerHTML = `
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-slate-500 uppercase font-mono block mb-1">TRẠNG THÁI TRƯỚC</span>
+            <p class="text-slate-300 font-medium">${step.transformation.before}</p>
+          </div>
+          <div class="bg-amber-950/30 p-2.5 rounded-lg border border-amber-800/40 text-center">
+            <span class="text-[10px] text-amber-400 uppercase font-mono block mb-1">HÀNH ĐỘNG CHUYỂN ĐỔI</span>
+            <p class="text-amber-200 font-medium">${step.transformation.action}</p>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-emerald-500 uppercase font-mono block mb-1">KẾT QUẢ ĐÍCH</span>
+            <p class="text-emerald-300 font-medium">${step.transformation.after}</p>
+          </div>
+        `;
+      }
+
+      // Render tab contents
+      renderStepDeepDive(step);
+      renderApiList(step.apis);
+      renderSequenceDiagram(step);
+      renderStepProgressBar();
+    }
+
+    function renderStepDeepDive(step) {
+      const container = document.getElementById('stepDeepDiveContainer');
+      if (!container || !step) return;
+
+      const dd = step.businessDeepDive;
+      container.innerHTML = `
+        <div class="bg-amber-950/20 border border-amber-500/30 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-amber-300 text-xs uppercase flex items-center gap-1.5">
+            <span>💡</span>
+            <span>Bản chất nghiệp vụ cốt lõi</span>
+          </h4>
+          <p class="text-slate-200 text-xs leading-relaxed">${dd.coreMeaning}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-orange-300 text-xs uppercase flex items-center gap-1.5">
+            <span>⚠️</span>
+            <span>Tại sao bước này sống còn đối với kho nội bộ?</span>
+          </h4>
+          <p class="text-slate-300 text-xs leading-relaxed">${dd.whyCritical}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase flex items-center gap-1.5">
+            <span>📋</span>
+            <span>Trình tự thao tác thực tế tại hiện trường</span>
+          </h4>
+          <div class="space-y-1.5 text-xs">
+            ${dd.physicalProcess.map(item => `
+              <div class="flex items-start gap-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 text-slate-300">
+                <span class="text-emerald-400 font-bold shrink-0">✔</span>
+                <span>${item}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3 space-y-1">
+          <h4 class="font-bold text-rose-300 text-xs uppercase flex items-center gap-1.5">
+            <span>🛡️</span>
+            <span>Cơ chế phòng vệ rủi ro & sự cố</span>
+          </h4>
+          <p class="text-rose-200/90 text-xs leading-relaxed">${dd.riskMitigation}</p>
+        </div>
+      `;
+    }
+
+    function renderApiList(apis) {
+      const container = document.getElementById('apiListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      apis.forEach((api) => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900/90 border border-slate-800 hover:border-amber-500/60 p-3 rounded-xl transition-all cursor-pointer group shadow-sm";
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs font-bold text-amber-300 group-hover:text-amber-200 transition-colors">${api.code}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+              api.method.includes('PUT') ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30' :
+              api.method.includes('POST') ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' :
+              api.method.includes('BATCH') ? 'bg-violet-500/10 text-violet-300 border border-violet-500/30' :
+              'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30'
+            }">${api.method}</span>
+          </div>
+          <h4 class="text-xs font-semibold text-slate-200 mb-1 leading-snug">${api.name}</h4>
+          <p class="text-[11px] text-slate-400 line-clamp-2 leading-normal">${api.whyNeeded || api.physicalAction}</p>
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1.5 border-t border-slate-800/60">
+            <span class="truncate max-w-[180px]">${api.source}</span>
+            <span class="text-amber-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">Mổ xẻ ➔</span>
+          </div>
+        `;
+        card.addEventListener('click', () => openApiModal(api));
+        container.appendChild(card);
+      });
+    }
+
+    function renderSequenceDiagram(step) {
+      const container = document.getElementById('sequenceDiagramContainer');
+      if (!container || !step) return;
+
+      let ascii = `=== SƠ ĐỒ TUẦN TỰ (SEQUENCE FLOW) - ${step.badge} ===\n\n`;
+      ascii += `[KỆ NHẶT / COMBO]    [WES REPLENISH]     [WIV SUBMISSION]    [KHO CAO / CẦN TRỤC]\n`;
+      ascii += `        │                    │                    │                    │\n`;
+
+      step.apis.forEach((api, i) => {
+        const num = i + 1;
+        if (api.source.includes('Kệ') || api.source.includes('VAS') || api.source.includes('Kitting') || api.source.includes('Picking')) {
+          ascii += `        │ ────(${num}) ${api.code}───> │                    │                    │\n`;
+          ascii += `        │                    │ [Xử lý: ${api.name.slice(0, 22)}...]\n`;
+        } else if (api.target.includes('WIV') || api.name.includes('Submission') || api.name.includes('Fluctuate') || api.target.includes('Sổ Cái')) {
+          ascii += `        │                    │ ────(${num}) Nộp Submission ───> │                    │\n`;
+          ascii += `        │                    │                    │ [10 Luồng Member Ghi Sổ]│\n`;
+          ascii += `        │                    │ <─── Trả lời Answer ────── │                    │\n`;
+        } else if (api.target.includes('High-Bay') || api.target.includes('Crane') || api.target.includes('ASRS') || api.target.includes('Forklift') || api.target.includes('WCS')) {
+          ascii += `        │                    │ ────(${num}) ${api.code}───────────────────────> │\n`;
+          ascii += `        │                    │                    │                    │ [Cần trục/Xe nâng lấy hàng]\n`;
+        } else if (api.source.includes('ASRS') || api.source.includes('Robot') || api.source.includes('Cảm biến')) {
+          ascii += `        │                    │ <───(${num}) Báo tín hiệu hoàn tất/sự cố ────── │\n`;
+        } else {
+          ascii += `        │ <───(${num}) ${api.code} ─── │                    │                    │\n`;
+        }
+        ascii += `        │                    │                    │                    │\n`;
+      });
+
+      ascii += `\n✔ Hoàn tất chu trình nội bộ của ${step.badge}`;
+      container.innerHTML = `<pre class="whitespace-pre overflow-x-auto text-amber-400 leading-relaxed font-mono">${ascii}</pre>`;
+    }
+
+    function openApiModal(api) {
+      activeApiForModal = api;
+      const modal = document.getElementById('apiModal');
+      if (!modal) return;
+
+      const badge = document.getElementById('modalMethodBadge');
+      if (badge) {
+        badge.textContent = api.method;
+        badge.className = "px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider";
+        if (api.method.includes("PUT")) badge.classList.add("bg-amber-500/20", "text-amber-300", "border", "border-amber-500/40");
+        else if (api.method.includes("POST")) badge.classList.add("bg-emerald-500/20", "text-emerald-300", "border", "border-emerald-500/40");
+        else if (api.method.includes("BATCH")) badge.classList.add("bg-violet-500/20", "text-violet-300", "border", "border-violet-500/40");
+        else badge.classList.add("bg-cyan-500/20", "text-cyan-300", "border", "border-cyan-500/40");
+      }
+
+      const setElText = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = txt || "Không có thông tin";
+      };
+
+      setElText('modalApiCode', api.code);
+      setElText('modalApiName', api.name);
+      setElText('modalSourceSystem', api.source);
+      setElText('modalTargetSystem', api.target);
+      setElText('modalWhyNeeded', api.whyNeeded || api.businessRules);
+      setElText('modalRealLifeAnalogy', api.realLifeAnalogy || "Quá trình dịch chuyển và bù trừ nội bộ tương tự hoạt động kho vận chuyên nghiệp.");
+      setElText('modalPhysicalActionDetailed', api.physicalAction);
+      setElText('modalDevicesUsed', api.devicesUsed || "Cần trục Stacker Crane, Xe nâng, Máy quét HT");
+      setElText('modalPhysicalZone', api.physicalZone || "Khu vực vận hành nội bộ kho");
+      setElText('modalRiskConsequence', api.riskConsequence || "Có thể gây gián đoạn cấp hàng hoặc lệch sổ cái tồn kho.");
+      setElText('modalErrorHandling', api.errorHandling || api.businessRules);
+      setElText('modalLockMechanism', api.lockMechanism || "Database Concurrency Control Lock");
+      setElText('modalInventoryDetailed', api.inventoryImpact);
+
+      const jsonEl = document.getElementById('modalJsonPayload');
+      if (jsonEl) jsonEl.textContent = JSON.stringify(api.payload, null, 2);
+
+      // Default to Business Tab in modal
+      switchModalTab('modalTabBtnBusiness', 'modalTabContentBusiness');
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('apiModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    /* Modal Sub-Tab Switcher */
+    const modalTabs = [
+      { btnId: 'modalTabBtnBusiness', contentId: 'modalTabContentBusiness' },
+      { btnId: 'modalTabBtnPhysical', contentId: 'modalTabContentPhysical' },
+      { btnId: 'modalTabBtnRisk', contentId: 'modalTabContentRisk' },
+      { btnId: 'modalTabBtnTech', contentId: 'modalTabContentTech' },
+    ];
+
+    function switchModalTab(targetBtnId, targetContentId) {
+      modalTabs.forEach(tab => {
+        const btn = document.getElementById(tab.btnId);
+        const content = document.getElementById(tab.contentId);
+        if (btn && content) {
+          if (tab.btnId === targetBtnId) {
+            btn.className = "pb-2 px-2 border-b-2 border-amber-500 text-white font-semibold text-xs transition-colors";
+            content.classList.remove('hidden');
+          } else {
+            btn.className = "pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 text-xs transition-colors";
+            content.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    modalTabs.forEach(tab => {
+      const btn = document.getElementById(tab.btnId);
+      if (btn) {
+        btn.addEventListener('click', () => switchModalTab(tab.btnId, tab.contentId));
+      }
+    });
+
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalCloseActionBtn = document.getElementById('modalCloseActionBtn');
+    const apiModal = document.getElementById('apiModal');
+
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+    if (modalCloseActionBtn) modalCloseActionBtn.addEventListener('click', closeModal);
+    if (apiModal) {
+      apiModal.addEventListener('click', (e) => {
+        if (e.target.id === 'apiModal') closeModal();
+      });
+    }
+
+    // Copy JSON payload with feedback
+    const modalCopyBtn = document.getElementById('modalCopyBtn');
+    if (modalCopyBtn) {
+      modalCopyBtn.addEventListener('click', () => {
+        if (!activeApiForModal) return;
+        const text = JSON.stringify(activeApiForModal.payload, null, 2);
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          modalCopyBtn.innerHTML = `✓ Đã sao chép!`;
+          setTimeout(() => {
+            modalCopyBtn.innerHTML = `
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Sao chép JSON
+            `;
+          }, 2000);
+        } catch (err) {
+          console.error('Copy error', err);
+        }
+        document.body.removeChild(textArea);
+      });
+    }
+
+    function goToStep(index) {
+      if (index < 0) index = 0;
+      if (index >= FLOW_DATA.steps.length) index = FLOW_DATA.steps.length - 1;
+      currentStepIndex = index;
+      packetAnimationProgress = 0;
+      renderCurrentStepDetails();
+    }
+
+    function nextStep() {
+      if (currentStepIndex < FLOW_DATA.steps.length - 1) {
+        goToStep(currentStepIndex + 1);
+      } else if (isPlaying) {
+        goToStep(0);
+      }
+    }
+
+    function prevStep() {
+      if (currentStepIndex > 0) {
+        goToStep(currentStepIndex - 1);
+      }
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const btnPlay = document.getElementById('btnPlay');
+      const iconPlay = document.getElementById('iconPlay');
+      const txtPlay = document.getElementById('txtPlay');
+
+      if (isPlaying) {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-amber-600', 'bg-rose-600');
+          btnPlay.classList.replace('hover:bg-amber-500', 'hover:bg-rose-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tạm dừng";
+
+        playInterval = setInterval(() => {
+          nextStep();
+        }, 5000 / playbackSpeed);
+      } else {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-rose-600', 'bg-amber-600');
+          btnPlay.classList.replace('hover:bg-rose-500', 'hover:bg-amber-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tự động phát";
+        clearInterval(playInterval);
+      }
+    }
+
+    const btnPlay = document.getElementById('btnPlay');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+    const selSpeed = document.getElementById('selSpeed');
+    const btnReset = document.getElementById('btnReset');
+
+    if (btnPlay) btnPlay.addEventListener('click', togglePlay);
+    if (btnNext) btnNext.addEventListener('click', () => { if (isPlaying) togglePlay(); nextStep(); });
+    if (btnPrev) btnPrev.addEventListener('click', () => { if (isPlaying) togglePlay(); prevStep(); });
+    if (selSpeed) {
+      selSpeed.addEventListener('change', (e) => {
+        playbackSpeed = parseFloat(e.target.value) || 1.0;
+        if (isPlaying) {
+          clearInterval(playInterval);
+          playInterval = setInterval(nextStep, 5000 / playbackSpeed);
+        }
+      });
+    }
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        if (isPlaying) togglePlay();
+        goToStep(0);
+      });
+    }
+
+    const tabBtnDeepDive = document.getElementById('tabBtnDeepDive');
+    const tabBtnList = document.getElementById('tabBtnList');
+    const tabBtnDiagram = document.getElementById('tabBtnDiagram');
+    const stepDeepDiveContainer = document.getElementById('stepDeepDiveContainer');
+    const apiListContainer = document.getElementById('apiListContainer');
+    const sequenceDiagramContainer = document.getElementById('sequenceDiagramContainer');
+    const tabHeadingText = document.getElementById('tabHeadingText');
+
+    if (tabBtnDeepDive) {
+      tabBtnDeepDive.addEventListener('click', () => {
+        tabBtnDeepDive.className = "px-2.5 py-1 rounded bg-amber-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.remove('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Nghiệp Vụ Bước Này";
+      });
+    }
+
+    if (tabBtnList) {
+      tabBtnList.addEventListener('click', () => {
+        tabBtnList.className = "px-2.5 py-1 rounded bg-amber-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (apiListContainer) apiListContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Danh Sách API / Batch";
+      });
+    }
+
+    if (tabBtnDiagram) {
+      tabBtnDiagram.addEventListener('click', () => {
+        tabBtnDiagram.className = "px-2.5 py-1 rounded bg-amber-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Sơ Đồ Tuần Tự (Sequence)";
+      });
+    }
+
+    // Modal triggers
+    const btnOpenGlossary = document.getElementById('btnOpenGlossary');
+    const glossaryModal = document.getElementById('glossaryModal');
+    const closeGlossaryBtn = document.getElementById('closeGlossaryBtn');
+    const closeGlossaryActionBtn = document.getElementById('closeGlossaryActionBtn');
+
+    if (btnOpenGlossary && glossaryModal) {
+      btnOpenGlossary.addEventListener('click', () => glossaryModal.classList.remove('hidden'));
+    }
+    if (closeGlossaryBtn && glossaryModal) {
+      closeGlossaryBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+    if (closeGlossaryActionBtn && glossaryModal) {
+      closeGlossaryActionBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+
+    const btnOpenStory = document.getElementById('btnOpenStory');
+    const storyModal = document.getElementById('storyModal');
+    const closeStoryBtn = document.getElementById('closeStoryBtn');
+    const closeStoryActionBtn = document.getElementById('closeStoryActionBtn');
+
+    if (btnOpenStory && storyModal) {
+      btnOpenStory.addEventListener('click', () => storyModal.classList.remove('hidden'));
+    }
+    if (closeStoryBtn && storyModal) {
+      closeStoryBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+    if (closeStoryActionBtn && storyModal) {
+      closeStoryActionBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        if (glossaryModal) glossaryModal.classList.add('hidden');
+        if (storyModal) storyModal.classList.add('hidden');
+      }
+    });
+
+    const apiSearchInput = document.getElementById('apiSearchInput');
+    if (apiSearchInput) {
+      apiSearchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        if (!term) {
+          renderCurrentStepDetails();
+          return;
+        }
+
+        let matchedApis = [];
+        FLOW_DATA.steps.forEach((step) => {
+          step.apis.forEach(api => {
+            if (
+              api.code.toLowerCase().includes(term) ||
+              api.name.toLowerCase().includes(term) ||
+              api.physicalAction.toLowerCase().includes(term) ||
+              api.method.toLowerCase().includes(term) ||
+              (api.whyNeeded && api.whyNeeded.toLowerCase().includes(term))
+            ) {
+              matchedApis.push({ ...api, fromStep: step.badge });
+            }
+          });
+        });
+
+        // Switch to API list tab to show search results
+        if (tabBtnList) tabBtnList.click();
+
+        const countBadge = document.getElementById('apiCountBadge');
+        if (countBadge) countBadge.textContent = `${matchedApis.length} kết quả`;
+
+        const container = document.getElementById('apiListContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (matchedApis.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-8 text-slate-500 text-xs">
+              Không tìm thấy API hoặc Batch nào khớp với "${term}".
+            </div>
+          `;
+          return;
+        }
+
+        matchedApis.forEach(api => {
+          const card = document.createElement('div');
+          card.className = "bg-slate-900/90 border border-amber-500/40 p-3 rounded-xl hover:border-amber-400 transition-all cursor-pointer";
+          card.innerHTML = `
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="font-mono font-bold text-amber-300">${api.code}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${api.fromStep}</span>
+            </div>
+            <p class="text-xs text-white font-medium mb-1">${api.name}</p>
+            <p class="text-[11px] text-slate-400">${api.whyNeeded || api.physicalAction}</p>
+          `;
+          card.addEventListener('click', () => openApiModal(api));
+          container.appendChild(card);
+        });
+      });
+    }
+
+    window.onload = function() {
+      resizeCanvas();
+      renderCurrentStepDetails();
+      animateLoop();
+    };
+  </script>
+</body>
+</html>

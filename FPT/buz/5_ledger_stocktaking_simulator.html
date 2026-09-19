@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luồng 5: Sổ Cái Tồn Kho, Chốt Ngày & Kiểm Kê (Ledger & Stocktaking Simulator)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            ledger: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+      <!-- Title & Flow Badge -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-bold text-base">
+          L5
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg text-white tracking-tight">LUỒNG 5: Sổ Cái Tồn Kho, Chốt Ngày & Kiểm Kê (Ledger & Stocktaking)</h1>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">WIV Ledger & Financial Snapshot</span>
+          </div>
+          <p class="text-xs text-slate-400">Tra cứu tồn logic AND/OR • Phát lệnh kiểm kê robot • Bù trừ Lãi/Lỗ (Loss & Gain) • Khóa ngày vận hành • Chụp Snapshot tài chính</p>
+        </div>
+      </div>
+
+      <!-- Quick Knowledge & Story Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="btnOpenGlossary" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>📚</span>
+          <span>Cẩm Nang Sổ Cái & Kiểm Kê</span>
+        </button>
+        <button id="btnOpenStory" class="px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>🌙</span>
+          <span>Đêm Giao Thừa Chốt Sổ Triệu Đô</span>
+        </button>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60 shadow-inner">
+        <button id="btnPrev" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước trước">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button id="btnPlay" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow transition-all active:scale-95">
+          <svg id="iconPlay" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span id="txtPlay">Tự động phát</span>
+        </button>
+        <button id="btnNext" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước kế">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div class="h-4 w-px bg-slate-700 mx-1"></div>
+        <select id="selSpeed" class="bg-slate-900 text-xs text-slate-300 font-mono rounded px-2 py-1 border border-slate-700 outline-none focus:border-emerald-500">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2.0x</option>
+        </select>
+        <button id="btnReset" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 rounded-lg transition-colors" title="Khởi động lại">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+
+      <!-- Quick Search Bar -->
+      <div class="relative w-full lg:w-60">
+        <input id="apiSearchInput" type="text" placeholder="Tìm API, Snapshot, STAKE..." 
+               class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors font-mono">
+        <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <section class="bg-slate-900/40 border-b border-slate-800/80 px-4 py-2.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto pb-1" id="stepProgressList">
+      <!-- Populated dynamically via renderStepProgressBar() -->
+    </div>
+  </section>
+
+  <main class="max-w-7xl mx-auto p-4 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+    
+    <!-- LEFT COLUMN: Canvas Animation & Ledger Physical Matrix (7 Cols) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      
+      <!-- Interactive 4-Lanes Animation Canvas Card -->
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl relative overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+              Sơ Đồ Tương Tác 4 Lớp Sổ Cái & Kiểm Toán (4-Lanes Ledger Engine)
+            </h2>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400">Trạng thái gói tin:</span>
+            <span id="packetTransmissionStatus" class="font-mono text-emerald-400 font-medium">Sẵn sàng truy vấn tồn</span>
+          </div>
+        </div>
+
+        <!-- Animation Canvas Container -->
+        <div class="relative w-full h-[360px] bg-slate-950/80 rounded-xl border border-slate-800/90 overflow-hidden shadow-inner">
+          <canvas id="flowCanvas" class="w-full h-full block"></canvas>
+          
+          <!-- Physical Warehouse Mini Visualizer Overlay (Bottom-Right) -->
+          <div class="absolute bottom-3 right-3 bg-slate-900/95 border border-slate-700/80 backdrop-blur rounded-xl p-3 max-w-xs text-xs shadow-xl pointer-events-none">
+            <div class="flex items-center gap-2 font-semibold text-slate-200 mb-1">
+              <span id="warehouseStageIcon" class="text-base">🔍</span>
+              <span id="warehouseStageTitle">Màn Hình Truy Vấn Tồn Đa Chiều</span>
+            </div>
+            <p id="warehouseStageDesc" class="text-slate-400 text-[11px] leading-snug">
+              Tra cứu tồn kho tức thời theo điều kiện AND/OR, bóc tách chính xác số lượng hàng đang bị giữ chỗ (Allocated) và số lượng khả dụng.
+            </p>
+          </div>
+
+          <!-- Step Badge Overlay -->
+          <div class="absolute top-3 left-3 bg-emerald-950/85 border border-emerald-500/40 backdrop-blur px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg">
+            <span class="text-xs font-bold text-emerald-300" id="stepBadgeNumber">BƯỚC 1</span>
+            <span class="text-xs text-slate-200 font-medium" id="stepBadgeTitle">Tra cứu & Quản lý tồn kho logic đa chiều</span>
+          </div>
+        </div>
+
+        <!-- 4 Lanes Legend Info -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs">
+          <div class="bg-blue-950/30 border border-blue-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-400 shadow-sm shadow-blue-400/50"></span>
+            <div>
+              <div class="font-bold text-blue-200">1. ERP / Kế Toán & Kiểm Toán</div>
+              <div class="text-[10px] text-slate-400">HQ ERP, Financial Audit, OMS</div>
+            </div>
+          </div>
+          <div class="bg-amber-950/30 border border-amber-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+            <div>
+              <div class="font-bold text-amber-200">2. WES Stocktaking Engine</div>
+              <div class="text-[10px] text-slate-400">Bộ não điều phối kiểm đếm sàn</div>
+            </div>
+          </div>
+          <div class="bg-emerald-950/30 border border-emerald-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+            <div>
+              <div class="font-bold text-emerald-200">3. Sổ Cái WIV & Snapshot</div>
+              <div class="text-[10px] text-slate-400">Lõi số dư, Chốt ngày, STAKE</div>
+            </div>
+          </div>
+          <div class="bg-purple-950/30 border border-purple-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-purple-400 shadow-sm shadow-purple-400/50"></span>
+            <div>
+              <div class="font-bold text-purple-200">4. Thiết Bị / Robot & Máy Quét</div>
+              <div class="text-[10px] text-slate-400">Exotec ASRS, Handy Terminal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Physical Transformation Matrix Card -->
+      <div class="glass-panel rounded-2xl p-4 shadow-xl border border-slate-800 flex flex-col gap-2.5">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Chuyển Đổi Thực Thể & Trạng Thái Sổ Cái Tài Chính (Ledger Transformation)
+        </h3>
+        
+        <div id="transformationContainer" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center text-xs">
+          <!-- Populated dynamically via JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Step Business Explorer & Deep Dive (5 Cols) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl flex-1 flex flex-col min-h-[580px]">
+        
+        <!-- Header with 3 Tabs -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <span id="tabHeadingText">Nghiệp Vụ Bước Này</span>
+              <span id="apiCountBadge" class="bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">5 APIs</span>
+            </h2>
+            <p class="text-xs text-slate-400" id="currentStepSubtitle">Chi tiết nghiệp vụ đối soát, kiểm đếm, bù trừ và chốt ngày</p>
+          </div>
+          <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+            <button id="tabBtnDeepDive" class="px-2.5 py-1 rounded bg-emerald-600 text-white font-medium transition-all text-[11px]">Nghiệp vụ</button>
+            <button id="tabBtnList" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Danh sách API</button>
+            <button id="tabBtnDiagram" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Sơ đồ tuần tự</button>
+          </div>
+        </div>
+
+        <!-- TAB 1: Business Deep Dive View -->
+        <div id="stepDeepDiveContainer" class="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderStepDeepDive() -->
+        </div>
+
+        <!-- TAB 2: List View of APIs -->
+        <div id="apiListContainer" class="hidden flex-1 overflow-y-auto space-y-2 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderApiList() -->
+        </div>
+
+        <!-- TAB 3: Sequence Diagram View -->
+        <div id="sequenceDiagramContainer" class="hidden flex-1 overflow-y-auto max-h-[520px] p-3 bg-slate-950/90 rounded-xl border border-slate-800/80 font-mono text-[11px] leading-relaxed text-slate-300">
+          <!-- Populated dynamically via renderSequenceDiagram() -->
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JARGON BUSTER MODAL (CẨM NANG NGHIỆP VỤ SỔ CÁI & KIỂM KÊ) -->
+  <div id="glossaryModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-emerald-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">📚</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cẩm Nang Sổ Cái Tồn Kho, Chốt Ngày & Kiểm Kê (Ledger & Stocktaking)</h3>
+            <p class="text-xs text-emerald-300">Giải mã cốt lõi: Tồn vật lý vs Tồn logic, Khu vực ảo STAKE, Bù trừ Lãi/Lỗ, Khóa ngày vận hành & Snapshot</p>
+          </div>
+        </div>
+        <button id="closeGlossaryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase mb-1">1. Tồn kho vật lý (Physical Inventory) vs Tồn kho sổ cái (Logical/WIV Inventory)</h4>
+          <p class="text-slate-300 leading-relaxed">
+            • <strong>Tồn kho vật lý:</strong> Là số lượng chiếc áo, chiếc quần thực tế đang nằm trên thanh dầm kệ, trong thùng carton hoặc trong khay robot mà bạn có thể dùng tay sờ thấy.<br>
+            • <strong>Tồn kho logic (WIV):</strong> Là bức tranh số dư được phân loại theo trạng thái nghiệp vụ: <em>Tồn khả dụng (Available)</em> để bán, <em>Tồn đang bị khóa giữ chỗ (Allocated)</em> cho đơn hàng đang nhặt, <em>Tồn cách ly lỗi (Quarantine)</em> và <em>Tồn đang kiểm kê (Under Stocktake)</em>. Việc phân tách này giúp kho dù có 1.000 cái áo thì nhân viên bán hàng online cũng không bao giờ bán vượt quá số lượng cho phép.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase mb-1">2. Khu vực ảo "STAKE" & Cơ chế Bù trừ Lãi/Lỗ (Loss and Gain) là gì?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Khi đếm thực tế phát hiện lệch (ví dụ: sổ sách báo 10 chiếc, đếm thực tế chỉ thấy 8 chiếc - mất 2 chiếc):<br>
+            • Hệ thống không được phép âm thầm xóa 2 chiếc đó ngay lập tức (vì vi phạm luật kế toán).<br>
+            • 2 chiếc bị thiếu được điều chuyển vào một "kho ảo" gọi là vị trí <strong>STAKE</strong> để đóng băng, không cho phép ai bán hay di chuyển.<br>
+            • Sau khi ban giám đốc và kiểm toán điều tra nguyên nhân (rơi vãi, trộm cắp, nhầm size), kế toán trưởng mới ký duyệt nạp file <strong>Loss & Gain</strong> để chính thức xóa giảm tài sản kho (Loss) hoặc ghi nhận tăng tài sản do thừa hàng (Gain).
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase mb-1">3. Khóa ngày vận hành (Operation Date Roll) - Tại sao kho không dùng giờ 00:00 nửa đêm?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Trong đời sống, ngày mới bắt đầu lúc 00:00 đêm. Nhưng tại kho vận tự động, ca đêm (Night Shift) thường bắt đầu từ 20:00 tối hôm trước kéo dài tới 06:00 sáng hôm sau. Nếu đổi ngày lúc 00:00, một chuyến xe tải đang bốc dở giữa chừng sẽ bị xẻ làm 2 ngày kế toán khác nhau, gây rối loạn báo cáo doanh thu.<br>
+            Do đó, kho sử dụng <strong>Operation Date</strong> (Ngày vận hành). Khoảng 05:00 sáng, hệ thống kiểm tra toàn bộ các giao dịch xuất nhập ca đêm đã xong 100% qua <code class="font-mono text-emerald-300">IV_BT_0009_01</code>, sau đó mới chính thức "lật trang lịch" sang ngày mới qua <code class="font-mono text-emerald-300">CM_AP_0001_01</code>.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase mb-1">4. Snapshot Tồn kho là gì và tại sao Kiểm toán Bắt buộc phải có?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Tồn kho biến động từng giây từng phút. Nếu kiểm toán viên hỏi: <em>"Vào đúng khoảnh khắc 05:00 sáng ngày 19/09/2026, trong kho có chính xác bao nhiêu chiếc áo thun và tổng giá trị là bao nhiêu tỷ đồng?"</em>, bạn không thể tra cứu trên bảng dữ liệu sống đang nhảy số liên tục được. Batch <code class="font-mono text-emerald-300">IV_BT_0005_01</code> chụp một bức ảnh tĩnh bất biến (Snapshot Freeze) lưu lại toàn bộ số dư tại thời điểm chốt ngày để phục vụ kiểm toán tài chính và đồng bộ sang ERP của tập đoàn.
+          </p>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeGlossaryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đã hiểu, đóng cẩm nang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORY MODE MODAL (ĐÊM GIAO THỪA CHỐT SỔ TRIỆU ĐÔ) -->
+  <div id="storyModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-emerald-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">🌙</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Đêm Giao Thừa Chốt Sổ Triệu Đô & Cuộc Truy Tìm Chiếc Áo Lệch Kho</h3>
+            <p class="text-xs text-emerald-300">Chuyện một đêm kiểm kê định kỳ gay cấn: Robot Exotec rà soát hàng ngàn khay hàng và pha xử lý đóng băng STAKE hoàn hảo</p>
+          </div>
+        </div>
+        <button id="closeStoryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold shrink-0">1</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-emerald-300 text-xs mb-1">22:00 Đêm - Lệnh đóng băng kiểm kê toàn phân khu (Stocktaking Setup)</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Theo lịch kiểm toán quý, file <code class="font-mono text-emerald-300">ST_BT_0001_02</code> được nạp vào hệ thống. Giám sát viên kích hoạt <code class="font-mono text-emerald-300">ST_AP_0004_01</code> phát lệnh kiểm kê tự động cho phân khu Robot Exotec. Lập tức, 80 chú robot Skypod ngừng nhận đơn xuất bán lẻ, chuyển sang chế độ phục vụ kiểm kê, lần lượt kéo các khay hàng chạy qua cổng cảm biến đếm tự động.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-bold shrink-0">2</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-amber-300 text-xs mb-1">01:30 Sáng - Phát hiện lệch tồn 3 chiếc áo khoác phao cao cấp</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Tại trạm kiểm kê, robot mang khay Tote số #8812 ra bàn. Sổ cái WIV ghi nhận phải có 15 chiếc áo khoác phao. Công nhân đếm bằng máy quét chỉ thấy 12 chiếc. Chênh lệch thiếu 3 chiếc (trị giá hơn 6 triệu đồng) lập tức kích hoạt còi vàng trên màn hình đối chiếu <code class="font-mono text-emerald-300">ST_AP_0003_01</code>.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold shrink-0">3</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-purple-300 text-xs mb-1">02:15 Sáng - Truy quét ô rỗng & Đưa 3 áo lệch vào "kho ảo" STAKE</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Hệ thống gọi API <code class="font-mono text-emerald-300">ST_AP_0002_06</code> rà soát tất cả các vị trí được ghi nhận là "ô rỗng" lân cận để xem có ai để nhầm không. Đồng thời, batch <code class="font-mono text-emerald-300">ST_BT_0002_01</code> lập tức chuyển 3 chiếc áo bị thiếu vào khu vực logic <strong>STAKE</strong>. Nhờ vậy, 12 chiếc áo còn lại được giải phóng để bán tiếp vào sáng hôm sau, không làm tắc nghẽn hoạt động của cả khay hàng.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold shrink-0">4</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-blue-300 text-xs mb-1">04:45 Sáng - Phê duyệt Loss & Gain và Chốt hoàn tất kiểm kê</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Sau khi camera an ninh xác nhận 3 chiếc áo bị lỗi rách bao bì trong lúc robot gắp và đã được đưa sang phòng bảo hành tuần trước mà quên cập nhật giấy tờ, Giám đốc phê duyệt phiếu <code class="font-mono text-emerald-300">ST_AP_0002_04</code>. Batch <code class="font-mono text-emerald-300">ST_BT_0004_02</code> nạp số liệu xử lý hao hụt Loss & Gain, cân đối số dư sổ cái chính xác 100%.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-teal-500/20 text-teal-400 border border-teal-500/40 flex items-center justify-center font-bold shrink-0">5</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-teal-300 text-xs mb-1">05:00 Sáng - Đổi ngày vận hành & Chụp Snapshot số dư gửi Tập đoàn</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Đúng 05:00 sáng, batch <code class="font-mono text-emerald-300">IV_BT_0009_01</code> kiểm tra xác nhận mọi lệnh xuất nhập ca đêm đã xong 100%. Hệ thống lật ngày vận hành từ 18/09 sang 19/09. Batch <code class="font-mono text-emerald-300">IV_BT_0005_01</code> chụp bức ảnh tĩnh Snapshot đóng băng số dư 2.4 triệu sản phẩm (trị giá 350 tỷ đồng) và bắn file <code class="font-mono text-emerald-300">IV_BT_0003_02_EC</code> sang ERP của tập đoàn. Một đêm kiểm toán hoàn hảo khép lại!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeStoryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đóng câu chuyện
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API INSPECTOR MODAL -->
+  <div id="apiModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-slate-700/80 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div class="flex items-center gap-3">
+          <span id="modalMethodBadge" class="px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider">POST</span>
+          <div>
+            <h3 id="modalApiCode" class="text-sm font-mono font-bold text-white tracking-wide">IV_AP_0001_01</h3>
+            <p id="modalApiName" class="text-xs text-slate-300">Retrieve Inventory With Logical Conjunction Of Conditions</p>
+          </div>
+        </div>
+        <button id="modalCloseBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Systems Involved Route -->
+      <div class="px-5 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between gap-3 text-center font-mono text-xs">
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Nguồn Gửi (Source)</span>
+          <span id="modalSourceSystem" class="text-emerald-400 font-bold text-xs">WES Inventory Inquiry UI</span>
+        </div>
+        <div class="text-slate-600 flex items-center">
+          <span class="text-emerald-400 font-bold">━━━━ ➔ </span>
+        </div>
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Hệ Nhận & Xử Lý (Target)</span>
+          <span id="modalTargetSystem" class="text-teal-400 font-bold text-xs">WIV Ledger Database Server</span>
+        </div>
+      </div>
+
+      <!-- 4 Inspection Tabs inside Modal -->
+      <div class="flex border-b border-slate-800 bg-slate-950/80 px-5 pt-2 gap-2 text-xs">
+        <button id="modalTabBtnBusiness" class="pb-2 px-2 border-b-2 border-emerald-500 text-white font-semibold">1. Nghiệp vụ cốt lõi</button>
+        <button id="modalTabBtnPhysical" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">2. Thao tác sàn kho</button>
+        <button id="modalTabBtnRisk" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">3. Rủi ro & Khóa Lock</button>
+        <button id="modalTabBtnTech" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">4. Sổ cái WIV & JSON</button>
+      </div>
+
+      <!-- Modal Body (Tab Contents) -->
+      <div class="p-5 overflow-y-auto space-y-3 text-xs flex-1">
+        
+        <!-- Tab Content 1: Business -->
+        <div id="modalTabContentBusiness" class="space-y-3">
+          <div class="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-emerald-300 uppercase tracking-wider text-[11px] mb-1">Mục đích & Tại sao phải có hàm này?</h4>
+            <p id="modalWhyNeeded" class="text-slate-200 leading-relaxed">Nội dung giải thích chi tiết...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-teal-300 uppercase tracking-wider text-[11px] mb-1">Ví dụ thực tế đời thường (Analogy):</h4>
+            <p id="modalRealLifeAnalogy" class="text-slate-300 leading-relaxed">Ví dụ đời thường...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 2: Physical Work -->
+        <div id="modalTabContentPhysical" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Hành động của công nhân & thiết bị:</h4>
+            <p id="modalPhysicalActionDetailed" class="text-slate-300 leading-relaxed">Mô tả thao tác...</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Thiết bị phần cứng sử dụng</span>
+              <p id="modalDevicesUsed" class="text-slate-200 font-medium mt-0.5">Máy tính trạm điều hành, Máy quét Zebra, Màn hình kế toán</p>
+            </div>
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Khu vực vật lý (Physical Zone)</span>
+              <p id="modalPhysicalZone" class="text-slate-200 font-medium mt-0.5">Phòng kiểm soát tồn kho & Kiểm toán tài chính</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content 3: Risk & Lock -->
+        <div id="modalTabContentRisk" class="hidden space-y-3">
+          <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-rose-300 uppercase tracking-wider text-[11px] mb-1">Nếu hàm này bị lỗi hoặc bỏ qua thì sao?</h4>
+            <p id="modalRiskConsequence" class="text-rose-200/90 leading-relaxed">Hậu quả rủi ro...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Quy tắc kiểm tra (Validation) & Xử lý lỗi:</h4>
+            <p id="modalErrorHandling" class="text-slate-300 leading-relaxed">Quy tắc nghiệp vụ...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-emerald-300 uppercase tracking-wider text-[11px] mb-1">Cơ chế khóa Lock (Concurrency):</h4>
+            <p id="modalLockMechanism" class="text-emerald-200/90 leading-relaxed">Cơ chế lock...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 4: Tech & WIV -->
+        <div id="modalTabContentTech" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-emerald-300 uppercase tracking-wider text-[11px] mb-1">Tác động Sổ Cái Tồn Kho WIV:</h4>
+            <p id="modalInventoryDetailed" class="text-slate-300 leading-relaxed">Biến động tồn kho...</p>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] font-mono">Dữ Liệu Mẫu (Payload / Response JSON)</h4>
+              <button id="modalCopyBtn" class="text-emerald-400 hover:text-emerald-300 text-[11px] font-medium flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Sao chép JSON
+              </button>
+            </div>
+            <pre id="modalJsonPayload" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] font-mono text-emerald-300 overflow-x-auto max-h-40">
+              { "loading": true }
+            </pre>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+        <span class="text-slate-500 text-[11px]">Nhấn <kbd class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">ESC</kbd> để đóng</span>
+        <button id="modalCloseActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors">
+          Đóng cửa sổ
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* Complete Specification of LUỒNG 5: SỔ CÁI TỒN KHO, CHỐT NGÀY & KIỂM KÊ */
+    const FLOW_DATA = {
+      id: "FLOW_5",
+      title: "LUỒNG 5: SỔ CÁI TỒN KHO, CHỐT NGÀY & KIỂM KÊ (LEDGER & STOCKTAKING)",
+      description: "Mô phỏng các nghiệp vụ tài chính và chốt số liệu kho: Tra cứu số dư tồn kho đa chiều, phát lệnh kiểm đếm bằng robot và máy quét cầm tay, bù trừ chênh lệch Lãi/Lỗ (Loss & Gain), khóa ngày làm việc (Operation Date) và chụp snapshot số dư tài chính gửi hệ thống ERP tập đoàn.",
+      steps: [
+        {
+          id: 1,
+          name: "Bước 1: Tra cứu & Quản lý tồn kho logic đa chiều (Inventory Inquiries)",
+          shortTitle: "1. Tra cứu tồn logic đa chiều",
+          badge: "BƯỚC 1",
+          icon: "🔍",
+          warehouseTitle: "Bàn Giám Sát Sổ Cái Tồn Kho & Điều Chỉnh Ngoại Lệ",
+          warehouseDesc: "Tra cứu tức thời số dư tồn kho theo điều kiện AND (Mã + Màu + Size + Vị trí) hoặc điều kiện OR; lọc riêng số lượng đang bị khóa giữ chỗ (Allocated) và can thiệp điều chỉnh số lượng trong tình huống khẩn cấp.",
+          businessDeepDive: {
+            coreMeaning: "Sổ cái WIV không quản lý tồn kho theo kiểu một con số đơn giản. Một sản phẩm trong kho luôn có nhiều trạng thái logic song song: Tồn khả dụng để bán (Available), Tồn đã bị giữ chỗ cho đơn đang nhặt (Allocated), Tồn đang di chuyển (In-Transit), Tồn lỗi cách ly (Quarantine) và Tồn đang bị khóa kiểm kê (Stocktaking Hold). Các API tra cứu đa chiều (AND/OR Conjunction/Disjunction) cho phép các hệ thống cấp cao (OMS, ERP, WES) nhìn thấu suốt số lượng thực tế mà không làm chậm cơ sở dữ liệu.",
+            whyCritical: "Nếu không bóc tách được tồn đang giữ chỗ (Allocated), nhân viên bán hàng trên mạng sẽ nhìn thấy kho còn 100 cái áo và cho khách bấm mua tiếp, dẫn đến hiện tượng bán khống (Overselling) và vỡ đơn hàng loạt khi vào kho nhặt thì hàng đã bị đơn khác lấy mất.",
+            physicalProcess: [
+              "1. Màn hình quản trị hoặc hệ thống bên ngoài gọi IV_AP_0001_01 tra cứu tồn kho theo điều kiện AND (Mã hàng + Màu + Size + Phân khu).",
+              "2. Người điều hành gọi IV_AP_0001_02 tra cứu mở rộng theo điều kiện OR (Tìm tất cả các sản phẩm thuộc nhóm áo Polo HOẶC áo Sơ mi).",
+              "3. Hệ thống gọi IV_AP_0001_03 để kiểm tra riêng các sản phẩm đang ở trạng thái giữ chỗ (Allocation State Type).",
+              "4. Trong tình huống ngoại lệ (phát hiện kiện hàng bị rách nát hoàn toàn không thể xuất bán), người có thẩm quyền gọi IV_AP_0002_01 (WES) và IV_AP_0002_01 (WIV) để can thiệp điều chỉnh tăng/giảm trực tiếp số lượng tồn kho.",
+              "5. Mọi thao tác điều chỉnh đều được ghi vết Audit Log có tên tài khoản, thời gian và lý do điều chỉnh để kế toán đối soát."
+            ],
+            riskMitigation: "Hàm điều chỉnh trực tiếp (Adjust/Update Inventory) yêu cầu quyền hạn quản trị cấp cao (Admin Security Role) và bắt buộc nhập mã lý do (Reason Code), ngăn chặn nhân viên tự ý chỉnh sửa làm thất thoát tài sản."
+          },
+          transformation: {
+            before: "Số dư tồn kho phức tạp gồm nhiều trạng thái (Khả dụng, Giữ chỗ, Cách ly)",
+            action: "Truy vấn lọc đa chiều AND/OR + Bóc tách trạng thái giữ chỗ + Điều chỉnh ngoại lệ",
+            after: "Bức tranh số dư sáng tỏ, minh bạch cho bán hàng và điều hành kho"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 2,
+            packetLabel: "Multi-Condition Logic Query & Adjust",
+            packetColor: "#10b981"
+          },
+          apis: [
+            {
+              code: "IV_AP_0001_01",
+              name: "Retrieve Inventory With Logical Conjunction Of Conditions",
+              type: "API",
+              method: "POST",
+              source: "WES Inventory Inquiry UI / External ERP",
+              target: "Sổ Cái Tồn Kho WIV (WIV Ledger Database)",
+              whyNeeded: "Tra cứu tồn kho chính xác theo phép giao (AND): Sản phẩm vừa phải đúng mã SKU, đúng màu sắc, đúng kích cỡ, vừa phải nằm ở đúng phân khu kệ chỉ định.",
+              realLifeAnalogy: "Bộ lọc tìm kiếm trên sàn TMĐT: 'Áo thun' VÀ 'Màu đen' VÀ 'Size L' VÀ 'Có sẵn tại kho TP.HCM'.",
+              physicalAction: "Cơ sở dữ liệu quét chỉ mục Index trong 45 mili-giây, trả về danh sách chi tiết các vị trí ô kệ đang chứa đúng mã hàng đó.",
+              devicesUsed: "Máy trạm điều phối kho & Máy chủ cơ sở dữ liệu WIV",
+              physicalZone: "Phòng điều hành trung tâm",
+              riskConsequence: "Nếu tra cứu sai, hệ thống cấp phát nhầm màu hoặc nhầm size áo cho đơn hàng của khách.",
+              errorHandling: "Kiểm tra mã phân khu và mã SKU hợp lệ trong Master Data trước khi truy vấn.",
+              lockMechanism: "Non-blocking Dirty Read Prevention (Snapshot Isolation).",
+              inventoryImpact: "Truy vấn trạng thái tồn kho thực tế, không làm thay đổi số dư.",
+              payload: { sku: "POLO-COOL-BLK-L", color: "BLACK", size: "L", areaId: "PICK_ZONE_A", conditionType: "AND" }
+            },
+            {
+              code: "IV_AP_0001_02",
+              name: "Retrieve Inventory with Logical Disjunction Of Conditions",
+              type: "API",
+              method: "POST",
+              source: "Màn hình Kế hoạch Xuất kho WES",
+              target: "WES Inventory Cache",
+              whyNeeded: "Tra cứu tồn kho theo phép tuyển (OR): Gom danh sách tồn của nhiều nhóm mặt hàng khác nhau trong cùng một câu lệnh để tối ưu băng thông.",
+              realLifeAnalogy: "Tìm kiếm: 'Khách muốn mua áo phông HOẶC áo khoác thể thao để gợi ý sản phẩm'.",
+              physicalAction: "Hệ thống truy xuất tập hợp hàng tồn của 5 mã sản phẩm khác nhau đang nằm rải rác trên toàn kho.",
+              devicesUsed: "Máy chủ tính toán WES",
+              physicalZone: "Tầng dữ liệu WES",
+              riskConsequence: "Gửi nhiều truy vấn đơn lẻ gây nghẽn băng thông mạng và đơ giao diện người dùng.",
+              errorHandling: "Giới hạn số lượng điều kiện OR tối đa 20 mệnh đề để tránh làm chậm hệ thống.",
+              lockMechanism: "Shared Read Lock on Cache Layer.",
+              inventoryImpact: "Hiển thị tổng số lượng tồn của nhiều danh mục hàng hóa.",
+              payload: { conditions: [{ category: "SHIRT" }, { category: "JACKET" }], conditionType: "OR", maxResults: 100 }
+            },
+            {
+              code: "IV_AP_0001_03",
+              name: "Retrieve Inventory by Allocation State Type with Conjunction of Conditions",
+              type: "API",
+              method: "POST",
+              source: "Hệ thống Bắt lỗi Phân bổ WES (Allocation Monitor)",
+              target: "Sổ Cái Giữ Chỗ WIV (Allocation Ledger)",
+              whyNeeded: "Lọc riêng số lượng tồn kho đang bị giữ chỗ (Allocated) cho các đơn hàng đang nhặt; giúp phân biệt rõ giữa hàng có trên kệ và hàng còn được phép bán.",
+              realLifeAnalogy: "Rạp chiếu phim kiểm tra xem trong 200 ghế của phòng chiếu thì có bao nhiêu ghế đã có người đặt mua vé (nhưng chưa vào rạp ngồi).",
+              physicalAction: "Hệ thống bóc tách: Trên kệ có 100 cái áo, nhưng 70 cái đã được gán cho đơn hàng đang lấy, chỉ còn 30 cái khả dụng để bán.",
+              devicesUsed: "Màn hình giám sát điều phối phân bổ",
+              physicalZone: "Phòng kế toán & Quản trị kho",
+              riskConsequence: "Bán vượt quá số lượng hàng thực tế (Overselling), gây hủy đơn hàng loạt và phạt uy tín thương hiệu.",
+              errorHandling: "Tự động đối chiếu số dư giữ chỗ với bảng lệnh nhặt đang hoạt động.",
+              lockMechanism: "Allocation State Snapshot Lock.",
+              inventoryImpact: "Làm rõ số dư: TỒN KHẢ DỤNG = TỒN THỰC TẾ - TỒN ĐÃ GIỮ CHỖ.",
+              payload: { sku: "HOODIE-WINTER-NVY-M", totalPhysicalQty: 100, allocatedQty: 70, availableQty: 30 }
+            },
+            {
+              code: "IV_AP_0002_01 (WES) & IV_AP_0002_01 (WIV)",
+              name: "Adjust Inventory (WES) & Update Inventory (WIV)",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Quản trị Tồn kho Khẩn cấp (Supervisor UI)",
+              target: "Sổ Cái Tồn Kho WIV & WES Core",
+              whyNeeded: "Can thiệp điều chỉnh tăng hoặc giảm trực tiếp số lượng tồn kho trong các trường hợp bất khả kháng (hàng rơi rách nát, thiên tai, phát hiện lỗi nghiêm trọng).",
+              realLifeAnalogy: "Kế toán ghi một bút toán điều chỉnh khẩn cấp trên sổ cái khi phát hiện một bao gạo bị ướt do dột trần kho.",
+              physicalAction: "Thủ kho quét mã thùng hàng hỏng, nhập số lượng trừ 5 chiếc, hệ thống yêu cầu quét vân tay hoặc nhập mã phê duyệt của Trưởng kho.",
+              devicesUsed: "Máy tính bảo mật của Quản đốc kho",
+              physicalZone: "Văn phòng Trưởng ca kho",
+              riskConsequence: "Nếu không có hàm này, hàng hỏng vẫn nằm trên hệ thống và tiếp tục bị phân bổ cho khách hàng mua.",
+              errorHandling: "Bắt buộc nhập mã lý do (Reason Code) và lưu toàn bộ vết kiểm toán (Audit Trail) không thể xóa.",
+              lockMechanism: "Direct Inventory Row Exclusive Lock (X-Lock).",
+              inventoryImpact: "TRỪ hoặc CỘNG trực tiếp số dư tồn kho cả trên WES và Sổ cái WIV.",
+              payload: { sku: "T-SHIRT-DRY-WHT-S", location: "BIN_DAMAGED_01", adjustQty: -5, reasonCode: "WATER_DAMAGE_FORCE_MAJEURE", approvedBy: "MGR_HOANG" }
+            }
+          ]
+        },
+        {
+          id: 2,
+          name: "Bước 2: Lập lịch và Phát lệnh kiểm kê (Stocktaking Setup & Instruction)",
+          shortTitle: "2. Lập lịch & Phát lệnh kiểm kê",
+          badge: "BƯỚC 2",
+          icon: "📋",
+          warehouseTitle: "Trung Tâm Điều Phối Kiểm Kê & Băng Chuyền Robot Exotec",
+          warehouseDesc: "Nạp lịch kiểm kê định kỳ từ Ban giám đốc, phát lệnh cho hạm đội robot Exotec kéo khay hàng ra đếm, quét tìm các ô rỗng và in phiếu kiểm kê tự giác ca kíp.",
+          businessDeepDive: {
+            coreMeaning: "Kiểm kê không phải là việc làm tự phát mà là một chiến dịch được lập kế hoạch tỉ mỉ. Nếu dừng cả nhà kho rộng 30.000m² để đếm hàng thì thiệt hại kinh doanh rất lớn. Do đó, kho hiện đại chia làm 3 hình thức: (1) Kiểm kê định kỳ theo lịch nạp từ HQ; (2) Kiểm kê tự động bằng robot Exotec theo phân khu hoặc theo mã hàng; (3) Kiểm kê tự giác (Self-Stocktaking) do ca kíp tự đếm các dãy kệ rảnh rỗi. Đồng thời, hệ thống lọc riêng các ô kệ hệ thống báo là 'rỗng' để cử người đi soi đèn pin xem có ai để quên hàng vào ô đó không.",
+            whyCritical: "Phát hiện sớm các ô kệ 'tưởng rỗng mà có hàng' hoặc 'tưởng có hàng mà rỗng' giúp giải phóng hàng triệu đồng tài sản bị nằm chết (Dead Stock) và ngăn chặn việc báo sai tồn kho với cơ quan kiểm toán nhà nước.",
+            physicalProcess: [
+              "1. Batch ST_BT_0001_02 định kỳ nạp file lịch kiểm kê tháng/quý từ ban giám đốc công ty về WES.",
+              "2. Điều phối viên kích hoạt ST_AP_0004_01/02 phát lệnh kiểm kê tự động cho hệ thống robot Exotec theo phân khu hoặc theo mã hàng.",
+              "3. Hệ thống gọi ST_AP_0002_06 lọc danh sách toàn bộ các ô kệ đang có trạng thái 'Empty Location' để cử thủ kho đi kiểm tra thực địa.",
+              "4. Tại các khu kệ thông thường: Giám sát ca gọi ST_AP_0005_02 và ST_AP_0005_03 để phát lệnh và in danh sách kiểm kê tự giác ra giấy cho công nhân.",
+              "5. Tất cả các ô kệ và mã hàng nằm trong diện kiểm kê lập tức được đóng băng trạng thái xuất hàng (Stocktaking Hold)."
+            ],
+            riskMitigation: "Khóa xuất hàng tự động (Stocktaking Hold Flag): Khi một ô kệ đang trong tiến trình kiểm kê, WES tự động từ chối mọi lệnh nhặt xuất hàng từ ô đó để tránh việc vừa đếm vừa lấy làm sai lệch số liệu."
+          },
+          transformation: {
+            before: "Các ô kệ vận hành bình thường, tiềm ẩn sai lệch số lượng sau nhiều ca xuất nhập",
+            action: "Nạp lịch kiểm kê + Phát lệnh robot Exotec kéo khay + Quét ô rỗng + In phiếu kiểm kê",
+            after: "Khu vực kiểm kê được đóng băng an toàn, robot và nhân viên sẵn sàng đếm hàng"
+          },
+          animation: {
+            sourceLane: 0,
+            targetLane: 1,
+            packetLabel: "Stocktaking Schedule & Robot Instruction",
+            packetColor: "#fbbf24"
+          },
+          apis: [
+            {
+              code: "ST_BT_0001_02",
+              name: "Import Stocktaking Schedule IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "Hệ thống ERP Tập Đoàn (HQ ERP)",
+              target: "WES Stocktaking Engine",
+              whyNeeded: "Nạp kế hoạch kiểm kê định kỳ (tháng/quý/năm) do ban giám đốc và phòng kế toán phê duyệt xuống hệ thống điều hành kho.",
+              realLifeAnalogy: "Ban giám hiệu gửi lịch thi học kỳ xuống cho các thầy cô chủ nhiệm để chuẩn bị phòng thi và đề thi.",
+              physicalAction: "Batch chạy lúc 21:00 đêm, nạp danh sách 5 phân khu và 400 mã sản phẩm cần được kiểm kê trong ca đêm.",
+              devicesUsed: "Batch Server tự động WES",
+              physicalZone: "Data Center",
+              riskConsequence: "Kho không nắm được lịch kiểm toán, dẫn đến việc không bố trí đủ nhân sự và robot trong ca trực.",
+              errorHandling: "Kiểm tra tính hợp lệ của ngày kiểm kê; tự động cảnh báo nếu trùng vào đợt Sale siêu khuyến mãi.",
+              lockMechanism: "Schedule Import Transaction Lock.",
+              inventoryImpact: "Thiết lập kế hoạch kiểm đếm trên hệ thống.",
+              payload: { scheduleId: "STK_SCH_2026_Q3_01", targetZone: "EXOTEC_GRID_01", targetSkusCount: 420, scheduledDate: "2026-09-19" }
+            },
+            {
+              code: "ST_AP_0004_01 & ST_AP_0004_02",
+              name: "Send Stocktaking Instruction To Automated Warehouse By Area & By Multi Level Item",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Điều phối Kiểm kê WES",
+              target: "Hệ thống Robot Kho Tự Động (Automated Warehouse / Exotec WCS)",
+              whyNeeded: "Gửi lệnh yêu cầu các robot Skypod chạy vào giàn tự động, kéo từng khay hàng (Live Tote) mang ra trạm kiểm đếm theo khu vực hoặc theo mã sản phẩm.",
+              realLifeAnalogy: "Thủ thư yêu cầu hệ thống băng tải tự động mang từng khay sách từ trong kho lưu trữ ra bàn đọc cho thủ thư đếm.",
+              physicalAction: "Hàng chục robot Skypod leo lên giàn kệ 12 mét, gắp các khay hàng theo lộ trình tối ưu và đưa ra bàn trạm kiểm đếm.",
+              devicesUsed: "Bộ điều khiển Robot Exotec & Băng chuyền đưa khay",
+              physicalZone: "Giàn tự động Exotec Grid Zone",
+              riskConsequence: "Robot không nhận được lệnh kiểm kê, cả giàn kệ tự động nằm ngoài tầm kiểm soát của kế toán.",
+              errorHandling: "Ưu tiên xếp hàng các khay chứa sản phẩm có giá trị cao trước; ngắt lệnh xuất bán tại các khay đang kiểm.",
+              lockMechanism: "Automated Bin Stocktaking Exclusive Lock.",
+              inventoryImpact: "Chuyển trạng thái các khay hàng sang ĐANG_TRONG_TIẾN_TRÌNH_KIỂM_KÊ.",
+              payload: { instructionId: "STK_AUTO_001", targetArea: "GRID_A", instructionType: "BY_AREA", totesAssigned: 120 }
+            },
+            {
+              code: "ST_AP_0002_06",
+              name: "Retrieve Stocktaking Counting Result By Empty Location",
+              type: "API",
+              method: "POST",
+              source: "Màn hình Soát Lỗi Vị Trí Rỗng",
+              target: "WES Location Engine",
+              whyNeeded: "Lọc ra danh sách các vị trí mà hệ thống ghi nhận là ô trống hoàn toàn (Qty = 0) để cử thủ kho đi kiểm tra xem có hàng bị rơi rớt hoặc để quên vào đó không.",
+              realLifeAnalogy: "Đi tuần tra kiểm tra các phòng học báo trống vào ban đêm xem có học sinh nào ngủ quên bên trong không.",
+              physicalAction: "Xuất danh sách 35 ô kệ đang báo rỗng; thủ kho cầm đèn pin và máy quét đi kiểm tra tận mắt từng ô.",
+              devicesUsed: "Máy quét cầm tay Handy Terminal",
+              physicalZone: "Khu vực kệ nhặt hàng lẻ và kệ cao tầng",
+              riskConsequence: "Bỏ sót hàng tồn bị công nhân nhét nhầm vào ô trống, hàng bị nằm chết nhiều tháng mà không ai biết để bán.",
+              errorHandling: "Nếu phát hiện có hàng trong ô rỗng, máy quét kích hoạt ngay quy trình khai báo hàng thừa.",
+              lockMechanism: "Empty Location Scan Lock.",
+              inventoryImpact: "Rà soát tính toàn vẹn của bản đồ vị trí kho.",
+              payload: { emptyLocationsScanned: 35, discrepanciesFound: 2, timestamp: "2026-09-19T01:15:00Z" }
+            },
+            {
+              code: "ST_AP_0005_02 & ST_AP_0005_03",
+              name: "Register Self Stocktaking Instruction & Print Self Stocktaking Instruction List",
+              type: "API",
+              method: "PUT/POST",
+              source: "Màn hình Trưởng Ca Vận Hành",
+              target: "Máy in Phiếu Kiểm Kê & Máy Quét HT Công Nhân",
+              whyNeeded: "Phát lệnh và in danh sách kiểm kê tự giác (Self-Stocktaking) cho các ca kíp tự đếm tại phân khu của mình khi sàn kho có thời gian rảnh.",
+              realLifeAnalogy: "Trưởng ca cửa hàng tiện lợi in danh sách quầy bánh kẹo cho nhân viên ca đêm tự đếm và ghi số lượng vào giấy.",
+              physicalAction: "Máy in nhả ra danh sách 20 ô kệ; hai công nhân chia nhau đi quét mã vạch và đếm từng sản phẩm trên giá kệ.",
+              devicesUsed: "Máy in công nghiệp Sato & Giấy kiểm kê A4",
+              physicalZone: "Khu vực kệ chứa hàng thông thường",
+              riskConsequence: "Sai lệch tồn kho tích tụ qua nhiều ngày không được phát hiện kịp thời.",
+              errorHandling: "Không in số lượng tồn trên sổ sách lên giấy (Kiểm kê mù - Blind Count) để bắt công nhân phải đếm thật.",
+              lockMechanism: "Self-Stocktaking Task Lock.",
+              inventoryImpact: "Đóng băng các vị trí kệ nằm trong danh sách kiểm kê tự giác.",
+              payload: { selfInstructionId: "SELF_STK_0919", assignedToWorker: "NV_MINH_03", locationRange: "RACK_B01_TO_B05", printFormat: "BLIND_COUNT_SHEET" }
+            }
+          ]
+        },
+        {
+          id: 3,
+          name: "Bước 3: Nhập kết quả đếm & Phê duyệt chênh lệch (Counting & Approval)",
+          shortTitle: "3. Nhập đếm & Duyệt chênh lệch",
+          badge: "BƯỚC 3",
+          icon: "⚖️",
+          warehouseTitle: "Bàn Kiểm Soát Chênh Lệch Tồn Kho & Màn Hình Kế Toán",
+          warehouseDesc: "Ghi nhận số lượng đếm được từ máy quét của công nhân hoặc robot Exotec gửi về, tự động đối chiếu số dư sổ cái và hiển thị màn hình phê duyệt chênh lệch cho Giám đốc kho.",
+          businessDeepDive: {
+            coreMeaning: "Đây là bước đối chiếu sự thật giữa Thế giới vật lý (Physical Reality) và Thế giới phần mềm (Digital Ledger). Số lượng đếm được từ máy quét hoặc cảm biến robot được nạp vào hệ thống. Màn hình chi tiết chênh lệch (Counting Result Detail) sẽ lập tức làm nổi bật các dòng bị LỆCH: Dòng màu đỏ báo THIẾU (Số đếm < Số sổ sách), dòng màu xanh báo THỪA (Số đếm > Số sổ sách). Quản lý kho phải trực tiếp điều tra lý do và bấm nút phê duyệt (Approval) thì kết quả mới được chuyển sang khâu xử lý tài chính.",
+            whyCritical: "Áp dụng nguyên tắc Bốn Mắt (Four-Eyes Principle): Công nhân đếm hàng không bao giờ có quyền tự sửa số dư kho. Chỉ có Quản đốc kho hoặc Kế toán trưởng có thẩm quyền mới được duyệt các khoản chênh lệch, ngăn chặn tuyệt đối tình trạng gian lận và thông đồng xóa sổ hàng bị mất cắp.",
+            physicalProcess: [
+              "1. Công nhân dùng máy quét nạp số đếm qua ST_AP_0002_03; hoặc robot Exotec tự động nạp số liệu qua ST_AP_0002_08.",
+              "2. Hệ thống gọi ST_AP_0003_01 tự động đối soát với sổ cái WIV và hiển thị bảng so sánh chi tiết từng mã SKU.",
+              "3. Đối với các ô kệ bị lệch lớn: Hệ thống yêu cầu đếm lại lần 2 (Recount) bởi một nhân viên độc lập khác.",
+              "4. Sau khi đối soát nguyên nhân, Quản lý kho gọi ST_AP_0002_04 để phê duyệt kết quả kiểm kê định kỳ.",
+              "5. Đối với kiểm kê tự giác ca kíp: Trưởng ca gọi ST_AP_0006_02 để phê duyệt kết quả trước khi nộp lên kế toán."
+            ],
+            riskMitigation: "Ngưỡng dung sai tự động (Tolerance Threshold): Nếu giá trị chênh lệch vượt quá 10.000.000 VNĐ, hệ thống tự động khóa quyền phê duyệt của Trưởng ca và đẩy lên Giám đốc chuỗi cung ứng phê duyệt đặc biệt."
+          },
+          transformation: {
+            before: "Số lượng thực tế trên kệ và số liệu sổ cái chưa được so khớp",
+            action: "Nạp số đếm thực tế + Đối chiếu chênh lệch Thừa/Thiếu + Phê duyệt cấp quản lý",
+            after: "Kết quả kiểm kê chính thức được phê duyệt, xác định chính xác khoản lệch tài chính"
+          },
+          animation: {
+            sourceLane: 3,
+            targetLane: 1,
+            packetLabel: "Count Results & Manager Approval",
+            packetColor: "#38bdf8"
+          },
+          apis: [
+            {
+              code: "ST_AP_0002_03 & ST_AP_0002_08",
+              name: "Register Stocktaking Counting Result & Register Stocktaking Counting Result From Automated Warehouse For Exotec",
+              type: "API",
+              method: "PUT",
+              source: "Máy quét cầm tay của công nhân & Robot Exotec WCS",
+              target: "WES Stocktaking Core",
+              whyNeeded: "Ghi nhận số lượng sản phẩm thực tế đếm được từ máy quét của công nhân hoặc số liệu quét quang học tự động do robot Exotec gửi về.",
+              realLifeAnalogy: "Kiểm phiếu bầu cử: Tổ kiểm phiếu nạp số phiếu đếm được của từng hòm phiếu vào máy tính trung tâm.",
+              physicalAction: "Công nhân quét mã mác áo, nhập số lượng đếm được là 48 chiếc; hoặc robot Exotec cân tải trọng khay xác nhận có 50 chiếc.",
+              devicesUsed: "Máy quét mã vạch Zebra TC57 & Trạm kiểm đếm robot Exotec Station",
+              physicalZone: "Bàn kiểm đếm sàn kho và trạm Exotec",
+              riskConsequence: "Không nạp được số đếm khiến toàn bộ công sức đếm hàng của công nhân ca đêm bị mất trắng.",
+              errorHandling: "Kiểm tra số lượng nhập phải là số nguyên dương; cấm nhập số âm.",
+              lockMechanism: "Counting Result Entry Lock.",
+              inventoryImpact: "Lưu bản ghi kết quả đếm thực tế vào bảng tạm kiểm kê.",
+              payload: { countBatchId: "CNT_20260919_088", location: "GRID_A_TOTE_8812", sku: "WIND-JACKET-BLK-XL", actualCountedQty: 48, countedBy: "EXOTEC_STATION_02" }
+            },
+            {
+              code: "ST_AP_0003_01",
+              name: "Retrieve Stocktaking Counting Result Detail",
+              type: "API",
+              method: "POST",
+              source: "Màn hình Đối Chiếu Chênh Lệch Kế Toán (Discrepancy UI)",
+              target: "WES & WIV Comparison Engine",
+              whyNeeded: "Hiển thị bảng đối chiếu chi tiết: Số lượng trên sổ sách, Số lượng thực đếm, Độ lệch (+/-) và Giá trị quy đổi thành tiền để quản lý xem xét.",
+              realLifeAnalogy: "Bảng sao kê ngân hàng đối chiếu giữa tiền thực tế trong ví và hóa đơn chi tiêu xem bị hụt bao nhiêu nghìn.",
+              physicalAction: "Màn hình nhấp nháy đèn cảnh báo đỏ tại dòng hàng bị thiếu 2 chiếc áo trị giá 1.200.000 VNĐ.",
+              devicesUsed: "Màn hình máy tính văn phòng kế toán kho",
+              physicalZone: "Phòng kế toán kho",
+              riskConsequence: "Quản lý không nhìn thấy khoản lệch, bỏ qua việc điều tra nguyên nhân thất thoát tài sản.",
+              errorHandling: "Tự động tính toán tỷ lệ hao hụt (%) so với tổng giá trị lô hàng.",
+              lockMechanism: "Discrepancy Review Lock.",
+              inventoryImpact: "Xác định danh sách các dòng hàng cần xử lý chênh lệch.",
+              payload: { sku: "WIND-JACKET-BLK-XL", bookQty: 50, countedQty: 48, discrepancyQty: -2, totalLossValueVND: 1200000 }
+            },
+            {
+              code: "ST_AP_0002_04 & ST_AP_0006_02",
+              name: "Register Stocktaking Counting Result Approval & Register Self Stocktaking Counting Result Approval",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Phê Duyệt Của Quản Đốc Kho",
+              target: "WES Stocktaking Finalizer",
+              whyNeeded: "Quản đốc kho hoặc Kế toán trưởng xem xét nguyên nhân giải trình và bấm nút phê duyệt chính thức chấp thuận kết quả kiểm kê.",
+              realLifeAnalogy: "Hiệu trưởng ký tên đóng dấu đỏ phê duyệt bảng điểm thi tốt nghiệp sau khi đã chấm phúc khảo xong.",
+              physicalAction: "Quản đốc kho kiểm tra camera an ninh, ký duyệt điện tử xác nhận chấp thuận kết quả kiểm kê ca đêm.",
+              devicesUsed: "Chữ ký số & Token bảo mật của Quản đốc",
+              physicalZone: "Văn phòng Giám đốc kho",
+              riskConsequence: "Nếu không có phê duyệt, số liệu kiểm kê bị treo vĩnh viễn, không thể mở khóa bán hàng cho ngày hôm sau.",
+              errorHandling: "Kiểm tra quyền hạn người duyệt; ghi nhận dấu thời gian và IP của người ký duyệt.",
+              lockMechanism: "Stocktaking Approval State Lock.",
+              inventoryImpact: "Chuyển kết quả kiểm kê sang trạng thái ĐÃ_PHÊ_DUYỆT, sẵn sàng chốt sổ.",
+              payload: { approvalId: "APP_STK_20260919_01", approvedBy: "DIRECTOR_TRAN", approvalStatus: "OFFICIALLY_APPROVED", timestamp: "2026-09-19T03:30:00Z" }
+            }
+          ]
+        },
+        {
+          id: 4,
+          name: "Bước 4: Chốt sổ kiểm kê & Bù trừ tồn kho (Finalization & Loss/Gain)",
+          shortTitle: "4. Chốt sổ & Bù trừ Loss/Gain",
+          badge: "BƯỚC 4",
+          icon: "⚖️",
+          warehouseTitle: "Cụm Máy Chủ Sổ Cái WIV & Khu Vực Cách Ly Ảo STAKE",
+          warehouseDesc: "Chốt hoàn tất kiểm kê, chuyển toàn bộ hàng lệch sang 'kho ảo' STAKE để phong tỏa, nạp số liệu bù trừ Lãi/Lỗ (Loss & Gain) và xuất báo cáo chính thức gửi phòng kế toán công ty.",
+          businessDeepDive: {
+            coreMeaning: "Đây là bước xử lý tài chính phức tạp và nhạy cảm nhất của toàn bộ hệ thống kho. Để bảo vệ tính toàn vẹn của sổ cái, hệ thống áp dụng kỹ thuật 'Khu vực ảo STAKE': Số lượng hàng bị lệch không bị xóa ngay mà được chuyển logic vào một kho ảo mang tên STAKE. Sau đó, batch Loss & Gain nạp các bút toán kế toán bù trừ: Ghi giảm tài sản do hao hụt (Loss) hoặc ghi tăng tài sản do thừa hàng (Gain). Khi quy trình này hoàn tất, các ô kệ thực tế được giải phóng hoàn toàn khỏi trạng thái đóng băng để quay lại bán hàng bình thường.",
+            whyCritical: "Đảm bảo tuân thủ chuẩn mực kế toán tài chính quốc tế (IFRS/VAS). Mọi đồng tiền thừa hay thiếu đều có chứng từ hạch toán bù trừ đối ứng rõ ràng, không một chiếc áo nào bị 'biến mất bí ẩn' khỏi sổ sách kế toán.",
+            physicalProcess: [
+              "1. Người điều hành gọi ST_AP_0001_02/03 (WES) chuyển tiếp sang ST_AP_0001_01 (WIV) để chốt hoàn tất kiểm kê (Stocktaking Finalization).",
+              "2. Batch ST_BT_0002_01 tự động nộp phiếu chuyển toàn bộ các khoản chênh lệch sang vị trí kho ảo STAKE.",
+              "3. Kế toán trưởng nạp số liệu bù trừ chính thức qua batch ST_BT_0004_02 (Import Loss and Gain Finalization Quantity).",
+              "4. Sổ cái WIV thực hiện giao dịch ghi sổ nguyên tử (ACID Transaction): Cân bằng số dư logic bằng đúng số lượng đếm thực tế.",
+              "5. Batch ST_BT_0001_02 và ST_BT_0003_02 xuất file báo cáo kết quả kiểm kê và biên bản điều chỉnh tồn kho gửi cho ERP tài chính."
+            ],
+            riskMitigation: "Giao dịch nguyên tử có thể đảo ngược (Rollback Protection): Nếu quá trình nạp file Loss & Gain gặp sự cố giữa chừng, toàn bộ các vị trí kệ vẫn giữ nguyên trạng thái an toàn, không bị lệch sổ cái dở dang."
+          },
+          transformation: {
+            before: "Khoản chênh lệch nằm treo ở bảng tạm, các ô kệ thực tế vẫn bị khóa đóng băng",
+            action: "Chốt Finalize + Đưa hàng lệch vào kho ảo STAKE + Nạp Batch Loss & Gain bù trừ",
+            after: "Sổ cái WIV cân khớp 100% với thực tế; Kệ hàng được mở khóa bán bình thường"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 2,
+            packetLabel: "Finalize & Loss/Gain WIV Ledger Balancing",
+            packetColor: "#a855f7"
+          },
+          apis: [
+            {
+              code: "ST_AP_0001_02 / 03 (WES) -> ST_AP_0001_01 (WIV)",
+              name: "Stocktaking Type Finalization & Register Stocktaking Result Finalization (WES) -> Register Stocktaking Finalization (WIV)",
+              type: "API CHAIN",
+              method: "PUT CHAIN",
+              source: "WES Stocktaking Completion Module",
+              target: "Sổ Cái Tồn Kho WIV (Core Ledger Engine)",
+              whyNeeded: "Chuỗi API chốt sổ kiểm kê: Đóng toàn bộ đợt kiểm đếm, khóa không cho phép sửa đổi kết quả đếm và chuyển giao quyền xử lý sang sổ cái WIV.",
+              realLifeAnalogy: "Thẩm phán gõ búa tuyên bố phiên tòa kết thúc, bản án chính thức có hiệu lực pháp luật không thể thay đổi.",
+              physicalAction: "Hệ thống đóng phiên kiểm kê của 400 mã hàng, giải phóng các thiết bị máy quét quay về chế độ xuất nhập hàng.",
+              devicesUsed: "Máy chủ liên thông WES - WIV Middleware",
+              physicalZone: "Tầng tích hợp hệ thống",
+              riskConsequence: "Nếu không chốt sổ, các kệ hàng vẫn bị treo cờ kiểm kê và không ai có thể lấy hàng xuất bán được.",
+              errorHandling: "Kiểm tra tất cả các ô kệ trong kế hoạch đều đã được phê duyệt đầy đủ trước khi cho phép chốt sổ.",
+              lockMechanism: "Stocktaking Finalization Master Lock.",
+              inventoryImpact: "Chính thức KHÓA SỔ KIỂM KÊ đợt kiểm toán.",
+              payload: { stocktakingBatchId: "STK_BATCH_20260919", closedLocationsCount: 400, finalizationState: "COMPLETED" }
+            },
+            {
+              code: "ST_BT_0002_01",
+              name: "Register Inventory Transfer Submission To UI STAKE",
+              type: "BATCH",
+              method: "WIV BATCH",
+              source: "WIV Stocktaking Worker",
+              target: "Khu Vực Cách Ly Logic STAKE (Virtual Audit Bin)",
+              whyNeeded: "Tự động tạo giao dịch điều chuyển số lượng hàng bị lệch vào 'kho ảo' STAKE để cô lập riêng, giải phóng ô kệ thực tế ngoài sàn kho.",
+              realLifeAnalogy: "Chuyển số tiền đang tranh chấp vào tài khoản phong tỏa của tòa án để giải phóng tài khoản chính cho doanh nghiệp kinh doanh tiếp.",
+              physicalAction: "Sổ cái chuyển 2 chiếc áo bị thiếu vào phân vùng STAKE trong cơ sở dữ liệu trong 30 mili-giây.",
+              devicesUsed: "Máy chủ xử lý batch WIV",
+              physicalZone: "Data Center",
+              riskConsequence: "Nếu không chuyển vào STAKE, ô kệ thực tế tiếp tục bị khóa và không thể nhập hàng mới vào.",
+              errorHandling: "Đảm bảo mã vị trí STAKE luôn tồn tại sẵn trong cấu hình hệ thống Master Data.",
+              lockMechanism: "STAKE Virtual Bin Partition Lock.",
+              inventoryImpact: "Chuyển số dư lệch từ VỊ_TRÍ_THỰC sang VỊ_TRÍ_ẢO_STAKE.",
+              payload: { transferToStakeId: "TRF_STAKE_0919_01", sku: "WIND-JACKET-BLK-XL", quarantinedQty: 2, virtualBin: "LOC_STAKE_AUDIT" }
+            },
+            {
+              code: "ST_BT_0004_02",
+              name: "Import Loss And Gain Finalization Quantity IF",
+              type: "BATCH",
+              method: "WIV BATCH",
+              source: "Phần Mềm Kế Toán Tài Chính ERP",
+              target: "Sổ Cái Tồn Kho WIV (Core Balance Ledger)",
+              whyNeeded: "Nạp file số liệu xử lý hao hụt (Loss) và thừa hàng (Gain) đã được Ban giám đốc ký duyệt để chính thức cân bằng số dư sổ cái kế toán.",
+              realLifeAnalogy: "Kế toán hạch toán bút toán chi phí tổn thất hàng hóa vào sổ sách tài chính cuối tháng.",
+              physicalAction: "Batch xử lý 15 bút toán Lãi/Lỗ, trừ dứt điểm 2 chiếc áo bị mất trong kho ảo STAKE, cân bằng số dư sổ sách về đúng số đếm thực tế.",
+              devicesUsed: "Batch Worker Node WIV",
+              physicalZone: "Data Center",
+              riskConsequence: "Số liệu kho và số liệu kế toán tài chính bị lệch nhau, không thể lập báo cáo tài chính quý cho cổ đông.",
+              errorHandling: "Khớp đối soát mã chứng từ Loss & Gain với quyết định phê duyệt của Ban giám đốc.",
+              lockMechanism: "Loss and Gain Ledger Adjustment Lock.",
+              inventoryImpact: "Ghi nhận BÚT TOÁN BÙ TRỪ HẾT LỆCH, cân bằng số dư sổ cái 100%.",
+              payload: { lossGainBatchId: "LG_20260919_04", totalLossSkus: 8, totalGainSkus: 2, netAdjustmentValueVND: -4500000 }
+            },
+            {
+              code: "ST_BT_0001_02 & ST_BT_0003_02",
+              name: "Export Stocktaking Result IF & Export Stocktaking Quantity Correction Result IF",
+              type: "BATCH",
+              method: "BATCH EXPORT",
+              source: "WIV Ledger Reporter",
+              target: "Hệ thống ERP Tập Đoàn & Ban Kiểm Toán Độc Lập",
+              whyNeeded: "Xuất toàn bộ báo cáo kết quả kiểm kê và chi tiết các khoản điều chỉnh số lượng gửi sang hệ thống ERP tập đoàn và kiểm toán độc lập.",
+              realLifeAnalogy: "Gửi biên bản nghiệm thu công trình có chữ ký của chủ đầu tư và nhà thầu về trụ sở chính công ty.",
+              physicalAction: "Hệ thống xuất 2 file định dạng CSV/XML đã mã hóa bảo mật và đẩy sang máy chủ SFTP của tập đoàn.",
+              devicesUsed: "Secure SFTP Interface Engine",
+              physicalZone: "Tầng tích hợp Gateway",
+              riskConsequence: "Tập đoàn không có số liệu kiểm kê thực tế để chốt sổ sách kế toán hợp nhất toàn quốc.",
+              errorHandling: "Cơ chế kiểm tra mã băm SHA-256 để đảm bảo file báo cáo không bị chỉnh sửa giả mạo trên đường truyền.",
+              lockMechanism: "File Export Idempotency Lock.",
+              inventoryImpact: "Hoàn tất báo cáo kết quả kiểm kê tài sản kho.",
+              payload: { exportedFiles: ["STK_RESULT_20260919.csv", "STK_CORRECTION_20260919.csv"], totalRecords: 400, checksum: "a8f5c9e2b1..." }
+            }
+          ]
+        },
+        {
+          id: 5,
+          name: "Bước 5: Chốt ngày vận hành & Chụp Snapshot số dư (Operation Date & Snapshot)",
+          shortTitle: "5. Chốt ngày & Chụp Snapshot",
+          badge: "BƯỚC 5",
+          icon: "📸",
+          warehouseTitle: "Cụm Máy Chủ Chốt Ngày Vận Hành & Đóng Băng Snapshot",
+          warehouseDesc: "Kiểm tra xác nhận 100% giao dịch xuất nhập ca cũ đã hoàn tất, khóa ngày vận hành (Operation Date), chụp bức ảnh tĩnh Snapshot số dư bất biến và đồng bộ sang ERP tập đoàn.",
+          businessDeepDive: {
+            coreMeaning: "Đây là khoảnh khắc 'Giao thừa' của nhà kho thông minh. Kho không chuyển ngày làm việc vào lúc 00:00 nửa đêm mà chuyển vào khoảng 05:00 sáng - thời điểm giao thoa giữa ca đêm và ca ngày. Batch kiểm tra điều kiện tiên quyết (Pre-requisite Check) quét toàn bộ hàng đợi: Nếu còn dù chỉ 1 đơn hàng xuất đang dở dang hoặc 1 phiếu nhập chưa đóng, hệ thống sẽ TỪ CHỐI đổi ngày. Khi mọi thứ đã sạch 100%, hệ thống lật ngày vận hành và chụp ngay một bức ảnh Snapshot đóng băng toàn bộ số dư tại tích tắc đó.",
+            whyCritical: "Snapshot là tài liệu pháp lý duy nhất chứng minh giá trị tài sản kho tại thời điểm chuyển giao ngày. Nếu không có Snapshot, kiểm toán viên không thể nào xác minh được doanh thu, giá vốn hàng bán và số dư tồn kho của ngày hôm đó.",
+            physicalProcess: [
+              "1. Đúng 04:50 sáng, batch IV_BT_0009_01 quét kiểm tra xác nhận toàn bộ biến động kho trong ngày cũ đã xử lý xong 100%.",
+              "2. Người điều hành gọi CM_AP_0001_01 (hoặc batch IV_BT_0008_01 tự động chạy) để khóa ngày vận hành cũ và lật sang ngày mới.",
+              "3. Ngay tại tích tắc chuyển ngày, batch IV_BT_0005_01 kích hoạt chụp một bức ảnh tĩnh Snapshot toàn bộ số dư của hàng triệu sản phẩm.",
+              "4. Batch IV_BT_0003_02_EC xuất dữ liệu Snapshot dành riêng cho kênh thương mại điện tử EC để đồng bộ tồn bán online.",
+              "5. Batch IV_BT_0015_02 xuất file tổng hợp số dư theo từng vị trí ô kệ gửi sang ERP của tập đoàn để kế toán tài chính lập báo cáo."
+            ],
+            riskMitigation: "Cơ chế Chống trôi ngày (Operation Date Roll Guard): Nếu phát hiện còn đơn hàng bị kẹt chưa hoàn tất, hệ thống tự động phát chuông báo động cho Trưởng ca vào xử lý dứt điểm, ngăn chặn việc đổi ngày làm đứt gãy dữ liệu giao dịch."
+          },
+          transformation: {
+            before: "Ngày vận hành cũ đang mở, dữ liệu tồn kho liên tục nhảy số theo các giao dịch",
+            action: "Kiểm tra sạch giao dịch ➔ Khóa ngày cũ sang ngày mới ➔ Chụp Snapshot đóng băng",
+            after: "Bức ảnh số dư tĩnh được lưu vĩnh viễn; Hệ thống sẵn sàng cho ca làm việc của ngày mới"
+          },
+          animation: {
+            sourceLane: 2,
+            targetLane: 0,
+            packetLabel: "Operation Date Roll & Financial Snapshot Export",
+            packetColor: "#059669"
+          },
+          apis: [
+            {
+              code: "IV_BT_0009_01",
+              name: "Check Previous Operation Inventory Fluctuation Completion",
+              type: "BATCH",
+              method: "WIV BATCH",
+              source: "WIV Pre-Flight Safety Monitor",
+              target: "Toàn Bộ Bảng Hàng Đợi Giao Dịch WIV",
+              whyNeeded: "Kiểm tra xác nhận toàn bộ các lệnh xuất hàng, nhập hàng, chuyển hàng và kiểm kê trong ngày vận hành cũ đã hoàn tất 100%, không còn giao dịch nào bị treo.",
+              realLifeAnalogy: "Tiếp viên hàng không kiểm tra tất cả hành khách đã thắt dây an toàn và đóng cửa máy bay trước khi phi công cho cất cánh.",
+              physicalAction: "Batch quét 120.000 bản ghi giao dịch trong 150 mili-giây, xác nhận hàng đợi đang chờ xử lý bằng 0 (Pending Queue = 0).",
+              devicesUsed: "Tiến trình giám sát Daemon ngầm",
+              physicalZone: "Data Center",
+              riskConsequence: "Nếu đổi ngày khi còn giao dịch treo, các giao dịch đó sẽ bị tính lẫn sang ngày hôm sau, gây sai lệch nghiêm trọng doanh thu 2 ngày.",
+              errorHandling: "Nếu còn giao dịch treo, batch lập tức chặn quy trình đổi ngày và gửi cảnh báo đỏ khẩn cấp tới điện thoại Trưởng ca.",
+              lockMechanism: "Pre-Roll Completion Verification Lock.",
+              inventoryImpact: "Bảo đảm điều kiện an toàn tuyệt đối trước khi đổi ngày.",
+              payload: { pendingShipments: 0, pendingReceivings: 0, pendingTransfers: 0, readyToRollDate: true }
+            },
+            {
+              code: "CM_AP_0001_01 & IV_BT_0008_01",
+              name: "Update Operation Date By Physical Location & Confirm Default Operation Date Update",
+              type: "API/BATCH",
+              method: "PUT/BATCH",
+              source: "Hệ thống Quản Trị Hệ Thống Chung (CM Core)",
+              target: "Bảng Tham Số Ngày Vận Hành WIV & WES (System Date Parameter Table)",
+              whyNeeded: "Chính thức khóa ngày làm việc cũ (ví dụ: ngày 18/09) và chuyển đồng hồ vận hành của toàn bộ nhà kho sang ngày mới (ngày 19/09).",
+              realLifeAnalogy: "Khoảnh khắc chuông đồng hồ điểm 12 tiếng giao thừa, xé tờ lịch cũ trên tường và treo tờ lịch của năm mới lên.",
+              physicalAction: "Cập nhật biến toàn cục Operation Date = '2026-09-19' trên toàn bộ các cụm máy chủ WES, WIV và máy quét sàn kho.",
+              devicesUsed: "Máy chủ quản trị tham số hệ thống Core",
+              physicalZone: "Data Center",
+              riskConsequence: "Hệ thống tiếp tục ghi nhận đơn hàng vào ngày cũ, làm sai lệch kỳ kế toán thuế và báo cáo tài chính.",
+              errorHandling: "Đồng bộ nguyên tử trên tất cả các phân khu kho; nếu một phân khu chưa sẵn sàng thì không đổi ngày.",
+              lockMechanism: "Global Operation Date Exclusive Lock.",
+              inventoryImpact: "KHÓA SỔ NGÀY CŨ, MỞ SỔ NGÀY MỚI trên toàn hệ thống.",
+              payload: { previousOperationDate: "2026-09-18", newOperationDate: "2026-09-19", rolledAt: "2026-09-19T05:00:00Z" }
+            },
+            {
+              code: "IV_BT_0005_01",
+              name: "Create Inventory Snapshot By Operation Date",
+              type: "BATCH",
+              method: "WIV BATCH",
+              source: "WIV Snapshot Engine",
+              target: "Bảng Lưu Trữ Lịch Sử Số Dư Snapshot (Snapshot Archive Table)",
+              whyNeeded: "Chụp một bức ảnh tĩnh bất biến ghi lại chính xác số lượng tồn kho của từng mã sản phẩm tại từng vị trí kệ tại tích tắc chuyển ngày để phục vụ kiểm toán tài chính.",
+              realLifeAnalogy: "Chụp một bức ảnh cả gia đình đứng sum vầy đúng vào đêm giao thừa để lưu vào cuốn album kỷ niệm.",
+              physicalAction: "Hệ thống sao chép 2.4 triệu dòng số dư tồn kho sang bảng lưu trữ phân vùng lịch sử chỉ trong 850 mili-giây.",
+              devicesUsed: "High-Performance Database Engine",
+              physicalZone: "Data Center",
+              riskConsequence: "Mất bằng chứng số dư phục vụ kiểm toán; khi cơ quan thuế kiểm tra đột xuất sẽ không thể giải trình số liệu lịch sử.",
+              errorHandling: "Ghi dữ liệu dưới dạng Read-Only (Chỉ đọc), cấm bất kỳ ai (kể cả Admin) được sửa đổi dữ liệu Snapshot.",
+              lockMechanism: "Point-in-Time Snapshot Isolation Lock.",
+              inventoryImpact: "ĐÓNG BĂNG VĨNH VIỄN BỨC ẢNH SỐ DƯ TỒN KHO của ngày hôm đó.",
+              payload: { snapshotId: "SNAP_20260919_0500", totalSkusCaptured: 45000, totalUnits: 2450000, totalValueVND: 352000000000 }
+            },
+            {
+              code: "IV_BT_0003_02_EC & IV_BT_0015_02",
+              name: "EC Export Inventory Snapshot IF & Export Inventory by In Warehouse Location/Inventory Status/Operation Date IF",
+              type: "BATCH",
+              method: "BATCH EXPORT",
+              source: "WIV Data Interface Dispatcher",
+              target: "Hệ Thống Bán Lẻ Trực Tuyến OMS & Phần Mềm ERP Tập Đoàn",
+              whyNeeded: "Xuất file số dư tồn kho đã chụp gửi sang hệ thống bán hàng online EC và ERP kế toán của tập đoàn để đồng bộ số lượng tồn sẵn sàng bán cho ngày mới.",
+              realLifeAnalogy: "Phát bảng báo giá và danh sách hàng còn trong kho tới tất cả các chi nhánh đại lý vào đầu giờ sáng mỗi ngày.",
+              physicalAction: "Đẩy các gói tin file nén dung lượng 80MB chứa toàn bộ số dư đã mã hóa sang máy chủ ERP tập đoàn qua giao thức SFTP an toàn.",
+              devicesUsed: "Secure Enterprise SFTP Server",
+              physicalZone: "Tầng tích hợp doanh nghiệp (Enterprise Integration)",
+              riskConsequence: "Các kênh bán hàng online không nhận được tồn mới, tiếp tục dùng số liệu cũ làm giảm doanh số bán hàng.",
+              errorHandling: "Tự động gửi lại tối đa 3 lần nếu đường truyền SFTP bị ngắt kết nối giữa chừng.",
+              lockMechanism: "Export Data Stream Lock.",
+              inventoryImpact: "Hoàn tất chu trình đồng bộ dữ liệu tồn kho tài chính toàn doanh nghiệp.",
+              payload: { exportedTo: ["OMS_EC_PLATFORM", "SAP_ERP_HQ"], operationDate: "2026-09-19", syncStatus: "SUCCESS_100_PERCENT" }
+            }
+          ]
+        }
+      ]
+    };
+
+    let currentStepIndex = 0;
+    let isPlaying = false;
+    let playInterval = null;
+    let playbackSpeed = 1.0;
+    let activeApiForModal = null;
+    let packetAnimationProgress = 0;
+    let animationFrameId = null;
+
+    const canvas = document.getElementById('flowCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    function resizeCanvas() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      drawSimulation();
+    });
+
+    // 4 Distinct Lanes for Flow 5
+    const LANES = [
+      { id: 0, name: "1. ERP / Kế Toán & Kiểm Toán", color: "#60a5fa", y: 0.16, icon: "🏢" },
+      { id: 1, name: "2. WES Stocktaking Engine", color: "#fbbf24", y: 0.38, icon: "⚡" },
+      { id: 2, name: "3. Sổ Cái WIV & Snapshot", color: "#34d399", y: 0.60, icon: "📑" },
+      { id: 3, name: "4. Thiết Bị / Robot & Máy Quét", color: "#c084fc", y: 0.83, icon: "🤖" },
+    ];
+
+    function drawSimulation() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Draw Lane Backgrounds & Guides
+      LANES.forEach((lane) => {
+        const laneY = h * lane.y;
+
+        ctx.strokeStyle = "rgba(51, 65, 85, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(30, laneY);
+        ctx.lineTo(w - 30, laneY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Lane badge
+        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.strokeStyle = lane.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(14, laneY - 14, 225, 28, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "bold 11px Inter, sans-serif";
+        ctx.fillStyle = lane.color;
+        ctx.fillText(`${lane.icon} ${lane.name}`, 22, laneY + 4);
+      });
+
+      // 2. Active Step Connection & Glowing Packet
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      const sourceLaneObj = LANES[step.animation.sourceLane];
+      const targetLaneObj = LANES[step.animation.targetLane];
+
+      const startX = 270;
+      const endX = w - 80;
+      const startY = h * sourceLaneObj.y;
+      const endY = h * targetLaneObj.y;
+
+      // Draw connection flow path curve
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.25)";
+      ctx.lineWidth = 3;
+      ctx.moveTo(startX, startY);
+      
+      const cp1X = startX + (endX - startX) * 0.5;
+      const cp1Y = startY;
+      const cp2X = startX + (endX - startX) * 0.5;
+      const cp2Y = endY;
+      ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
+      ctx.stroke();
+
+      // Flow direction arrow particles
+      const t = packetAnimationProgress;
+      const curX = Math.pow(1 - t, 3) * startX + 
+                   3 * Math.pow(1 - t, 2) * t * cp1X + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2X + 
+                   Math.pow(t, 3) * endX;
+      const curY = Math.pow(1 - t, 3) * startY + 
+                   3 * Math.pow(1 - t, 2) * t * cp1Y + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2Y + 
+                   Math.pow(t, 3) * endY;
+
+      // Packet Glow Outer
+      const glowGrad = ctx.createRadialGradient(curX, curY, 2, curX, curY, 20);
+      glowGrad.addColorStop(0, step.animation.packetColor);
+      glowGrad.addColorStop(0.5, step.animation.packetColor + "66");
+      glowGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(curX, curY, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Packet Core Dot
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(curX, curY, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Floating Packet Tooltip Label
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx.strokeStyle = step.animation.packetColor;
+      ctx.lineWidth = 1;
+      const tagText = `${step.animation.packetLabel}`;
+      ctx.font = "500 10px 'JetBrains Mono', monospace";
+      const tagWidth = ctx.measureText(tagText).width;
+      
+      ctx.beginPath();
+      ctx.roundRect(curX - tagWidth / 2 - 8, curY - 26, tagWidth + 16, 20, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillText(tagText, curX - tagWidth / 2, curY - 13);
+
+      // Source and Target Terminal Nodes
+      drawNode(ctx, startX, startY, sourceLaneObj.color);
+      drawNode(ctx, endX, endY, targetLaneObj.color);
+    }
+
+    function drawNode(context, x, y, color) {
+      context.fillStyle = color;
+      context.beginPath();
+      context.arc(x, y, 7, 0, Math.PI * 2);
+      context.fill();
+
+      context.strokeStyle = "rgba(255,255,255,0.8)";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(x, y, 9, 0, Math.PI * 2);
+      context.stroke();
+    }
+
+    function animateLoop() {
+      packetAnimationProgress += 0.012 * playbackSpeed;
+      if (packetAnimationProgress > 1) {
+        packetAnimationProgress = 0;
+      }
+
+      drawSimulation();
+      animationFrameId = requestAnimationFrame(animateLoop);
+    }
+
+    function renderStepProgressBar() {
+      const container = document.getElementById('stepProgressList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      FLOW_DATA.steps.forEach((step, idx) => {
+        const isActive = idx === currentStepIndex;
+        const btn = document.createElement('button');
+        btn.className = `flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all ${
+          isActive 
+            ? 'bg-emerald-600/30 border-emerald-500 text-white shadow-md shadow-emerald-500/20 font-semibold' 
+            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+        }`;
+        btn.innerHTML = `
+          <span class="w-5 h-5 rounded-full ${isActive ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-[10px] font-mono font-bold">
+            ${step.id}
+          </span>
+          <span class="whitespace-nowrap">${step.shortTitle}</span>
+        `;
+        btn.addEventListener('click', () => {
+          goToStep(idx);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderCurrentStepDetails() {
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      // Update Header Badges
+      const badgeNum = document.getElementById('stepBadgeNumber');
+      const badgeTitle = document.getElementById('stepBadgeTitle');
+      const whIcon = document.getElementById('warehouseStageIcon');
+      const whTitle = document.getElementById('warehouseStageTitle');
+      const whDesc = document.getElementById('warehouseStageDesc');
+      const statusText = document.getElementById('packetTransmissionStatus');
+      const apiCount = document.getElementById('apiCountBadge');
+
+      if (badgeNum) badgeNum.textContent = step.badge;
+      if (badgeTitle) badgeTitle.textContent = step.name.split(':')[1]?.trim() || step.name;
+      if (whIcon) whIcon.textContent = step.icon;
+      if (whTitle) whTitle.textContent = step.warehouseTitle;
+      if (whDesc) whDesc.textContent = step.warehouseDesc;
+      if (statusText) statusText.textContent = `Truyền: ${step.animation.packetLabel}`;
+      if (apiCount) apiCount.textContent = `${step.apis.length} APIs/Batch`;
+
+      // Update Physical Transformation Matrix Box
+      const transContainer = document.getElementById('transformationContainer');
+      if (transContainer) {
+        transContainer.innerHTML = `
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-slate-500 uppercase font-mono block mb-1">TRẠNG THÁI TRƯỚC</span>
+            <p class="text-slate-300 font-medium">${step.transformation.before}</p>
+          </div>
+          <div class="bg-emerald-950/30 p-2.5 rounded-lg border border-emerald-800/40 text-center">
+            <span class="text-[10px] text-emerald-400 uppercase font-mono block mb-1">HÀNH ĐỘNG CHUYỂN ĐỔI</span>
+            <p class="text-emerald-200 font-medium">${step.transformation.action}</p>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-teal-400 uppercase font-mono block mb-1">KẾT QUẢ ĐÍCH</span>
+            <p class="text-teal-300 font-medium">${step.transformation.after}</p>
+          </div>
+        `;
+      }
+
+      // Render tab contents
+      renderStepDeepDive(step);
+      renderApiList(step.apis);
+      renderSequenceDiagram(step);
+      renderStepProgressBar();
+    }
+
+    function renderStepDeepDive(step) {
+      const container = document.getElementById('stepDeepDiveContainer');
+      if (!container || !step) return;
+
+      const dd = step.businessDeepDive;
+      container.innerHTML = `
+        <div class="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase flex items-center gap-1.5">
+            <span>💡</span>
+            <span>Bản chất nghiệp vụ cốt lõi</span>
+          </h4>
+          <p class="text-slate-200 text-xs leading-relaxed">${dd.coreMeaning}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-teal-300 text-xs uppercase flex items-center gap-1.5">
+            <span>⚠️</span>
+            <span>Tại sao bước này sống còn đối với sổ cái & kiểm toán?</span>
+          </h4>
+          <p class="text-slate-300 text-xs leading-relaxed">${dd.whyCritical}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <h4 class="font-bold text-emerald-400 text-xs uppercase flex items-center gap-1.5">
+            <span>📋</span>
+            <span>Trình tự thao tác thực tế tại hiện trường</span>
+          </h4>
+          <div class="space-y-1.5 text-xs">
+            ${dd.physicalProcess.map(item => `
+              <div class="flex items-start gap-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 text-slate-300">
+                <span class="text-emerald-400 font-bold shrink-0">✔</span>
+                <span>${item}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3 space-y-1">
+          <h4 class="font-bold text-rose-300 text-xs uppercase flex items-center gap-1.5">
+            <span>🛡️</span>
+            <span>Cơ chế phòng vệ rủi ro & tính toàn vẹn tài chính</span>
+          </h4>
+          <p class="text-rose-200/90 text-xs leading-relaxed">${dd.riskMitigation}</p>
+        </div>
+      `;
+    }
+
+    function renderApiList(apis) {
+      const container = document.getElementById('apiListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      apis.forEach((api) => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900/90 border border-slate-800 hover:border-emerald-500/60 p-3 rounded-xl transition-all cursor-pointer group shadow-sm";
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs font-bold text-emerald-300 group-hover:text-emerald-200 transition-colors">${api.code}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+              api.method.includes('PUT') ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30' :
+              api.method.includes('POST') ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' :
+              api.method.includes('BATCH') ? 'bg-violet-500/10 text-violet-300 border border-violet-500/30' :
+              'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30'
+            }">${api.method}</span>
+          </div>
+          <h4 class="text-xs font-semibold text-slate-200 mb-1 leading-snug">${api.name}</h4>
+          <p class="text-[11px] text-slate-400 line-clamp-2 leading-normal">${api.whyNeeded || api.physicalAction}</p>
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1.5 border-t border-slate-800/60">
+            <span class="truncate max-w-[180px]">${api.source}</span>
+            <span class="text-emerald-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">Mổ xẻ ➔</span>
+          </div>
+        `;
+        card.addEventListener('click', () => openApiModal(api));
+        container.appendChild(card);
+      });
+    }
+
+    function renderSequenceDiagram(step) {
+      const container = document.getElementById('sequenceDiagramContainer');
+      if (!container || !step) return;
+
+      let ascii = `=== SƠ ĐỒ TUẦN TỰ (SEQUENCE FLOW) - ${step.badge} ===\n\n`;
+      ascii += `[ERP / KẾ TOÁN]      [WES STOCKTAKE]      [WIV LEDGER CORE]   [THIẾT BỊ / ROBOT]\n`;
+      ascii += `        │                    │                    │                    │\n`;
+
+      step.apis.forEach((api, i) => {
+        const num = i + 1;
+        if (api.source.includes('ERP') || api.source.includes('HQ') || api.target.includes('ERP')) {
+          ascii += `        │ ────(${num}) ${api.code}───> │                    │                    │\n`;
+          ascii += `        │                    │ [Xử lý: ${api.name.slice(0, 22)}...]\n`;
+        } else if (api.target.includes('WIV') || api.name.includes('Snapshot') || api.name.includes('STAKE') || api.name.includes('Loss')) {
+          ascii += `        │                    │ ────(${num}) Ghi Sổ / Khóa Lệch ───> │                    │\n`;
+          ascii += `        │                    │                    │ [WIV Xử Lý Giao Dịch Số Dư]│\n`;
+          ascii += `        │                    │ <─── Trả lời Xác Nhận ──── │                    │\n`;
+        } else if (api.target.includes('Automated') || api.target.includes('Exotec') || api.target.includes('Robot') || api.source.includes('Robot') || api.source.includes('Máy quét')) {
+          ascii += `        │                    │ ────(${num}) ${api.code}───────────────────────> │\n`;
+          ascii += `        │                    │                    │                    │ [Robot kéo khay/Quét HT]\n`;
+          ascii += `        │                    │ <─── Trả kết quả đếm thực tế ───────────── │\n`;
+        } else {
+          ascii += `        │                    │ ────(${num}) ${api.code} ───> │                    │\n`;
+        }
+        ascii += `        │                    │                    │                    │\n`;
+      });
+
+      ascii += `\n✔ Hoàn tất chu trình tài chính & sổ cái của ${step.badge}`;
+      container.innerHTML = `<pre class="whitespace-pre overflow-x-auto text-emerald-400 leading-relaxed font-mono">${ascii}</pre>`;
+    }
+
+    function openApiModal(api) {
+      activeApiForModal = api;
+      const modal = document.getElementById('apiModal');
+      if (!modal) return;
+
+      const badge = document.getElementById('modalMethodBadge');
+      if (badge) {
+        badge.textContent = api.method;
+        badge.className = "px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider";
+        if (api.method.includes("PUT")) badge.classList.add("bg-amber-500/20", "text-amber-300", "border", "border-amber-500/40");
+        else if (api.method.includes("POST")) badge.classList.add("bg-emerald-500/20", "text-emerald-300", "border", "border-emerald-500/40");
+        else if (api.method.includes("BATCH")) badge.classList.add("bg-violet-500/20", "text-violet-300", "border", "border-violet-500/40");
+        else badge.classList.add("bg-cyan-500/20", "text-cyan-300", "border", "border-cyan-500/40");
+      }
+
+      const setElText = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = txt || "Không có thông tin";
+      };
+
+      setElText('modalApiCode', api.code);
+      setElText('modalApiName', api.name);
+      setElText('modalSourceSystem', api.source);
+      setElText('modalTargetSystem', api.target);
+      setElText('modalWhyNeeded', api.whyNeeded || api.businessRules);
+      setElText('modalRealLifeAnalogy', api.realLifeAnalogy || "Quá trình đối soát và chốt số dư sổ cái tương tự kiểm toán ngân hàng.");
+      setElText('modalPhysicalActionDetailed', api.physicalAction);
+      setElText('modalDevicesUsed', api.devicesUsed || "Máy trạm kế toán, Robot Exotec, Máy quét HT");
+      setElText('modalPhysicalZone', api.physicalZone || "Phòng kiểm soát tồn kho & Kiểm toán tài chính");
+      setElText('modalRiskConsequence', api.riskConsequence || "Có thể gây sai lệch số dư tài chính hoặc làm đứt gãy báo cáo kiểm toán.");
+      setElText('modalErrorHandling', api.errorHandling || api.businessRules);
+      setElText('modalLockMechanism', api.lockMechanism || "Database Concurrency Control Lock");
+      setElText('modalInventoryDetailed', api.inventoryImpact);
+
+      const jsonEl = document.getElementById('modalJsonPayload');
+      if (jsonEl) jsonEl.textContent = JSON.stringify(api.payload, null, 2);
+
+      // Default to Business Tab in modal
+      switchModalTab('modalTabBtnBusiness', 'modalTabContentBusiness');
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('apiModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    /* Modal Sub-Tab Switcher */
+    const modalTabs = [
+      { btnId: 'modalTabBtnBusiness', contentId: 'modalTabContentBusiness' },
+      { btnId: 'modalTabBtnPhysical', contentId: 'modalTabContentPhysical' },
+      { btnId: 'modalTabBtnRisk', contentId: 'modalTabContentRisk' },
+      { btnId: 'modalTabBtnTech', contentId: 'modalTabContentTech' },
+    ];
+
+    function switchModalTab(targetBtnId, targetContentId) {
+      modalTabs.forEach(tab => {
+        const btn = document.getElementById(tab.btnId);
+        const content = document.getElementById(tab.contentId);
+        if (btn && content) {
+          if (tab.btnId === targetBtnId) {
+            btn.className = "pb-2 px-2 border-b-2 border-emerald-500 text-white font-semibold text-xs transition-colors";
+            content.classList.remove('hidden');
+          } else {
+            btn.className = "pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 text-xs transition-colors";
+            content.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    modalTabs.forEach(tab => {
+      const btn = document.getElementById(tab.btnId);
+      if (btn) {
+        btn.addEventListener('click', () => switchModalTab(tab.btnId, tab.contentId));
+      }
+    });
+
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalCloseActionBtn = document.getElementById('modalCloseActionBtn');
+    const apiModal = document.getElementById('apiModal');
+
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+    if (modalCloseActionBtn) modalCloseActionBtn.addEventListener('click', closeModal);
+    if (apiModal) {
+      apiModal.addEventListener('click', (e) => {
+        if (e.target.id === 'apiModal') closeModal();
+      });
+    }
+
+    // Copy JSON payload with feedback
+    const modalCopyBtn = document.getElementById('modalCopyBtn');
+    if (modalCopyBtn) {
+      modalCopyBtn.addEventListener('click', () => {
+        if (!activeApiForModal) return;
+        const text = JSON.stringify(activeApiForModal.payload, null, 2);
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          modalCopyBtn.innerHTML = `✓ Đã sao chép!`;
+          setTimeout(() => {
+            modalCopyBtn.innerHTML = `
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Sao chép JSON
+            `;
+          }, 2000);
+        } catch (err) {
+          console.error('Copy error', err);
+        }
+        document.body.removeChild(textArea);
+      });
+    }
+
+    function goToStep(index) {
+      if (index < 0) index = 0;
+      if (index >= FLOW_DATA.steps.length) index = FLOW_DATA.steps.length - 1;
+      currentStepIndex = index;
+      packetAnimationProgress = 0;
+      renderCurrentStepDetails();
+    }
+
+    function nextStep() {
+      if (currentStepIndex < FLOW_DATA.steps.length - 1) {
+        goToStep(currentStepIndex + 1);
+      } else if (isPlaying) {
+        goToStep(0);
+      }
+    }
+
+    function prevStep() {
+      if (currentStepIndex > 0) {
+        goToStep(currentStepIndex - 1);
+      }
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const btnPlay = document.getElementById('btnPlay');
+      const iconPlay = document.getElementById('iconPlay');
+      const txtPlay = document.getElementById('txtPlay');
+
+      if (isPlaying) {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-emerald-600', 'bg-rose-600');
+          btnPlay.classList.replace('hover:bg-emerald-500', 'hover:bg-rose-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tạm dừng";
+
+        playInterval = setInterval(() => {
+          nextStep();
+        }, 5000 / playbackSpeed);
+      } else {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-rose-600', 'bg-emerald-600');
+          btnPlay.classList.replace('hover:bg-rose-500', 'hover:bg-emerald-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tự động phát";
+        clearInterval(playInterval);
+      }
+    }
+
+    const btnPlay = document.getElementById('btnPlay');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+    const selSpeed = document.getElementById('selSpeed');
+    const btnReset = document.getElementById('btnReset');
+
+    if (btnPlay) btnPlay.addEventListener('click', togglePlay);
+    if (btnNext) btnNext.addEventListener('click', () => { if (isPlaying) togglePlay(); nextStep(); });
+    if (btnPrev) btnPrev.addEventListener('click', () => { if (isPlaying) togglePlay(); prevStep(); });
+    if (selSpeed) {
+      selSpeed.addEventListener('change', (e) => {
+        playbackSpeed = parseFloat(e.target.value) || 1.0;
+        if (isPlaying) {
+          clearInterval(playInterval);
+          playInterval = setInterval(nextStep, 5000 / playbackSpeed);
+        }
+      });
+    }
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        if (isPlaying) togglePlay();
+        goToStep(0);
+      });
+    }
+
+    // Tab switcher between DeepDive, ApiList, SequenceDiagram
+    const tabBtnDeepDive = document.getElementById('tabBtnDeepDive');
+    const tabBtnList = document.getElementById('tabBtnList');
+    const tabBtnDiagram = document.getElementById('tabBtnDiagram');
+    const stepDeepDiveContainer = document.getElementById('stepDeepDiveContainer');
+    const apiListContainer = document.getElementById('apiListContainer');
+    const sequenceDiagramContainer = document.getElementById('sequenceDiagramContainer');
+    const tabHeadingText = document.getElementById('tabHeadingText');
+
+    if (tabBtnDeepDive) {
+      tabBtnDeepDive.addEventListener('click', () => {
+        tabBtnDeepDive.className = "px-2.5 py-1 rounded bg-emerald-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.remove('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Nghiệp Vụ Bước Này";
+      });
+    }
+
+    if (tabBtnList) {
+      tabBtnList.addEventListener('click', () => {
+        tabBtnList.className = "px-2.5 py-1 rounded bg-emerald-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (apiListContainer) apiListContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Danh Sách API / Batch";
+      });
+    }
+
+    if (tabBtnDiagram) {
+      tabBtnDiagram.addEventListener('click', () => {
+        tabBtnDiagram.className = "px-2.5 py-1 rounded bg-emerald-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Sơ Đồ Tuần Tự (Sequence)";
+      });
+    }
+
+    // Modal triggers
+    const btnOpenGlossary = document.getElementById('btnOpenGlossary');
+    const glossaryModal = document.getElementById('glossaryModal');
+    const closeGlossaryBtn = document.getElementById('closeGlossaryBtn');
+    const closeGlossaryActionBtn = document.getElementById('closeGlossaryActionBtn');
+
+    if (btnOpenGlossary && glossaryModal) {
+      btnOpenGlossary.addEventListener('click', () => glossaryModal.classList.remove('hidden'));
+    }
+    if (closeGlossaryBtn && glossaryModal) {
+      closeGlossaryBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+    if (closeGlossaryActionBtn && glossaryModal) {
+      closeGlossaryActionBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+
+    const btnOpenStory = document.getElementById('btnOpenStory');
+    const storyModal = document.getElementById('storyModal');
+    const closeStoryBtn = document.getElementById('closeStoryBtn');
+    const closeStoryActionBtn = document.getElementById('closeStoryActionBtn');
+
+    if (btnOpenStory && storyModal) {
+      btnOpenStory.addEventListener('click', () => storyModal.classList.remove('hidden'));
+    }
+    if (closeStoryBtn && storyModal) {
+      closeStoryBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+    if (closeStoryActionBtn && storyModal) {
+      closeStoryActionBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        if (glossaryModal) glossaryModal.classList.add('hidden');
+        if (storyModal) storyModal.classList.add('hidden');
+      }
+    });
+
+    const apiSearchInput = document.getElementById('apiSearchInput');
+    if (apiSearchInput) {
+      apiSearchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        if (!term) {
+          renderCurrentStepDetails();
+          return;
+        }
+
+        let matchedApis = [];
+        FLOW_DATA.steps.forEach((step) => {
+          step.apis.forEach(api => {
+            if (
+              api.code.toLowerCase().includes(term) ||
+              api.name.toLowerCase().includes(term) ||
+              api.physicalAction.toLowerCase().includes(term) ||
+              api.method.toLowerCase().includes(term) ||
+              (api.whyNeeded && api.whyNeeded.toLowerCase().includes(term))
+            ) {
+              matchedApis.push({ ...api, fromStep: step.badge });
+            }
+          });
+        });
+
+        // Switch to API list tab to show search results
+        if (tabBtnList) tabBtnList.click();
+
+        const countBadge = document.getElementById('apiCountBadge');
+        if (countBadge) countBadge.textContent = `${matchedApis.length} kết quả`;
+
+        const container = document.getElementById('apiListContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (matchedApis.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-8 text-slate-500 text-xs">
+              Không tìm thấy API hoặc Batch nào khớp với "${term}".
+            </div>
+          `;
+          return;
+        }
+
+        matchedApis.forEach(api => {
+          const card = document.createElement('div');
+          card.className = "bg-slate-900/90 border border-emerald-500/40 p-3 rounded-xl hover:border-emerald-400 transition-all cursor-pointer";
+          card.innerHTML = `
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="font-mono font-bold text-emerald-300">${api.code}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${api.fromStep}</span>
+            </div>
+            <p class="text-xs text-white font-medium mb-1">${api.name}</p>
+            <p class="text-[11px] text-slate-400">${api.whyNeeded || api.physicalAction}</p>
+          `;
+          card.addEventListener('click', () => openApiModal(api));
+          container.appendChild(card);
+        });
+      });
+    }
+
+    // Window Onload Handler
+    window.onload = function() {
+      resizeCanvas();
+      renderCurrentStepDetails();
+      animateLoop();
+    };
+  </script>
+</body>
+</html>

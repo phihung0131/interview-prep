@@ -1,0 +1,190 @@
+\documentclass[a4paper,10pt]{article}
+
+%---------- PACKAGES (chỉ giữ những gói thực sự dùng) ----------
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}          % font vector, hiển thị nét và copy/paste chữ tốt hơn
+\usepackage[margin=1.3cm, top=0.9cm, bottom=0.9cm]{geometry}
+\usepackage{xcolor}
+\usepackage{ragged2e}
+\usepackage{tabularx}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{setspace}
+
+% Metadata cho PDF + hỗ trợ ATS đọc đúng ký tự
+\usepackage[hidelinks,
+    pdftitle={Ho Nguyen Phi Hung - CV},
+    pdfauthor={Ho Nguyen Phi Hung}]{hyperref}
+\input{glyphtounicode}
+\pdfgentounicode=1
+
+\pagestyle{empty}
+\urlstyle{same}
+\raggedright
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{0in}
+\setstretch{1.0}
+
+%---------- SECTION ----------
+\titleformat{\section}{\scshape\raggedright\large}{}{0em}{}[\vspace{-1pt}\titlerule]
+\titlespacing*{\section}{0pt}{9pt}{3pt}
+
+%---------- CUSTOM COMMANDS ----------
+\newcommand{\resumeItem}[2]{
+    \item{\textbf{#1}{:\hspace{1.5mm}#2 \vspace{-0.5mm}}}
+}
+
+\newcommand{\resumeSubheading}[4]{
+    \vspace{0.5mm}\item
+    \begin{tabular*}{\linewidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & \textit{\footnotesize{#4}} \\
+        \textit{\footnotesize{#3}} & \footnotesize{#2}\\
+    \end{tabular*}
+    \vspace{-3mm}
+}
+
+\newcommand{\resumeProject}[4]{
+    \vspace{0.5mm}\item
+    \begin{tabular*}{\linewidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & \textit{\footnotesize{#3}} \\
+        \footnotesize{\textit{#2}} & \footnotesize{#4}
+    \end{tabular*}
+    \vspace{-3mm}
+}
+
+
+% Một công ty, nhiều vai trò: tên công ty chỉ hiện 1 lần
+\newcommand{\resumeCompany}[2]{
+    \vspace{0.5mm}\item
+    \begin{tabular*}{\linewidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & \footnotesize{#2} \\
+    \end{tabular*}\par
+    \vspace{-1mm}
+}
+
+\newcommand{\resumeRole}[2]{
+    \vspace{0.5mm}
+    \begin{tabular*}{\linewidth}[t]{l@{\extracolsep{\fill}}r}
+        \textit{\footnotesize{#1}} & \textit{\footnotesize{#2}} \\
+    \end{tabular*}\par
+    \vspace{-3mm}
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-4pt}}
+
+\renewcommand{\labelitemi}{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*,labelsep=1.7mm,itemsep=0mm,topsep=0mm]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{0.5mm}}
+
+\newcommand{\resumeHeadingSkillStart}{\begin{itemize}[leftmargin=*,itemsep=1.7mm]}
+\newcommand{\resumeHeadingSkillEnd}{\end{itemize}\vspace{-2mm}}
+
+\newcommand{\resumeItemListStart}{\begin{justify}\begin{itemize}[leftmargin=3.8ex, noitemsep, label=\raisebox{0.15ex}{\scalebox{0.75}{$\circ$}}, labelsep=1.4mm, labelwidth=1.8mm, topsep=0.4mm, parsep=0.2mm]\small}
+\newcommand{\resumeItemListEnd}{\end{itemize}\end{justify}\vspace{-3mm}}
+
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{R}{>{\raggedleft\arraybackslash}X}
+
+%---------- PERSONAL INFORMATION ----------
+\newcommand{\name}{Ho Nguyen Phi Hung}
+\newcommand{\position}{Software Engineer}
+\newcommand{\phone}{+84 345 812 806}
+\newcommand{\emaila}{phihung0131@gmail.com}
+\newcommand{\github}{https://github.com/phihung0131}
+\newcommand{\linkedin}{https://linkedin.com/in/phihung0131}
+\newcommand{\sep}{\hspace{1.5mm}\textbar\hspace{1.5mm}}
+
+\begin{document}
+
+%---------- HEADING ----------
+\begin{tabularx}{\linewidth}{L r}
+    {\LARGE\bfseries \name} & \small \href{mailto:\emaila}{\emaila}\sep\phone \\[1pt]
+    \textbf{\position}      & \small \href{\linkedin}{linkedin.com/in/phihung0131}\sep\href{\github}{github.com/phihung0131} \\
+\end{tabularx}
+
+%---------- EDUCATION ----------
+\section{Education}
+\resumeSubHeadingListStart
+    \resumeSubheading
+      {Ho Chi Minh City University of Technology (HCMUT-VNU)}{Ho Chi Minh City, Vietnam}
+      {Bachelor of Computer Science}{Aug 2022 -- Oct 2025}
+\resumeSubHeadingListEnd
+
+%---------- EXPERIENCE ----------
+\section{Experience}
+\resumeSubHeadingListStart
+   \resumeCompany{FPT Software}{Ho Chi Minh City, Vietnam}
+
+    \resumeRole{Sub Lead}{Jan 2026 -- Present}
+    \resumeItemListStart
+      \item Coordinated technical delivery and sprint task allocation for a team of 7 backend engineers, mentoring members and conducting rigorous code reviews to maintain architecture standards.
+      \item Managed multi-warehouse release workflows and Git branching strategies (major/minor releases), eliminating deployment conflicts across active fulfillment centers.
+      \item Architected an AI-driven workflow harness integrating Claude with Jira, Confluence, and GitHub APIs, automating FD-to-code boilerplate generation and accelerating PR review turnaround.
+    \resumeItemListEnd
+
+    \vspace{0.5mm}
+    \resumeRole{Backend Software Engineer}{Dec 2024 -- Jan 2026}
+    \resumeItemListStart
+      \item Developed core APIs and distributed batch jobs using Spring Boot, MyBatis, and PostgreSQL, supporting end-to-end warehouse operations from inbound receiving to picking, packing, and shipping.
+      \item Handled race conditions and concurrency challenges across multi-system integrations, ensuring reliable command execution and zero duplicate processing.
+      \item Identified and resolved edge-case transactional and data-mapping issues, preventing data discrepancies and ensuring database state consistency across distributed modules.
+      \item Optimized application performance and database interactions by applying in-memory processing patterns, efficient caching, and query index tuning to reduce latency.
+      \item Diagnosed runtime issues and production defects by analyzing Datadog metrics, APM traces, and logs; maintained comprehensive unit and integration test suites with over 90\% coverage.
+    \resumeItemListEnd
+
+    \resumeSubheading
+      {Apollogix}{Ho Chi Minh City, Vietnam}
+      {Backend Software Engineering Intern}{Aug 2024 -- Dec 2024}
+    \resumeItemListStart
+      \item Developed APIs for a Transportation Management System (TMS) for port delivery operations, building CRUD modules for scheduling, yard, and trip management.
+      \item Implemented an automatic driver assignment feature with conflict detection, preventing overlapping driver/truck schedules.
+      \item Identified a performance issue caused by complex Hibernate joins; optimized using PostgreSQL views/functions with Flyway migrations, reducing response payload size and query time.
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%---------- PROJECTS ----------
+\section{Projects}
+\resumeSubHeadingListStart
+    \resumeProject
+      {Notification Hub -- Event-driven Messaging System}
+      {Backend Engineer}
+      {Oct 2025 -- Jan 2026}
+      {\href{https://github.com/phihung0131/notification-hub}{github.com/phihung0131/notification-hub}}
+      \resumeItemListStart
+        \item Developed an event-driven microservices architecture using Spring Boot and Kafka for asynchronous, distributed notification delivery.
+        \item Implemented inter-service communication via gRPC and maintained data consistency using a basic Saga pattern approach.
+        \item Integrated Redis for rate limiting and caching to protect microservices resources and reduce database load.
+        \item Enhanced fault tolerance with Dead Letter Queues (DLQ) and ensured idempotency using PostgreSQL Upsert operations.
+      \resumeItemListEnd
+    \resumeProject
+      {PilotJob-AI -- AI-powered Job Search Assistant}
+      {Personal Project}
+      {Jun 2026 -- Present}
+      {\href{https://github.com/phihung0131/auto-jobs}{github.com/phihung0131/auto-jobs}}
+      \resumeItemListStart
+        \item Built a Python-based system integrating customizable crawlers to collect job postings and analyze them against a personal profile to find matching opportunities.
+        \item Generated tailored advice and key considerations for each job match, along with an auto-generated, editable CV (human-in-the-loop) matched to the job description.
+        \item Designed a multi-provider AI integration layer supporting Codex, Claude, Gemini, and OpenRouter, allowing flexible switching between providers.
+        \item Developed a configurable crawler framework to adapt data collection to different job sources and user needs.
+      \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%---------- TECHNICAL SKILLS ----------
+\section{Technical Skills}
+\resumeHeadingSkillStart
+    \resumeSubItem{Programming Languages}{Java, JavaScript, SQL}
+    \resumeSubItem{Database}{PostgreSQL, MySQL, MongoDB}
+    \resumeSubItem{Others}{Git, Docker, Kafka, gRPC, AWS Service (S3, EC2, VPC, Lambda)}
+\resumeHeadingSkillEnd
+
+
+%---------- LANGUAGES & CERTIFICATES ----------
+\section{Languages \& Certificates}
+\resumeHeadingSkillStart
+    \resumeSubItem{English}{TOEIC LR score of 720 (2025) -- Intermediate proficiency}
+    \resumeSubItem{Generative AI Leader Certification -- Google}{Issued: Jan 2026 \textperiodcentered\ Expires: Jan 2029}
+\resumeHeadingSkillEnd
+
+\end{document}

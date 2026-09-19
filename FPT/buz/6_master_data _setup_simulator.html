@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luồng 6: Dữ Liệu Danh Mục & Cấu Hình Hệ Thống (Master Data & Setup Simulator)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            master: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+      <!-- Title & Flow Badge -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-bold text-base">
+          L6
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg text-white tracking-tight">LUỒNG 6: Dữ Liệu Danh Mục & Cấu Hình Hệ Thống (Master Data & Setup)</h1>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">Warehouse Master Brain & Layout</span>
+          </div>
+          <p class="text-xs text-slate-400">Đồng bộ SKU đa tầng • Quy cách thể tích M3 • Tọa độ dầm kệ • Định tuyến hãng vận chuyển • Quản lý may gấu quần Alteration</p>
+        </div>
+      </div>
+
+      <!-- Quick Knowledge & Story Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="btnOpenGlossary" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>📚</span>
+          <span>Cẩm Nang Master Data</span>
+        </button>
+        <button id="btnOpenStory" class="px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-500/40 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>🧠</span>
+          <span>Khởi Tạo Bộ Não Nhà Kho</span>
+        </button>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60 shadow-inner">
+        <button id="btnPrev" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước trước">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button id="btnPlay" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow transition-all active:scale-95">
+          <svg id="iconPlay" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span id="txtPlay">Tự động phát</span>
+        </button>
+        <button id="btnNext" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước kế">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div class="h-4 w-px bg-slate-700 mx-1"></div>
+        <select id="selSpeed" class="bg-slate-900 text-xs text-slate-300 font-mono rounded px-2 py-1 border border-slate-700 outline-none focus:border-indigo-500">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2.0x</option>
+        </select>
+        <button id="btnReset" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 rounded-lg transition-colors" title="Khởi động lại">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+
+      <!-- Quick Search Bar -->
+      <div class="relative w-full lg:w-60">
+        <input id="apiSearchInput" type="text" placeholder="Tìm API, M3, Alteration, Ô kệ..." 
+               class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors font-mono">
+        <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <section class="bg-slate-900/40 border-b border-slate-800/80 px-4 py-2.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto pb-1" id="stepProgressList">
+      <!-- Populated dynamically via renderStepProgressBar() -->
+    </div>
+  </section>
+
+  <main class="max-w-7xl mx-auto p-4 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+    
+    <!-- LEFT COLUMN: Canvas Animation & Physical Layout Matrix (7 Cols) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      
+      <!-- Interactive 4-Lanes Animation Canvas Card -->
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl relative overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+              Sơ Đồ Tương Tác 4 Lớp Bộ Não Danh Mục & Thiết Lập Kho (Master Data Hub)
+            </h2>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400">Trạng thái gói tin:</span>
+            <span id="packetTransmissionStatus" class="font-mono text-indigo-400 font-medium">Sẵn sàng đồng bộ</span>
+          </div>
+        </div>
+
+        <!-- Animation Canvas Container -->
+        <div class="relative w-full h-[360px] bg-slate-950/80 rounded-xl border border-slate-800/90 overflow-hidden shadow-inner">
+          <canvas id="flowCanvas" class="w-full h-full block"></canvas>
+          
+          <!-- Physical Warehouse Mini Visualizer Overlay (Bottom-Right) -->
+          <div class="absolute bottom-3 right-3 bg-slate-900/95 border border-slate-700/80 backdrop-blur rounded-xl p-3 max-w-xs text-xs shadow-xl pointer-events-none">
+            <div class="flex items-center gap-2 font-semibold text-slate-200 mb-1">
+              <span id="warehouseStageIcon" class="text-base">🏢</span>
+              <span id="warehouseStageTitle">HQ ERP Master Synchronizer</span>
+            </div>
+            <p id="warehouseStageDesc" class="text-slate-400 text-[11px] leading-snug">
+              Nạp dữ liệu danh mục cửa hàng, nhà cung cấp, sản phẩm đa tầng (Color/Size) và công thức combo từ tập đoàn.
+            </p>
+          </div>
+
+          <!-- Step Badge Overlay -->
+          <div class="absolute top-3 left-3 bg-indigo-950/85 border border-indigo-500/40 backdrop-blur px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg">
+            <span class="text-xs font-bold text-indigo-300" id="stepBadgeNumber">BƯỚC 1</span>
+            <span class="text-xs text-slate-200 font-medium" id="stepBadgeTitle">Nhận danh mục sản phẩm & đối tác từ Tập đoàn</span>
+          </div>
+        </div>
+
+        <!-- 4 Lanes Legend Info -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs">
+          <div class="bg-blue-950/30 border border-blue-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-400 shadow-sm shadow-blue-400/50"></span>
+            <div>
+              <div class="font-bold text-blue-200">1. HQ ERP / Enterprise</div>
+              <div class="text-[10px] text-slate-400">Tập đoàn SAP, MDM, PLM</div>
+            </div>
+          </div>
+          <div class="bg-amber-950/30 border border-amber-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+            <div>
+              <div class="font-bold text-amber-200">2. WES Master Orchestrator</div>
+              <div class="text-[10px] text-slate-400">Bộ não điều phối quy tắc kho</div>
+            </div>
+          </div>
+          <div class="bg-emerald-950/30 border border-emerald-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+            <div>
+              <div class="font-bold text-emerald-200">3. WIV Ledger & Location Core</div>
+              <div class="text-[10px] text-slate-400">Sổ cái số dư & Tọa độ dầm kệ</div>
+            </div>
+          </div>
+          <div class="bg-purple-950/30 border border-purple-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-purple-400 shadow-sm shadow-purple-400/50"></span>
+            <div>
+              <div class="font-bold text-purple-200">4. Thiết Bị / Robot & Xưởng May</div>
+              <div class="text-[10px] text-slate-400">Exotec WCS, Sorting, Alteration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel rounded-2xl p-4 shadow-xl border border-slate-800 flex flex-col gap-2.5">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Chuyển Đổi Thực Thể & Thiết Lập Cấu Hình Hệ Thống (Master Transformation)
+        </h3>
+        
+        <div id="transformationContainer" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center text-xs">
+          <!-- Populated dynamically via JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Step Business Explorer & Deep Dive (5 Cols) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl flex-1 flex flex-col min-h-[580px]">
+        
+        <!-- Header with 3 Tabs -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <span id="tabHeadingText">Nghiệp Vụ Bước Này</span>
+              <span id="apiCountBadge" class="bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">6 APIs</span>
+            </h2>
+            <p class="text-xs text-slate-400" id="currentStepSubtitle">Chi tiết thông số, bản đồ dầm kệ, robot và dịch vụ may vá</p>
+          </div>
+          <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+            <button id="tabBtnDeepDive" class="px-2.5 py-1 rounded bg-indigo-600 text-white font-medium transition-all text-[11px]">Nghiệp vụ</button>
+            <button id="tabBtnList" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Danh sách API</button>
+            <button id="tabBtnDiagram" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Sơ đồ tuần tự</button>
+          </div>
+        </div>
+
+        <!-- TAB 1: Business Deep Dive View -->
+        <div id="stepDeepDiveContainer" class="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderStepDeepDive() -->
+        </div>
+
+        <!-- TAB 2: List View of APIs -->
+        <div id="apiListContainer" class="hidden flex-1 overflow-y-auto space-y-2 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderApiList() -->
+        </div>
+
+        <!-- TAB 3: Sequence Diagram View -->
+        <div id="sequenceDiagramContainer" class="hidden flex-1 overflow-y-auto max-h-[520px] p-3 bg-slate-950/90 rounded-xl border border-slate-800/80 font-mono text-[11px] leading-relaxed text-slate-300">
+          <!-- Populated dynamically via renderSequenceDiagram() -->
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JARGON BUSTER MODAL (CẨM NANG MASTER DATA & THIẾT LẬP KHO) -->
+  <div id="glossaryModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-indigo-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">📚</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cẩm Nang Master Data & Cấu Hình Vận Hành Kho Thông Minh</h3>
+            <p class="text-xs text-indigo-300">Bộ não dữ liệu: SKU đa tầng, Thể tích M3, Tọa độ dầm kệ, Quy tắc đóng chung và Thẻ may đo Alteration Card</p>
+          </div>
+        </div>
+        <button id="closeGlossaryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-indigo-300 text-xs uppercase mb-1">1. Sản phẩm đa tầng (Multi-Level Item Master) là gì?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Trong bán lẻ thời trang và công nghiệp hiện đại, một sản phẩm không thể quản lý bằng một mã SKU phẳng. Hệ thống sử dụng kiến trúc <strong>Multi-Level Item</strong>: <br>
+            • <em>Tầng 1 (Item/Model):</em> Mẫu thiết kế chung (ví dụ: Áo thun Airism Cotton ngắn tay).<br>
+            • <em>Tầng 2 (Color):</em> Màu sắc cụ thể (Màu 00 Trắng, Màu 09 Đen, Màu 69 Xanh Navy).<br>
+            • <em>Tầng 3 (Size/PLU):</em> Kích cỡ chuẩn (XS, S, M, L, XL, XXL) kèm mã vạch Barcode quét tại quầy tính tiền.<br>
+            Việc này giúp kho có thể gom nhóm đơn hàng, tính toán tồn kho theo màu, hoặc đổi size linh hoạt cho khách mà không làm đứt gãy hệ thống.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-indigo-300 text-xs uppercase mb-1">2. Thể tích M3 (Piece M3 & Carton M3) & Tại sao Robot bắt buộc phải có?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Robot Skypod của Exotec hay các cánh tay tự động không thể "nhìn bằng mắt" để ước lượng độ to nhỏ của thùng hàng. Chúng cần các con số vật lý tuyệt đối:<br>
+            • <strong>Piece M3:</strong> Thể tích 3 chiều (Dài × Rộng × Cao) của từng chiếc áo khi đã gấp gọn.<br>
+            • <strong>Carton M3:</strong> Kích thước ngoài và tải trọng tối đa của các thùng carton tiêu chuẩn.<br>
+            Nhờ có Master Data M3, hệ thống WES tự động tính toán được một khay Live Tote có thể nhét vừa tối đa bao nhiêu chiếc áo thun (ví dụ: tối đa 40 áo) trước khi robot chạy đi lấy, chống hiện tượng tràn thùng kẹt giàn cơ học.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-indigo-300 text-xs uppercase mb-1">3. Tọa độ dầm kệ (Location Hierarchy) & Vị trí cố định (Solid Individual Location)</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Toàn bộ nhà kho 30.000m² được số hóa thành hệ tọa độ không gian 5 cấp: <em>Phân khu (Area) ➔ Dãy kệ (Aisle) ➔ Khoang dầm (Bay) ➔ Tầng kệ (Level) ➔ Ô chứa (Bin)</em>.<br>
+            • Đối với hàng bán siêu chạy (Top Sellers): Hệ thống gán thành <strong>Solid Individual Location</strong> (Vị trí cố định mặt đất tầng 1), không bao giờ di chuyển để nhân viên nhặt hàng nhanh nhất mà không phải ngước nhìn lên cao.<br>
+            • Đối với hàng bán chậm: Hệ thống cất vào các ô kệ ngẫu nhiên trên cao (Random High-Bay) để tối ưu hóa thể tích trống.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-indigo-300 text-xs uppercase mb-1">4. Quy tắc đóng gói kết hợp (Combined Packing Group) & Dịch vụ May đo (Alteration)</h4>
+          <p class="text-slate-300 leading-relaxed">
+            • <strong>Combined Packing:</strong> Ngăn chặn việc đóng chung các sản phẩm kỵ nhau (ví dụ: nước giặt hóa chất không được đóng chung hộp với bánh kẹo thực phẩm; giày da mũi sắt không được nén chung hộp với áo sơ mi lụa tơ tằm).<br>
+            • <strong>Alteration Service:</strong> Quy trình đặc thù của thương hiệu thời trang: Khách mua quần âu trên App có thể tick chọn cắt ngắn gấu quần 3cm. Hệ thống đồng bộ mã dịch vụ may, tự động in <em>Alteration Card</em> kẹp vào ống quần để thợ may tại xưởng may trong kho thực hiện đúng yêu cầu.
+          </p>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeGlossaryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đã hiểu, đóng cẩm nang
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORY MODE MODAL (HÀNH TRÌNH KHỞI TẠO BỘ NÃO NHÀ KHO) -->
+  <div id="storyModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-indigo-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">🧠</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Hành Trình Khởi Tạo Bộ Não Nhà Kho Thông Minh Trước Giờ G</h3>
+            <p class="text-xs text-indigo-300">Chuyện 48 giờ trước ngày khai trương: Nạp 50.000 SKU từ HQ, bắn tọa độ 10.000 dầm kệ và kích hoạt xưởng may nội bộ</p>
+          </div>
+        </div>
+        <button id="closeStoryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 flex items-center justify-center font-bold shrink-0">1</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-indigo-300 text-xs mb-1">T-48 Giờ: Nạp danh mục đối tác & 50.000 SKU đa tầng từ Tập đoàn</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Cụm batch <code class="font-mono text-indigo-300">MS_BT_0004_02</code> và <code class="font-mono text-indigo-300">MS_BT_0005_02</code> tải về toàn bộ danh bạ 120 cửa hàng bán lẻ toàn quốc, 30 nhà máy may gia công và 50.000 mã hàng đa tầng (Model/Color/Size). Đồng thời, danh mục các bộ Combo gia đình và quà tặng khuyến mãi mùa thu <code class="font-mono text-indigo-300">CM_BT_0004_02</code> cũng được nạp sẵn vào sổ cái WIV.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold shrink-0">2</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-blue-300 text-xs mb-1">T-36 Giờ: Quét 3D thể tích M3 & Nạp bộ thông số cho Robot Exotec</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Các chuyên viên giải pháp kích hoạt <code class="font-mono text-indigo-300">MS_BT_0010_02</code> và <code class="font-mono text-indigo-300">MS_BT_0011_02_EC</code> nạp số đo 3 chiều (Dài × Rộng × Cao) của từng chiếc áo và thùng carton. Batch <code class="font-mono text-indigo-300">MS_BT_0008_01</code> xuất bộ thông số sang máy chủ Exotec WCS để các cánh tay robot hiệu chỉnh cữ gắp chính xác đến từng milimét.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold shrink-0">3</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-emerald-300 text-xs mb-1">T-24 Giờ: Thiết lập bản đồ tọa độ 10.000 ô kệ & In tem dầm kệ QR Code</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Các kỹ sư sử dụng <code class="font-mono text-indigo-300">MS_AP_0002_02</code> và <code class="font-mono text-indigo-300">MS_AP_0003_02</code> khai báo sơ đồ số hóa toàn bộ các dãy kệ. Máy in công nghiệp <code class="font-mono text-indigo-300">MS_AP_0003_04</code> nhả ra hàng ngàn dải tem mã vạch phản quang siêu bền để công nhân dán lên từng thanh dầm kệ thực tế ngoài sàn kho.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-bold shrink-0">4</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-amber-300 text-xs mb-1">T-12 Giờ: Cấu hình ưu tiên nhặt tầng trệt & Tuyến xe chuyển phát</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Hệ thống kích hoạt <code class="font-mono text-indigo-300">MS_AP_0005_01</code> gán 200 mã hàng bán chạy nhất vào các ô dầm tầng 1 (Solid Locations). Đồng thời, API <code class="font-mono text-indigo-300">MS_AP_0018_02</code> phân luồng các cửa xả trên băng chuyền tự động: Cửa số 1 dành riêng cho bưu điện VNPost, Cửa số 2 dành cho xe JNE Express, Cửa số 3 cho đơn vận chuyển hỏa tốc.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold shrink-0">5</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-purple-300 text-xs mb-1">T-02 Giờ: Thử nghiệm in Thẻ Alteration Card tại Xưởng may nội bộ</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Một đơn hàng thử nghiệm yêu cầu cắt gấu quần 5cm được gửi vào. Hệ thống gọi <code class="font-mono text-indigo-300">MS_AP_0014_02_EC</code> in ra tấm thẻ đỏ Alteration Card kẹp vào đai quần. Máy may tự động nhận diện thông số và hoàn tất đường may hoàn hảo. Đúng 06:00 sáng, hệ sinh thái kho chính thức nhấn nút khởi động!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeStoryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đóng câu chuyện
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API INSPECTOR MODAL -->
+  <div id="apiModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-slate-700/80 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div class="flex items-center gap-3">
+          <span id="modalMethodBadge" class="px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider">POST</span>
+          <div>
+            <h3 id="modalApiCode" class="text-sm font-mono font-bold text-white tracking-wide">MS_BT_0004_02</h3>
+            <p id="modalApiName" class="text-xs text-slate-300">Import Store Master IF</p>
+          </div>
+        </div>
+        <button id="modalCloseBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Systems Involved Route -->
+      <div class="px-5 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between gap-3 text-center font-mono text-xs">
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Nguồn Gửi (Source)</span>
+          <span id="modalSourceSystem" class="text-indigo-400 font-bold text-xs">HQ ERP SAP Central</span>
+        </div>
+        <div class="text-slate-600 flex items-center">
+          <span class="text-indigo-400 font-bold">━━━━ ➔ </span>
+        </div>
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Hệ Nhận & Xử Lý (Target)</span>
+          <span id="modalTargetSystem" class="text-violet-400 font-bold text-xs">WES & WIV Master Database</span>
+        </div>
+      </div>
+
+      <!-- 4 Inspection Tabs inside Modal -->
+      <div class="flex border-b border-slate-800 bg-slate-950/80 px-5 pt-2 gap-2 text-xs">
+        <button id="modalTabBtnBusiness" class="pb-2 px-2 border-b-2 border-indigo-500 text-white font-semibold">1. Nghiệp vụ cốt lõi</button>
+        <button id="modalTabBtnPhysical" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">2. Thao tác sàn kho</button>
+        <button id="modalTabBtnRisk" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">3. Rủi ro & Khóa Lock</button>
+        <button id="modalTabBtnTech" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">4. Sổ cái WIV & JSON</button>
+      </div>
+
+      <!-- Modal Body (Tab Contents) -->
+      <div class="p-5 overflow-y-auto space-y-3 text-xs flex-1">
+        
+        <!-- Tab Content 1: Business -->
+        <div id="modalTabContentBusiness" class="space-y-3">
+          <div class="bg-indigo-950/20 border border-indigo-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-indigo-300 uppercase tracking-wider text-[11px] mb-1">Mục đích & Tại sao phải có hàm này?</h4>
+            <p id="modalWhyNeeded" class="text-slate-200 leading-relaxed">Nội dung giải thích chi tiết...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-violet-300 uppercase tracking-wider text-[11px] mb-1">Ví dụ thực tế đời thường (Analogy):</h4>
+            <p id="modalRealLifeAnalogy" class="text-slate-300 leading-relaxed">Ví dụ đời thường...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 2: Physical Work -->
+        <div id="modalTabContentPhysical" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Hành động của công nhân & thiết bị:</h4>
+            <p id="modalPhysicalActionDetailed" class="text-slate-300 leading-relaxed">Mô tả thao tác...</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Thiết bị phần cứng sử dụng</span>
+              <p id="modalDevicesUsed" class="text-slate-200 font-medium mt-0.5">Máy in công nghiệp Sato, Thước quét 3D Cubiscan, Máy trạm WES</p>
+            </div>
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Khu vực vật lý (Physical Zone)</span>
+              <p id="modalPhysicalZone" class="text-slate-200 font-medium mt-0.5">Phòng CNTT & Bàn thiết lập cấu hình kho</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content 3: Risk & Lock -->
+        <div id="modalTabContentRisk" class="hidden space-y-3">
+          <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-rose-300 uppercase tracking-wider text-[11px] mb-1">Nếu hàm này bị lỗi hoặc bỏ qua thì sao?</h4>
+            <p id="modalRiskConsequence" class="text-rose-200/90 leading-relaxed">Hậu quả rủi ro...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Quy tắc kiểm tra (Validation) & Xử lý lỗi:</h4>
+            <p id="modalErrorHandling" class="text-slate-300 leading-relaxed">Quy tắc nghiệp vụ...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-indigo-300 uppercase tracking-wider text-[11px] mb-1">Cơ chế khóa Lock (Concurrency):</h4>
+            <p id="modalLockMechanism" class="text-indigo-200/90 leading-relaxed">Cơ chế lock...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 4: Tech & WIV -->
+        <div id="modalTabContentTech" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-emerald-300 uppercase tracking-wider text-[11px] mb-1">Tác động Sổ Cái Tồn Kho WIV & Master Data:</h4>
+            <p id="modalInventoryDetailed" class="text-slate-300 leading-relaxed">Cập nhật cấu hình...</p>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] font-mono">Dữ Liệu Mẫu (Payload / Response JSON)</h4>
+              <button id="modalCopyBtn" class="text-indigo-400 hover:text-indigo-300 text-[11px] font-medium flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Sao chép JSON
+              </button>
+            </div>
+            <pre id="modalJsonPayload" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] font-mono text-indigo-300 overflow-x-auto max-h-40">
+              { "loading": true }
+            </pre>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+        <span class="text-slate-500 text-[11px]">Nhấn <kbd class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">ESC</kbd> để đóng</span>
+        <button id="modalCloseActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors">
+          Đóng cửa sổ
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* Complete Specification of LUỒNG 6: DỮ LIỆU DANH MỤC & CẤU HÌNH HỆ THỐNG */
+    const FLOW_DATA = {
+      id: "FLOW_6",
+      title: "LUỒNG 6: DỮ LIỆU DANH MỤC & CẤU HÌNH HỆ THỐNG (MASTER DATA & SETUP)",
+      description: "Mô phỏng quá trình tiếp nhận và phân phối 'bộ não dữ liệu' của kho: Đồng bộ danh mục sản phẩm từ tập đoàn, quy cách thể tích M3, tọa độ bản đồ dầm kệ, định tuyến đối tác vận chuyển và thiết lập dịch vụ may gấu quần Alteration.",
+      steps: [
+        {
+          id: 1,
+          name: "Bước 1: Nhận danh mục sản phẩm, cửa hàng & đối tác từ Tập đoàn (HQ Master Import)",
+          shortTitle: "1. Danh mục sản phẩm & đối tác",
+          badge: "BƯỚC 1",
+          icon: "🏢",
+          warehouseTitle: "Cụm Máy Chủ Nhận Dữ Liệu Tập Đoàn & Sổ Cái WIV",
+          warehouseDesc: "Nạp toàn bộ danh mục đối tác bán lẻ, nhà máy gia công, sản phẩm đa tầng (Model/Color/Size), công thức phân rã Combo và danh mục quà tặng khuyến mãi.",
+          businessDeepDive: {
+            coreMeaning: "Nhà kho thông minh không hoạt động độc lập mà là một mắt xích trong chuỗi cung ứng toàn cầu. Mọi hoạt động nhập xuất, nhặt hàng hay kiểm kê đều phải căn cứ trên danh mục chuẩn (Single Source of Truth). Nếu kho không có mã sản phẩm hoặc mã nhà máy trong Master Data, toàn bộ các chuyến xe chở hàng tới cửa nhận sẽ bị từ chối bốc dỡ ngay lập tức.",
+            whyCritical: "Dữ liệu đa tầng (Multi-Level Item) và công thức phân rã Combo (Assortment Breakdown) là linh hồn của hệ thống. Nếu nạp sai công thức combo, một bộ quần áo thể thao sẽ không thể tháo dỡ ra bán lẻ thành áo và quần được, gây tê liệt khâu bán hàng.",
+            physicalProcess: [
+              "1. Batch MS_BT_0004_02 nạp danh bạ 150 cửa hàng bán lẻ toàn quốc từ máy chủ SAP HQ.",
+              "2. Batch MS_BT_0005_02 và MS_BT_0007_02 nạp danh mục các trung tâm phân phối và nhà cung ứng chỉ định.",
+              "3. Cụm MS_BT_0004_02 (WIV) và MS_AP_0001_01 (WES) ghi nhận 60.000 SKU sản phẩm đa tầng (Item/Color/Size/PLU).",
+              "4. Batch MS_BT_0003_02 nạp cấu trúc định mức nguyên vật liệu (BOM) của các bộ combo quần áo.",
+              "5. Batch CM_BT_0004_02 cập nhật danh mục quà tặng khuyến mãi (túi canvas, bình nước) cho mùa Sale sắp tới."
+            ],
+            riskMitigation: "Cơ chế kiểm tra mã băm Checksum & Schema Validation: Nếu file danh mục từ HQ bị thiếu trường dữ liệu bắt buộc (như thiếu mã vạch PLU hoặc mã màu), batch tự động từ chối bản ghi lỗi và ghi log cảnh báo mà không làm gián đoạn các mã hàng hợp lệ khác."
+          },
+          transformation: {
+            before: "Hệ thống kho chưa có thông tin về các bộ sưu tập thời trang mới và mạng lưới cửa hàng mới",
+            action: "Nạp Master Data đối tác + Đồng bộ 60.000 SKU đa tầng + Khai báo công thức Combo BOM",
+            after: "Bộ não WES & Sổ cái WIV sẵn sàng nhận diện sản phẩm cho tất cả các luồng vận hành"
+          },
+          animation: {
+            sourceLane: 0,
+            targetLane: 1,
+            packetLabel: "HQ Enterprise Master Data Import",
+            packetColor: "#60a5fa"
+          },
+          apis: [
+            {
+              code: "MS_BT_0004_02",
+              name: "Import Store Master IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "HQ ERP Central (SAP MDM)",
+              target: "WES Store Registry",
+              whyNeeded: "Nạp danh bạ toàn bộ các cửa hàng bán lẻ trực thuộc hệ thống (mã cửa hàng, tên, địa chỉ, số điện thoại, khung giờ nhận hàng quy định).",
+              realLifeAnalogy: "Lưu danh bạ người nhận vào sổ địa chỉ điện thoại để khi gửi quà bưu điện chỉ cần bấm chọn tên.",
+              physicalAction: "Batch tải file dữ liệu cửa hàng lúc 23:00 đêm, nạp thông tin 150 cửa hàng trên toàn quốc.",
+              devicesUsed: "Batch Application Server WES",
+              physicalZone: "Data Center",
+              riskConsequence: "Xe tải chở hàng không có địa chỉ cửa hàng đích, hệ thống không thể tạo lệnh phân bổ xuất kho B2B.",
+              errorHandling: "Kiểm tra trùng lặp mã Store ID; tự động cập nhật nếu cửa hàng đổi địa chỉ.",
+              lockMechanism: "Store Master Table Write Exclusive Lock.",
+              inventoryImpact: "Tạo đích đến hợp lệ cho Luồng 2 (DC Outbound).",
+              payload: { storeId: "STORE_VN_088", storeName: "Uniqlo Landmark 81", deliveryWindow: "06:00-09:00", region: "SOUTH_VN" }
+            },
+            {
+              code: "MS_BT_0005_02 & MS_BT_0007_02",
+              name: "Import Warehouse Master IF & Import Supplier Master IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "Hệ thống Quản Trị Chuỗi Cung Ứng Tập Đoàn (SCM HQ)",
+              target: "WES Partner Directory",
+              whyNeeded: "Đăng ký danh mục các nhà kho chuyển tiếp nội bộ và danh sách các nhà máy may gia công, xưởng vải đối tác được phép cấp hàng vào kho.",
+              realLifeAnalogy: "Đăng ký danh sách khách mời VIP và đơn vị giao hàng được phép ra vào cổng khu biệt thự an ninh cao.",
+              physicalAction: "Cơ sở dữ liệu cập nhật thêm 3 nhà kho trung chuyển miền Trung và 25 xưởng dệt may đối tác.",
+              devicesUsed: "Máy chủ cơ sở dữ liệu WES Core",
+              physicalZone: "Data Center",
+              riskConsequence: "Các chuyến xe ASN gửi từ nhà cung cấp mới bị chặn lại tại cổng bảo vệ do không có trong danh bạ hệ thống.",
+              errorHandling: "Xác thực mã số thuế và trạng thái hoạt động của đối tác từ cổng ERP tập đoàn.",
+              lockMechanism: "Partner Master Snapshot Lock.",
+              inventoryImpact: "Cho phép hệ thống chấp nhận các đơn ASN nhập kho Luồng 1.",
+              payload: { supplierId: "SUP_VIET_TIEN_01", warehouseNetwork: ["DC_HCM", "DC_HN", "DC_DN"], activeStatus: "ACTIVE" }
+            },
+            {
+              code: "MS_BT_0004_02 (WIV) & MS_AP_0001_01 (WES)",
+              name: "Import Multi Level Item Master IF & Retrieve Item",
+              type: "BATCH / API",
+              method: "BATCH / POST",
+              source: "Hệ thống Quản Lý Vòng Đời Sản Phẩm (HQ PLM)",
+              target: "Sổ Cái Tồn Kho WIV & WES Catalog Cache",
+              whyNeeded: "Nạp và tra cứu danh mục hàng hóa đa tầng chi tiết: Mã thiết kế (Item Model) ➔ Màu sắc (Color) ➔ Kích cỡ (Size) ➔ Mã vạch thanh toán (PLU Barcode).",
+              realLifeAnalogy: "Sổ hộ khẩu chi tiết: Ông A (Mẫu áo thun cổ tròn) có các con (Màu Trắng, Màu Đen) và các cháu (Size S, M, L).",
+              physicalAction: "Hệ thống xử lý nạp 60.000 dòng SKU thời trang trong 12 giây, tạo sẵn các phân vùng số dư trên sổ cái WIV.",
+              devicesUsed: "Cluster Database WIV & Memory Cache WES",
+              physicalZone: "Data Center",
+              riskConsequence: "Máy quét mã vạch kêu bíp đỏ 'Mã hàng không xác định', công nhân không thể nhận hàng hoặc nhặt hàng.",
+              errorHandling: "Rà soát tính duy nhất của mã vạch PLU (EAN-13); cấm trùng lặp mã vạch giữa các kích cỡ khác nhau.",
+              lockMechanism: "Item Master Partition Atomic Update Lock.",
+              inventoryImpact: "Khởi tạo tài khoản theo dõi số dư cho từng SKU trên Sổ cái WIV.",
+              payload: { itemModel: "AIRISM-TEE", colorCode: "09_BLACK", size: "L", pluBarcode: "4549131008892", material: "POLYESTER_88" }
+            },
+            {
+              code: "MS_BT_0003_02",
+              name: "Import Assortment Breakdown Master IF",
+              type: "BATCH",
+              method: "WIV & WES BATCH",
+              source: "HQ Merchandising System (MD)",
+              target: "WIV & WES Combo Assortment Core",
+              whyNeeded: "Khai báo công thức cấu tạo của các bộ combo quần áo (BOM): Ví dụ 1 bộ Combo thể thao 'COMBO-SPORT-01' bao gồm 1 áo thun 'TEE-01' và 1 quần đùi 'SHORT-01'.",
+              realLifeAnalogy: "Công thức nấu ăn trong sách dạy nấu: Một nồi lẩu thái gồm có gói nước cốt, đĩa tôm, đĩa nấm và gói mì.",
+              physicalAction: "Sổ cái WIV thiết lập tỷ lệ quy đổi 1 Combo = 1 Áo + 1 Quần để tự động cân bằng số dư khi thực hiện tháo dỡ ở Luồng 4.",
+              devicesUsed: "Engine tính toán công thức WIV",
+              physicalZone: "Data Center",
+              riskConsequence: "Không thể tự động chuyển đổi số dư khi tháo dỡ hoặc đóng bộ combo, phải làm chứng từ điều chỉnh thủ công dễ sai lệch.",
+              errorHandling: "Kiểm tra tất cả các mã sản phẩm con cấu thành combo đều phải tồn tại sẵn trong Item Master.",
+              lockMechanism: "Assortment Recipe Version Lock.",
+              inventoryImpact: "Quy định quy tắc cộng trừ tồn kho khi gia công bóc tách combo.",
+              payload: { comboSku: "COMBO-RUNNING-SET", components: [{ sku: "TEE-AIR-BLK-M", qty: 1 }, { sku: "SHORT-DRY-BLK-M", qty: 1 }] }
+            },
+            {
+              code: "CM_BT_0004_02",
+              name: "Import Novelty Item Master IF",
+              type: "BATCH",
+              method: "WIV & WES BATCH",
+              source: "HQ Marketing & Campaign Portal",
+              target: "WES Promotion Gift Engine",
+              whyNeeded: "Nạp danh mục các mặt hàng quà tặng khuyến mãi phi thương mại (Novelty Items: Túi tote vải, Bình giữ nhiệt, Huy hiệu) đính kèm đơn hàng.",
+              realLifeAnalogy: "Quán cà phê nhập thông tin về chương trình 'Tặng móc khóa gấu bông cho khách mua từ 2 ly cà phê trở lên'.",
+              physicalAction: "Khai báo các mã quà tặng được gán giá trị 0 VNĐ nhưng vẫn phải theo dõi số lượng tồn kho chặt chẽ như hàng hóa thông thường.",
+              devicesUsed: "Máy chủ xử lý chiến dịch Marketing",
+              physicalZone: "Data Center",
+              riskConsequence: "Quà tặng không có mã trong kho dẫn đến việc thất thoát hàng trăm triệu đồng quà tặng mà không thể đối soát.",
+              errorHandling: "Ràng buộc thời gian hiệu lực của mã quà tặng theo từng chiến dịch bán hàng.",
+              lockMechanism: "Novelty Master Lock.",
+              inventoryImpact: "Khai báo tồn kho cho các mã hàng khuyến mãi 0 đồng.",
+              payload: { noveltySku: "GIFT-CANVAS-BAG-AUTUMN", promotionalCampaign: "FALL_FESTIVAL_2026", costPrice: 0 }
+            }
+          ]
+        },
+        {
+          id: 2,
+          name: "Bước 2: Dữ liệu thể tích đóng gói & Đẩy thông số sang Robot (M3 Master & Equipment Sync)",
+          shortTitle: "2. Thể tích M3 & Đẩy sang Robot",
+          badge: "BƯỚC 2",
+          icon: "📦",
+          warehouseTitle: "Cụm Đồng Bộ Thông Số Robot Exotec & Băng Chuyền WCS",
+          warehouseDesc: "Nạp kích thước 3 chiều (Dài × Rộng × Cao) và thể tích M3 của từng chiếc áo và thùng carton, đẩy thông số sang robot Exotec và hệ thống phân loại tự động.",
+          businessDeepDive: {
+            coreMeaning: "Robot và băng chuyền cơ học không có cảm xúc hay trực giác của con người. Để robot Exotec Skypod biết cần điều động khay hàng kích thước nào, hay băng chuyền WCS biết một thùng carton có bị quá tải trọng hay không, hệ thống bắt buộc phải có thông số vật lý chuẩn xác đến từng milimét và từng gam. Việc đồng bộ bộ thông số M3 giúp kho tận dụng tối đa không gian lưu trữ và loại bỏ 100% nguy cơ sập giàn kệ do quá tải.",
+            whyCritical: "Nếu thiếu thông số Piece M3, thuật toán tính toán phân bổ sẽ không thể tính được một thùng carton chứa được bao nhiêu chiếc áo, dẫn đến việc công nhân đóng gói bị thiếu hộp hoặc đóng thừa hàng làm bục rách thùng carton khi vận chuyển.",
+            physicalProcess: [
+              "1. Batch MS_BT_0009_02 nạp mã biểu thuế hải quan (HS Code) theo từng mã sản phẩm phục vụ khai báo hải quan kho ngoại quan.",
+              "2. Batch MS_BT_0010_02 và MS_BT_0011_02_EC nạp kích thước Dài × Rộng × Cao và thể tích M3 của từng chiếc áo và từng thùng carton tiêu chuẩn.",
+              "3. Batch MS_BT_0008_01 đóng gói danh mục kích thước gửi sang máy chủ điều khiển Robot Exotec Skypod.",
+              "4. Batch MS_BT_0019_02 và MS_BT_0020_02 xuất dữ liệu thể tích cho bộ điều khiển băng chuyền phân loại tự động WCS.",
+              "5. Cảm biến quang học tại các trạm kiểm tra tự động đối chiếu kích thước thực tế với Master Data M3 để phát hiện sai lệch."
+            ],
+            riskMitigation: "Thuật toán giới hạn tải trọng an toàn (Payload Safety Margin): WES tự động trừ hao 10% thể tích khay chứa để tránh việc quần áo bông xốp nở ra làm kẹt tay gắp cơ khí của robot."
+          },
+          transformation: {
+            before: "Sản phẩm chỉ có mã tên và màu sắc, robot chưa biết kích thước hình học",
+            action: "Nạp thông số M3 3 chiều + Đẩy dữ liệu cấu hình sang Robot Exotec & Băng chuyền WCS",
+            after: "Robot và băng chuyền sẵn sàng nhận diện và gắp thả các khay hàng chính xác 100%"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 3,
+            packetLabel: "M3 Volume Dimensions & Robot Parameter Sync",
+            packetColor: "#c084fc"
+          },
+          apis: [
+            {
+              code: "MS_BT_0009_02",
+              name: "Import HS Code By PLU IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "Hệ thống Khai Báo Xuất Nhập Khẩu HQ (Trade Compliance)",
+              target: "WES Customs Compliance Master",
+              whyNeeded: "Gán mã biểu thuế hải quan quốc tế (Harmonized System Code) cho từng chất liệu vải và kiểu dáng trang phục để phục vụ xuất nhập kho ngoại quan CMS.",
+              realLifeAnalogy: "Dán nhãn phân loại thuế cho mặt hàng: Áo 100% cotton chịu thuế suất khác với áo sợi tổng hợp polyester.",
+              physicalAction: "Hệ thống liên kết mã HS Code 6109.10.00 cho dòng áo thun cotton dệt kim vào cơ sở dữ liệu kho.",
+              devicesUsed: "Máy chủ WES Compliance Node",
+              physicalZone: "Data Center",
+              riskConsequence: "Hải quan giữ lại toàn bộ lô hàng xuất khẩu do khai sai mã thuế, kho bị đình chỉ thông quan.",
+              errorHandling: "Đối chiếu cấu trúc 8-10 chữ số của mã HS Code theo quy chuẩn hải quan Việt Nam.",
+              lockMechanism: "HS Code Tariff Table Lock.",
+              inventoryImpact: "Hoàn thiện hồ sơ pháp lý xuất khẩu cho từng SKU.",
+              payload: { pluBarcode: "4549131008892", hsCode: "61091000", dutyRatePercent: 10.0 }
+            },
+            {
+              code: "MS_BT_0010_02 & MS_BT_0011_02_EC",
+              name: "Import Carton M3 Master IF & Import Piece M3 Master IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "Máy Đo Thể Tích Tự Động Cubiscan & ERP Tập Đoàn",
+              target: "WES Volumetric Calculator",
+              whyNeeded: "Cung cấp số đo 3 chiều (Dài × Rộng × Cao tính bằng mm) và thể tích (M3) của từng chiếc áo khi gấp phẳng và của từng cỡ thùng carton xuất hàng.",
+              realLifeAnalogy: "Trò chơi xếp hình Tetris: Bạn phải biết chính xác hình dáng và kích thước từng khối gạch thì mới xếp khít vào hộp được.",
+              physicalAction: "Cập nhật thông số: 1 chiếc áo thun Size L = 300mm × 220mm × 25mm = 0.00165 M3; Thùng Carton số 3 = 0.036 M3.",
+              devicesUsed: "Thước quét quang học 3D Cubiscan & WES Engine",
+              physicalZone: "Trạm đo kích thước hàng mẫu",
+              riskConsequence: "Hệ thống tính toán chọn nhầm hộp carton quá nhỏ không nhét vừa hàng, gây chậm trễ trạm đóng gói.",
+              errorHandling: "Kiểm tra giới hạn thể tích tối thiểu > 0 và trọng lượng gram phải tương thích với kích thước.",
+              lockMechanism: "Volumetric Dimension Lock.",
+              inventoryImpact: "Cung cấp tham số nền tảng để tự động đề xuất kích cỡ hộp đóng gói ở Luồng 2 và Luồng 3.",
+              payload: { sku: "TEE-AIR-BLK-L", lengthMm: 300, widthMm: 220, heightMm: 25, volumeM3: 0.00165, weightGram: 180 }
+            },
+            {
+              code: "MS_BT_0008_01",
+              name: "Export Item Master For Exotec IF (Producer)",
+              type: "BATCH",
+              method: "EXOTEC BATCH",
+              source: "WES Master Dispatcher",
+              target: "Máy Chủ Điều Khiển Robot Exotec WCS",
+              whyNeeded: "Bắn toàn bộ danh mục sản phẩm kèm thông số trọng lượng và phân loại bảo quản sang hệ thống robot Exotec Skypod để hạm đội robot nhận diện khay hàng.",
+              realLifeAnalogy: "Nạp bản đồ và danh sách hành khách vào máy tính của xe tự lái trước khi xe lăn bánh đón khách.",
+              physicalAction: "Batch đẩy file nén cấu hình sang máy chủ Exotec, 80 robot Skypod lập tức cập nhật danh mục nhận dạng khay mới.",
+              devicesUsed: "Exotec Warehouse Control Server (WCS)",
+              physicalZone: "Khu giàn tự động Exotec Grid",
+              riskConsequence: "Robot Exotec từ chối gắp các khay hàng chứa sản phẩm mới vì báo lỗi 'Mã hàng lạ không có trong bộ nhớ robot'.",
+              errorHandling: "Kiểm tra tính phản hồi (Ping/Ack) của máy chủ Exotec trước khi kích hoạt phân bổ đơn hàng.",
+              lockMechanism: "Exotec Master Interface Sync Lock.",
+              inventoryImpact: "Đồng bộ năng lực lưu trữ và nhặt hàng tự động cho hạm đội robot.",
+              payload: { exportedSkusCount: 60000, targetSystem: "EXOTEC_SKYPOD_CLUSTER", syncStatus: "COMMITTED" }
+            },
+            {
+              code: "MS_BT_0019_02 & MS_BT_0020_02",
+              name: "Export Item Master For WCS IF & Export Piece M3 Master For WCS IF",
+              type: "BATCH",
+              method: "WCS BATCH",
+              source: "WES Master Dispatcher",
+              target: "Bộ Điều Khiển Băng Chuyền Phân Loại Tự Động (Sorting WCS)",
+              whyNeeded: "Cung cấp thông số kích thước và trọng lượng sản phẩm cho hệ thống băng chuyền con lăn tự động để điều chỉnh tốc độ đẩy và lực gạt của các cánh tay chia bưu kiện.",
+              realLifeAnalogy: "Cân hành lý tự động tại sân bay: Băng chuyền tự điều chỉnh tốc độ chạy tùy theo vali nặng hay nhẹ.",
+              physicalAction: "Hệ thống WCS nhận thông số M3, tự động hiệu chỉnh cảm biến tốc độ của 120 cửa xả bưu kiện trên băng chuyền.",
+              devicesUsed: "Bộ điều khiển khả trình PLC & Cảm biến quang băng chuyền",
+              physicalZone: "Khu vực băng chuyền phân loại Sorting",
+              riskConsequence: "Băng chuyền gạt quá mạnh làm móp méo hộp hàng nhẹ, hoặc gạt không đủ lực khiến thùng hàng nặng bị trôi tuột sang cửa khác.",
+              errorHandling: "Giao thức truyền thông công nghiệp thời gian thực Modbus/TCP có kiểm tra mã lỗi CRC.",
+              lockMechanism: "PLC Hardware Parameter Update Lock.",
+              inventoryImpact: "Đảm bảo bưu kiện chạy đúng tuyến và không bị rơi vỡ trên băng chuyền.",
+              payload: { sortingLinesConfigured: 12, maxWeightKg: 30.0, speedMps: 2.2, activeStatus: "READY" }
+            }
+          ]
+        },
+        {
+          id: 3,
+          name: "Bước 3: Thiết lập sơ đồ vật lý & Tọa độ ô kệ kho (Warehouse Physical Layout)",
+          shortTitle: "3. Tọa độ dầm kệ & Ô cố định",
+          badge: "BƯỚC 3",
+          icon: "🗺️",
+          warehouseTitle: "Bàn Số Hóa Bản Đồ Kho & In Tem Dầm Kệ QR Code",
+          warehouseDesc: "Định nghĩa phân khu, tọa độ dãy - tầng - ngăn, in hàng vạn nhãn mã vạch dầm kệ và gán vị trí cố định (Solid Locations) cho các mã hàng bán chạy nhất.",
+          businessDeepDive: {
+            coreMeaning: "Bản đồ ô kệ là 'bản đồ Google Maps' bên trong 4 bức tường nhà kho. Mọi mét vuông sàn kho, từ thanh dầm kệ cao 12 mét đến hộc chứa của robot Exotec, đều được đặt một địa chỉ duy nhất. Việc thiết lập bản đồ không chỉ là đặt tên mà còn là phân định công năng: Khu vực nào dùng để nhặt hàng lẻ, khu vực nào để pallet nguyên khối dự trữ, và khu vực nào là mặt sàn thao tác cho xe nâng cơ học.",
+            whyCritical: "Quy hoạch ô cố định (Solid Individual Location) quyết định trực tiếp đến năng suất kho. Nếu để 10 mã hàng bán chạy nhất ở tít trên tầng 5, công nhân xe nâng sẽ phải mất cả ngày nâng hạ, gây tắc nghẽn giao thông kho. Ngược lại, đặt chúng ở tầng trệt mặt đất (Solid Location) giúp công nhân đi bộ 2 bước là nhặt được ngay.",
+            physicalProcess: [
+              "1. Người quản trị gọi MS_AP_0001_01 (WIV) và MS_AP_0002_02 (WES) để tạo mới các phân khu chức năng (Pick Zone, High-Bay Zone, Exotec Grid).",
+              "2. Gọi MS_AP_0002_01 (WIV) và MS_AP_0003_02 (WES) số hóa chi tiết 15.000 tọa độ ô kệ (Aisle-Bay-Level-Bin).",
+              "3. Sử dụng MS_AP_0003_04 và MS_AP_0003_05 tải và in hàng loạt nhãn mã vạch phản quang chất lượng cao để dán lên thanh dầm kệ.",
+              "4. Gọi MS_AP_0005_01 (WIV) và MS_AP_0007_02_DC (WES) gán cố định 200 mã hàng bán chạy vào các ô kệ tầng trệt (Solid Locations).",
+              "5. Thủ kho dùng máy quét Handy Terminal đi kiểm tra thực địa, quét mã dầm kệ xác nhận vị trí đã sẵn sàng chứa hàng."
+            ],
+            riskMitigation: "Nguyên tắc tọa độ bất khả xâm phạm: Hệ thống cấm tuyệt đối việc tạo 2 ô kệ trùng tọa độ trong cùng một phân khu; mọi thay đổi xóa ô kệ đều bắt buộc kiểm tra số dư tồn kho phải bằng 0."
+          },
+          transformation: {
+            before: "Nhà kho mới xây dựng chỉ là các khung sắt thép vô danh chưa có tọa độ số hóa",
+            action: "Số hóa 15.000 ô kệ + In dán tem QR phản quang + Gán ô cố định Solid cho Top Seller",
+            after: "Bản đồ không gian số hoàn thiện, mỗi sản phẩm có một địa chỉ cư trú chính xác"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 2,
+            packetLabel: "Layout Coordinates & Solid Bin Binding",
+            packetColor: "#10b981"
+          },
+          apis: [
+            {
+              code: "MS_AP_0001_01 (WIV) & MS_AP_0002_02 (WES)",
+              name: "Update In Warehouse Area & Register In Warehouse Area",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Thiết Lập Phân Khu Kho (Layout Admin UI)",
+              target: "Sổ Cái Không Gian WIV & WES Layout Master",
+              whyNeeded: "Khai báo và cấu hình các phân khu vật lý lớn trong nhà kho: Phân khu giàn tự động Exotec, Phân khu kệ cao tầng High-Bay, Phân khu nhặt hàng lẻ, Phân khu cách ly kiểm toán STAKE.",
+              realLifeAnalogy: "Bản vẽ quy hoạch thành phố: Chia rõ khu vực nào là Quận 1 trung tâm, khu nào là khu công nghiệp ngoại thành.",
+              physicalAction: "Tạo lập 8 phân khu lớn với các thuộc tính kiểm soát nhiệt độ, tải trọng tối đa và loại thiết bị được phép di chuyển.",
+              devicesUsed: "Máy tính điều hành kho trung tâm",
+              physicalZone: "Phòng Quản trị Hạ tầng WES",
+              riskConsequence: "Hệ thống không biết phân khu nào chứa được robot, dẫn đến việc điều động sai loại thiết bị vào khu vực cấm.",
+              errorHandling: "Ràng buộc duy nhất mã Area Code và kiểm tra tính tương thích thiết bị phần cứng.",
+              lockMechanism: "Area Master Schema Exclusive Lock.",
+              inventoryImpact: "Thiết lập các khoanh vùng quản lý số dư theo vùng địa lý trong kho.",
+              payload: { areaId: "EXOTEC_GRID_01", areaName: "Phân khu Giàn Tự Động Skypod", areaType: "AUTOMATED_ASRS", maxCapacityTotes: 25000 }
+            },
+            {
+              code: "MS_AP_0002_01 (WIV) & MS_AP_0003_02 (WES)",
+              name: "Update In Warehouse Location & Register In Warehouse Location",
+              type: "API",
+              method: "PUT",
+              source: "Phần Mềm Quản Trị Tọa Độ Dầm Kệ",
+              target: "Bảng Vị Trí Ô Kệ WIV & WES (Location Registry)",
+              whyNeeded: "Định nghĩa chi tiết từng ô chứa hàng cụ thể theo cấu trúc 5 đoạn: Dãy (Aisle) - Khoang (Bay) - Tầng (Level) - Ngăn (Bin) kèm chiều cao và tải trọng tối đa cho phép.",
+              realLifeAnalogy: "Đánh số nhà chi tiết: Số nhà 12/4 đường Nguyễn Huệ, Tầng 3, Căn hộ 302.",
+              physicalAction: "Khai báo 15.000 tọa độ dầm kệ; ví dụ ô `A01-04-02-01` biểu thị Dãy A01, Khoang 4, Tầng 2, Ô số 1.",
+              devicesUsed: "Máy chủ tính toán tọa độ không gian WES",
+              physicalZone: "Data Center",
+              riskConsequence: "Công nhân không tìm thấy chỗ cất hàng, hàng để bừa bãi dưới sàn lối đi gây tắc nghẽn xe nâng.",
+              errorHandling: "Kiểm tra kích thước hình học của ô kệ phải khớp với kích thước thùng carton tiêu chuẩn.",
+              lockMechanism: "Location Hierarchy Mutation Lock.",
+              inventoryImpact: "Tạo các ô chứa hàng chính xác trên Sổ cái WIV để sẵn sàng ghi nhận số dư.",
+              payload: { locationId: "LOC_A01_04_02_01", areaId: "PICK_ZONE_A", aisle: "A01", bay: 4, level: 2, bin: 1, maxWeightKg: 500 }
+            },
+            {
+              code: "MS_AP_0003_04 & MS_AP_0003_05",
+              name: "Print In Warehouse Location Label & Download In Warehouse Location Label",
+              type: "API",
+              method: "PUT / POST",
+              source: "Trạm Quản Trị Nhãn Kệ Kho",
+              target: "Máy In Công Nghiệp Sato / Zebra & File Server",
+              whyNeeded: "In tem nhãn mã vạch hoặc mã QR Code chứa tọa độ ô kệ trên chất liệu decal phản quang siêu bền để dán trực tiếp lên dầm sắt của kệ kho.",
+              realLifeAnalogy: "Thợ rèn gắn biển số nhà bằng đồng lên cổng từng ngôi nhà trên phố.",
+              physicalAction: "Máy in công nghiệp tốc độ cao nhả ra 5.000 con tem decal dầm kệ; công nhân bóc tem dán ngay ngắn vào mép dầm sắt.",
+              devicesUsed: "Máy in mã vạch công nghiệp Sato CL4NX Plus",
+              physicalZone: "Xưởng in tem nhãn kho",
+              riskConsequence: "Không có mã vạch trên kệ, máy quét Handy Terminal của công nhân không thể quét xác nhận cất hàng hay nhặt hàng.",
+              errorHandling: "Mã hóa thêm ký tự kiểm tra (Check-digit) trong Barcode để chống việc máy quét đọc nhầm góc tem.",
+              lockMechanism: "Print Task Queue Lock.",
+              inventoryImpact: "Hiện thực hóa tọa độ số thành biển chỉ dẫn vật lý trên sàn kho.",
+              payload: { printJobId: "LBL_JOB_2026_0919", locationRange: "LOC_A01_TO_A05", labelType: "RETRO_REFLECTIVE_QR", copies: 1 }
+            },
+            {
+              code: "MS_AP_0005_01 (WIV) & MS_AP_0007_02_DC (WES)",
+              name: "Update Solid Individual In Warehouse Location By Plu & Register...",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Tối Ưu Hóa Tuyến Nhặt Hàng (Slotting UI)",
+              target: "Sổ Cái Gán Vị Trí Cố Định WIV & WES Slotting Engine",
+              whyNeeded: "Gán các sản phẩm bán chạy nhất (Fast-Moving SKUs) vào vị trí cố định ở tầng trệt mặt đất để nhân viên nhặt hàng nhanh nhất mà không cần xe nâng leo cao.",
+              realLifeAnalogy: "Siêu thị bày các mặt hàng mua nhiều nhất (sữa tươi, bánh mì, nước ngọt) ngay ở kệ thấp vừa tầm mắt khách hàng.",
+              physicalAction: "Hệ thống cố định mã áo thun đen Size L vào ô mặt đất `LOC_A01_01_01_01`; cấm cất bất kỳ sản phẩm nào khác vào ô này.",
+              devicesUsed: "Máy trạm điều phối nhặt hàng",
+              physicalZone: "Khu vực nhặt hàng lẻ tầng 1",
+              riskConsequence: "Hàng bán chạy bị xếp tít trên nóc kệ cao 12 mét, làm tăng thời gian lấy hàng lên gấp 5 lần và vỡ thời hạn giao hàng.",
+              errorHandling: "Cảnh báo nếu gán trùng 2 mã PLU khác nhau vào cùng một ô cố định đơn lẻ.",
+              lockMechanism: "Solid Location Dedicated Assignment Lock.",
+              inventoryImpact: "Khóa chặt vị trí chỉ định dành riêng cho một mã sản phẩm cụ thể.",
+              payload: { pluBarcode: "4549131008892", fixedLocationId: "LOC_A01_01_01_01", dedicatedStatus: "DEDICATED_SOLID_SLOT" }
+            }
+          ]
+        },
+        {
+          id: 4,
+          name: "Bước 4: Thiết lập thứ tự ưu tiên & Nhóm đóng gói (Priority & Packing Setup)",
+          shortTitle: "4. Độ ưu tiên & Nhóm đóng gói",
+          badge: "BƯỚC 4",
+          icon: "⚡",
+          warehouseTitle: "Cụm Thiết Lập Quy Tắc Nhặt Thông Minh & An Toàn Đóng Gói",
+          warehouseDesc: "Cấu hình thứ tự ưu tiên trừ hàng trên kệ, quy tắc phân bổ vùng cất hàng và định nghĩa các nhóm sản phẩm được phép đóng chung hộp carton.",
+          businessDeepDive: {
+            coreMeaning: "Nhà kho vận hành thông minh nhờ hệ thống quy tắc (Business Rules). Khi có đơn hàng xuất 1 chiếc áo, hệ thống phải biết ưu tiên lấy ở kệ nào trước (Kệ tầng trệt lấy trước kệ tầng cao; Kệ có hạn sử dụng gần lấy trước). Đồng thời, quy tắc đóng gói kết hợp (Combined Packing) bảo vệ an toàn vật lý cho kiện hàng: Ngăn ngừa việc đóng chung hàng hóa chất với thực phẩm, hoặc ngăn việc nhét một đôi giày nặng đè bẹp chiếc áo lụa mỏng.",
+            whyCritical: "Thiếu cấu hình nhóm đóng chung sẽ dẫn đến thảm họa giao hàng: Khách nhận được một hộp carton bên trong có chai nước xả vải bị vỡ chảy lênh láng làm hỏng toàn bộ quần áo trắng đắt tiền đóng chung bên cạnh.",
+            physicalProcess: [
+              "1. Gọi MS_AP_0003_01 (WIV) và MS_AP_0008_02 (WES) cấu hình thứ tự ưu tiên trừ hàng (Allocation Priority) cho từng SKU.",
+              "2. Người điều phối gọi MS_AP_0012_02 thiết lập vùng ưu tiên khi cất hàng mới về (Receiving Putaway Recommendation Zone Priority).",
+              "3. Gọi MS_AP_0009_02 và MS_AP_0032_02 định nghĩa các nhóm đóng gói kết hợp (Combined Packing Group Template).",
+              "4. Hệ thống chạy mô phỏng kiểm tra tính tương thích giữa 50 nhóm mặt hàng khác nhau.",
+              "5. Thuật toán Wave Picking tự động áp dụng các quy tắc này để tách đơn hàng thành các lượt nhặt và lượt đóng gói tối ưu."
+            ],
+            riskMitigation: "Quy tắc cấm đóng chung nghiêm ngặt (Incompatible Goods Blacklist): WES tự động từ chối gom các mặt hàng thuộc nhóm kỵ nhau vào cùng một mã thùng carton xuất."
+          },
+          transformation: {
+            before: "Hệ thống nhặt hàng ngẫu nhiên, không biết ưu tiên kệ gần và tiềm ẩn rủi ro đóng chung đồ kỵ nhau",
+            action: "Cấu hình ưu tiên trừ hàng FIFO/Kệ thấp + Thiết lập ma trận cấm đóng chung Combined Packing",
+            after: "Quy trình nhặt hàng tối ưu quãng đường và đóng gói an toàn tuyệt đối cho người nhận"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 2,
+            packetLabel: "Picking Priority & Combined Packing Matrix",
+            packetColor: "#fbbf24"
+          },
+          apis: [
+            {
+              code: "MS_AP_0003_01 (WIV) & MS_AP_0008_02 (WES)",
+              name: "Update In Warehouse Location Allocation Priority By Multi Level Item & Register...",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Chiến Lược Phân Bổ (Allocation Strategy UI)",
+              target: "Sổ Cái Quy Tắc Phân Bổ WIV & WES Priority Engine",
+              whyNeeded: "Xác định thứ tự ưu tiên trừ hàng khi có đơn xuất: Ưu tiên nhặt ở Kệ tầng trệt (Mức ưu tiên 1), hết mới lấy lên Kệ tầng 2 (Mức 2), và cuối cùng mới lấy ở Kho dự trữ High-Bay (Mức 3).",
+              realLifeAnalogy: "Rút tiền ở ví nhỏ cầm tay trước, khi nào hết tiền lẻ mới mở vali to lấy tiền chẵn ra tiêu.",
+              physicalAction: "Cấu hình hệ số ưu tiên giúp công nhân đi bộ quãng đường ngắn nhất khi nhặt hàng trong ca làm việc.",
+              devicesUsed: "Bộ xử lý thuật toán phân bổ WES",
+              physicalZone: "Data Center",
+              riskConsequence: "Công nhân phải liên tục trèo thang leo lên các tầng cao để nhặt từng chiếc áo lẻ trong khi hàng dưới chân lại bỏ trống.",
+              errorHandling: "Thang điểm ưu tiên từ 1 (Cao nhất) đến 99 (Thấp nhất); tự động sắp xếp theo thứ tự tăng dần.",
+              lockMechanism: "Allocation Strategy Matrix Lock.",
+              inventoryImpact: "Quyết định thứ tự trừ tồn kho của các ô kệ trên Sổ cái WIV.",
+              payload: { sku: "AIRISM-TEE-BLK-L", locationPriorities: [{ locationId: "LOC_A01_01_01_01", priority: 1 }, { locationId: "LOC_A01_01_03_01", priority: 2 }] }
+            },
+            {
+              code: "MS_AP_0012_02",
+              name: "Register Receiving Putaway To Recommendation Zone Priority",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Kế Hoạch Cất Hàng Nhập Kho (Inbound Setup)",
+              target: "WES Putaway Recommendation Engine",
+              whyNeeded: "Chỉ định vùng ưu tiên khi cất hàng mới nhập về kho: Ví dụ áo mùa hè ưu tiên cất vào Giàn robot Exotec; áo phao đại hàn mùa đông cất vào Kệ dự trữ trên cao.",
+              realLifeAnalogy: "Xếp đồ vào tủ lạnh: Đồ ăn dùng ngay để ở ngăn mát trước mặt; đồ tích trữ lâu ngày cất vào ngăn đá trên cùng.",
+              physicalAction: "Hệ thống gợi ý điểm cất hàng tối ưu cho xe nâng ngay khi kiện hàng vừa quét xong ở cửa nhận hàng Luồng 1.",
+              devicesUsed: "Thuật toán gợi ý vị trí WES",
+              physicalZone: "Cửa nhận hàng Inbound Dock",
+              riskConsequence: "Hàng cần xuất ngay lại bị đem cất vào góc sâu nhất của kho, làm tốn thời gian tìm kiếm và lấy hàng ra.",
+              errorHandling: "Kiểm tra dung lượng ô trống thực tế tại phân khu trước khi đưa ra gợi ý.",
+              lockMechanism: "Putaway Recommendation Cache Lock.",
+              inventoryImpact: "Tối ưu hóa vị trí cư trú ban đầu của hàng tồn kho mới nhập.",
+              payload: { category: "SUMMER_COLLECTION", recommendedAreaPriority: ["EXOTEC_GRID_01", "PICK_ZONE_A", "HIGH_BAY_STORAGE"] }
+            },
+            {
+              code: "MS_AP_0009_02 & MS_AP_0032_02",
+              name: "Register Combined Packing Group & Register Combined Packing Group Template",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Kiểm Soát An Toàn Đóng Hàng (Packing Policy UI)",
+              target: "WES Packing Rules Matrix",
+              whyNeeded: "Thiết lập danh mục các nhóm hàng được phép đóng chung một hộp: Quần áo mỏng đóng chung được với mũ len; nhưng không được đóng chung với giày nặng hoặc chai xịt xà phòng.",
+              realLifeAnalogy: "Đi chợ: Rau sống và trứng gà không thể để chung dưới đáy giỏ cùng với bao gạo 5kg.",
+              physicalAction: "Tại trạm đóng gói, máy quét chặn cảnh báo đỏ nếu nhân viên cố tình quét 2 sản phẩm thuộc 2 nhóm kỵ nhau vào cùng một mã hộp carton.",
+              devicesUsed: "Máy tính trạm kiểm soát đóng gói Packing Station",
+              physicalZone: "Khu vực bàn đóng gói Luồng 3",
+              riskConsequence: "Hàng bị bẹp nát, đổ vỡ chất lỏng trong quá trình vận chuyển làm phát sinh chi phí bồi thường và khiếu nại khách hàng.",
+              errorHandling: "Kiểm tra ma trận tương thích 2 chiều (Compatibility Matrix) giữa các nhóm hàng.",
+              lockMechanism: "Combined Packing Rule Lock.",
+              inventoryImpact: "Đảm bảo tính hợp lệ khi sinh các mã kiện hàng xuất kho.",
+              payload: { groupTemplateId: "APPAREL_ONLY", allowedCategories: ["SHIRT", "PANTS", "HAT"], prohibitedCategories: ["LIQUID", "FOOTWEAR", "FRAGILE"] }
+            }
+          ]
+        },
+        {
+          id: 5,
+          name: "Bước 5: Cấu hình Tuyến đường & Đối tác Logistics (Shipping Master Setup)",
+          shortTitle: "5. Tuyến đường & Đối tác Logistics",
+          badge: "BƯỚC 5",
+          icon: "🚚",
+          warehouseTitle: "Cụm Cấu Hình Định Tuyến Vận Chuyển & Cửa Xả Băng Chuyền",
+          warehouseDesc: "Cấu hình địa bàn phục vụ của các nhà xe, thời gian vận chuyển cam kết (Lead Time) và gán cửa xả (Chute) trên băng chuyền tự động cho từng hãng chuyển phát.",
+          businessDeepDive: {
+            coreMeaning: "Một kiện hàng sau khi đóng gói xong cần phải biết chính xác nó sẽ đi chuyến xe nào và xuất phát lúc mấy giờ. Dữ liệu tuyến đường Logistics là cầu nối giữa thế giới bên trong kho và mạng lưới giao hàng bên ngoài. Nếu cấu hình sai cửa xả (Chute/Guide Post), bưu kiện gửi đi Hà Nội sẽ bị gạt nhầm vào lồng xe tải chạy đi Cần Thơ, gây trễ hẹn giao hàng nghiêm trọng.",
+            whyCritical: "Thời gian giao hàng cam kết (Lead Time) là yếu tố quyết định hiển thị trên ứng dụng bán lẻ online của khách. Cấu hình đúng Lead Time giúp khách hàng biết chính xác khi nào họ nhận được hàng (ví dụ: Giao 2h, Giao trong ngày, hay Giao 3 ngày).",
+            physicalProcess: [
+              "1. Batch MS_BT_0006_02 nạp danh mục mã bưu chính và địa bàn phủ sóng (Territory) của từng hãng chuyển phát.",
+              "2. Người quản trị gọi MS_AP_0015_01 tra cứu và điều chỉnh ranh giới giao hàng giữa các nhà xe đối tác.",
+              "3. Gọi MS_AP_0017_02 cấu hình thời gian vận chuyển (Lead Time) theo từng hướng tuyến địa lý.",
+              "4. Gọi MS_AP_0018_02 gán cố định cửa xả trên băng chuyền con lăn tự động (Sorting Guide Post) cho từng hãng vận chuyển.",
+              "5. Hệ thống WCS tự động nhận diện nhãn vận đơn và điều khiển cần gạt đẩy bưu kiện rơi đúng vào lồng thép của hãng xe đó."
+            ],
+            riskMitigation: "Cơ chế Cửa Xả Dự Phòng (Fallback Reject Chute): Nếu bưu kiện bị nhòe mã vạch hoặc nhà xe ngừng nhận đơn đột xuất, băng chuyền tự động gạt bưu kiện vào cửa xả kiểm tra ngoại lệ số 99."
+          },
+          transformation: {
+            before: "Bưu kiện đóng gói xong phải nhờ công nhân đứng đọc địa chỉ bằng mắt để phân loại thủ công",
+            action: "Cấu hình địa bàn nhà xe + Gán cửa xả tự động Sorting Chute tương ứng cho từng hãng",
+            after: "Băng chuyền con lăn tự động bắn bưu kiện vào đúng lồng thép của từng hãng xe với tốc độ 2m/s"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 3,
+            packetLabel: "Logistics Carrier Routing & Sorting Chute Map",
+            packetColor: "#38bdf8"
+          },
+          apis: [
+            {
+              code: "MS_AP_0015_01 & MS_BT_0006_02",
+              name: "Retrieve Logistics Company Territory & Import Logistics Company Territory Master IF",
+              type: "API / BATCH",
+              method: "POST / BATCH",
+              source: "Cổng Thông Tin Bưu Chính Quốc Gia & Đối Tác Vận Chuyển",
+              target: "WES Logistics Router Engine",
+              whyNeeded: "Nạp và tra cứu danh mục phân chia địa bàn giao hàng: Quận nào, Tỉnh nào do nhà xe JNE phụ trách, khu vực vùng sâu vùng xa nào do bưu điện VNPost đảm nhiệm.",
+              realLifeAnalogy: "Bản đồ phân vùng địa bàn hoạt động của các đội giao hàng nhanh tại từng phường, xã.",
+              physicalAction: "Hệ thống tự động liên kết mã bưu chính Postal Code `700000` (TP.HCM) với nhà xe đối tác nội thành số 1.",
+              devicesUsed: "Máy chủ định tuyến vận chuyển Logistics Gateway",
+              physicalZone: "Data Center",
+              riskConsequence: "Gán nhầm đơn hàng cho nhà xe không có tuyến chạy ở địa bàn đó, bưu kiện bị om đọng nhiều tuần không giao được.",
+              errorHandling: "Tự động kích hoạt nhà xe dự phòng nếu nhà xe chính thức thông báo quá tải tuyến.",
+              lockMechanism: "Territory Routing Table Lock.",
+              inventoryImpact: "Xác định đối tác vận chuyển hợp lệ cho đơn hàng xuất kho Luồng 3.",
+              payload: { carrierId: "JNE_EXPRESS", postalCodePrefix: "70", province: "HO_CHI_MINH", maxDailyCapacity: 15000 }
+            },
+            {
+              code: "MS_AP_0017_02",
+              name: "Register Lead Time By Direction",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Quản Lý Cam Kết Dịch Vụ Khách Hàng (SLA UI)",
+              target: "WES Service Level Engine",
+              whyNeeded: "Cấu hình thời gian giao hàng dự kiến (Lead Time tính theo giờ hoặc ngày) cho từng hướng tuyến vận chuyển để thông báo chính xác cho người mua trên ứng dụng bán hàng.",
+              realLifeAnalogy: "Biển báo giờ tàu xe chạy: Tuyến Sài Gòn - Đà Nẵng mất 24 giờ; Tuyến Sài Gòn - Cần Thơ mất 4 giờ.",
+              physicalAction: "Cập nhật tham số: Đơn hàng giao trong nội thành hoàn tất trong 4 giờ; Đơn hàng đi tỉnh miền Tây mất tối đa 36 giờ.",
+              devicesUsed: "Engine tính toán thời gian cam kết SLA",
+              physicalZone: "Phòng Điều hành Dịch vụ Khách hàng",
+              riskConsequence: "Hứa hẹn sai thời gian giao hàng với khách, dẫn đến tỷ lệ hủy đơn và khiếu nại tăng vọt.",
+              errorHandling: "Tự động cộng thêm thời gian dự phòng (Buffer Hours) vào các dịp nghỉ lễ hoặc thời tiết xấu.",
+              lockMechanism: "Lead Time Parameter Version Lock.",
+              inventoryImpact: "Cung cấp thời hạn nhặt hàng tối đa (Pick Deadline) cho các đợt Wave.",
+              payload: { directionCode: "DIR_MEKONG_DELTA", standardLeadTimeHours: 36, expressLeadTimeHours: 12, cutoffTime: "15:00" }
+            },
+            {
+              code: "MS_AP_0018_02",
+              name: "Register Sorting Guide Post By Logistics Company By Direction",
+              type: "API",
+              method: "PUT",
+              source: "Màn hình Cấu Hình Cửa Xả Băng Chuyền Tự Động (Sorting Setup)",
+              target: "Bộ Điều Khiển Băng Chuyền Phân Loại WCS (Sorting PLC)",
+              whyNeeded: "Định nghĩa cổng xả (Chute/Guide Post) cụ thể trên băng chuyền tự động tương ứng với từng nhà xe: Cổng số 1 cho xe VNPost, Cổng số 2 cho xe JNE, Cổng số 3 cho xe DHL.",
+              realLifeAnalogy: "Cổng ra máy bay (Boarding Gate) tại sân bay: Chuyến bay đi Hà Nội ra Cổng số 8, chuyến bay đi Singapore ra Cổng số 12.",
+              physicalAction: "Khi máy quét gắn trên trần đọc được tem bưu cục JNE, hệ thống ra lệnh cho cần gạt tại Cổng số 2 bung ra trong 0.2 giây để gạt bưu kiện rơi vào lồng thép JNE.",
+              devicesUsed: "Bộ điều khiển khả trình PLC & Cần gạt khí nén Diverter",
+              physicalZone: "Khu vực cuối băng chuyền phân loại tự động",
+              riskConsequence: "Cần gạt bung sai cửa làm bưu kiện rơi lộn lồng xe, shipper mang nhầm kiện hàng sang tỉnh khác.",
+              errorHandling: "Cảm biến quang kiểm tra xác nhận bưu kiện đã rơi hẳn vào lồng trước khi đóng cần gạt.",
+              lockMechanism: "Chute Assignment Hardware Lock.",
+              inventoryImpact: "Đảm bảo bàn giao chính xác 100% bưu kiện cho tài xế xe tải.",
+              payload: { carrierId: "JNE_EXPRESS", direction: "SOUTH_ZONE", assignedChuteNumber: 2, diverterSpeedMs: 180 }
+            }
+          ]
+        },
+        {
+          id: 6,
+          name: "Bước 6: Nghiệp vụ Dịch vụ May đo / Sửa đồ (Alteration Service Setup)",
+          shortTitle: "6. Dịch vụ may đo & Thẻ Alteration",
+          badge: "BƯỚC 6",
+          icon: "✂️",
+          warehouseTitle: "Xưởng May Nội Bộ Kho & Bàn In Thẻ Alteration Card",
+          warehouseDesc: "Đồng bộ danh mục mã may vá sửa gấu từ hệ thống bán lẻ, in thẻ chỉ thị Alteration Card kẹp ống quần và ghi nhận kết quả may đo trước khi chuyển đóng gói.",
+          businessDeepDive: {
+            coreMeaning: "Đây là nghiệp vụ gia tăng giá trị (VAS - Value Added Service) đặc thù và đẳng cấp của ngành thời trang. Khi khách mua quần dài trên App, họ có thể chọn dịch vụ cắt gấu quần (ví dụ: cắt bớt 4cm, may đường chỉ ẩn Blind Stitch). Nhà kho có hẳn một xưởng may chuyên nghiệp bên trong. Dữ liệu Master Data cấu hình mã dịch vụ may, giá tiền, loại chỉ may và tự động in ra chiếc 'Thẻ bệnh án của chiếc quần' mang tên Alteration Card.",
+            whyCritical: "Chiếc thẻ Alteration Card là chứng từ duy nhất để thợ may biết phải cắt chính xác bao nhiêu cm và dùng loại chỉ màu gì. Nếu thông tin may đo bị lỗi, thợ may cắt cụt mất chiếc quần đắt tiền của khách thì kho phải bồi thường 100% giá trị sản phẩm.",
+            physicalProcess: [
+              "1. Batch MS_BT_0001_02_EC (WIV) và MS_BT_0003_02_EC (WES) đồng bộ danh mục các gói may vá sửa đồ từ hệ thống bán lẻ online.",
+              "2. Người quản trị gọi MS_AP_0006_01_EC (WIV) và MS_AP_0014_01 (WES) đăng ký mã dịch vụ may tương ứng với từng dòng sản phẩm thời trang.",
+              "3. Khi có đơn cần may: Gọi MS_AP_0014_02_EC và MS_AP_0014_03 in tấm thẻ đỏ Alteration Card kẹp trực tiếp vào đai quần.",
+              "4. Gọi IV_AP_0012_01_EC và IV_AP_0012_02_EC tiếp nhận và chuyển tiếp yêu cầu may vào hàng đợi của xưởng may.",
+              "5. Thợ may may xong, module CM_ML_0003 và IV_ML_0001_07 ghi nhận kết quả hoàn tất để chiếc quần được chuyển tiếp ra trạm đóng gói Luồng 3."
+            ],
+            riskMitigation: "Cơ chế mã vạch 2 chiều trên Thẻ Alteration: Thợ may bắt buộc phải quét mã vạch trên thẻ trước khi cắt chỉ và quét xác nhận sau khi may xong, loại bỏ hoàn toàn sai sót nhầm lẫn giữa các đơn hàng."
+          },
+          transformation: {
+            before: "Chiếc quần jean nguyên bản dài tiêu chuẩn của nhà máy sản xuất",
+            action: "Khai báo mã may vá + In thẻ Alteration Card kẹp ống quần + Thợ may cắt gấu chuẩn xác",
+            after: "Chiếc quần được may gấu theo đúng số đo riêng của khách, sẵn sàng chuyển sang đóng gói"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 3,
+            packetLabel: "Alteration PLU Sync & Tailoring Card Dispatch",
+            packetColor: "#ec4899"
+          },
+          apis: [
+            {
+              code: "MS_BT_0001_02_EC & MS_BT_0003_02_EC",
+              name: "EC Export Alteration Plu Master IF & EC Import Alteration PLU Master IF",
+              type: "BATCH",
+              method: "WIV / WES BATCH",
+              source: "Hệ Thống Đặt Hàng Bán Lẻ Trực Tuyến (OMS/EC)",
+              target: "Sổ Cái WIV & WES Alteration Catalog",
+              whyNeeded: "Đồng bộ danh mục các dịch vụ may đo/sửa gấu từ hệ thống bán lẻ xuống kho: May gập gấu thường (Normal Hemming), May chỉ ẩn (Blind Stitch), May viền xích (Chain Stitch) kèm mức phụ phí tương ứng.",
+              realLifeAnalogy: "Menu các dịch vụ làm tóc tại tiệm: Cắt tóc, uốn nhuộm, gội đầu dưỡng sinh.",
+              physicalAction: "Cơ sở dữ liệu kho nạp thêm 12 gói dịch vụ may đo chuẩn áp dụng cho các dòng quần âu, quần jean và quần khaki.",
+              devicesUsed: "Máy chủ đồng bộ giao diện EC Middleware",
+              physicalZone: "Data Center",
+              riskConsequence: "Khách đặt cắt gấu trên App nhưng kho không nhận diện được mã dịch vụ, đơn hàng bị đóng gói gửi đi nguyên bản chưa sửa.",
+              errorHandling: "Kiểm tra mã dịch vụ may phải tương thích với mã chất liệu vải của quần (Ví dụ: Vải co giãn không dùng đường may viền cứng).",
+              lockMechanism: "Alteration Master Catalog Lock.",
+              inventoryImpact: "Khởi tạo mã dịch vụ may đo phi tồn kho (Service PLU).",
+              payload: { alterationPlu: "ALT_BLIND_STITCH_01", serviceName: "May gấu chỉ ẩn cao cấp", priceVND: 30000, allowedFabrics: ["WOOL", "POLYESTER_SUIT"] }
+            },
+            {
+              code: "MS_AP_0006_01_EC & MS_AP_0014_01",
+              name: "EC Register Alteration Plu & Retrieve Alteration PLU",
+              type: "API",
+              method: "PUT / POST",
+              source: "Màn hình Quản Trị Xưởng May Nội Bộ Kho (Tailoring UI)",
+              target: "WIV & WES Tailoring Core",
+              whyNeeded: "Đăng ký liên kết giữa mã dịch vụ may vá và mã sản phẩm thời trang: Chỉ những sản phẩm quần dài chỉ định mới được phép kích hoạt dịch vụ may gấu.",
+              realLifeAnalogy: "Quy định của cửa hàng: Chỉ áp dụng chính sách cắt gấu miễn phí cho quần dài từ 500.000 VNĐ trở lên, không áp dụng cho quần đùi.",
+              physicalAction: "Người quản lý gán mã dịch vụ may gấu cho 80 mẫu quần âu nam nữ trong bộ sưu tập mới.",
+              devicesUsed: "Máy tính điều hành xưởng may",
+              physicalZone: "Văn phòng Quản đốc xưởng may kho",
+              riskConsequence: "Khách đặt nhầm dịch vụ cắt gấu cho... áo khoác gió hoặc váy ngắn, gây khó hiểu cho thợ may.",
+              errorHandling: "Ràng buộc kiểm tra thuộc tính danh mục sản phẩm bắt buộc phải là 'TROUSERS' hoặc 'JEANS'.",
+              lockMechanism: "Alteration Mapping Lock.",
+              inventoryImpact: "Khai báo quy tắc nghiệp vụ dịch vụ đính kèm sản phẩm.",
+              payload: { itemModel: "SMART-ANKLE-PANTS", linkedAlterationPlus: ["ALT_NORMAL_HEM", "ALT_BLIND_STITCH"], enabled: true }
+            },
+            {
+              code: "MS_AP_0014_02_EC & MS_AP_0014_03",
+              name: "EC Print Alteration Card & Download Alteration Card",
+              type: "API",
+              method: "PUT / POST",
+              source: "Trạm Tách Luồng May Đo (Alteration Buffer Station)",
+              target: "Máy In Thẻ Màu Sato Chuyên Dụng Xưởng May",
+              whyNeeded: "In tấm thẻ chỉ thị may vá (Alteration Card) bằng bìa cứng màu nổi bật ghi rõ: Chiều dài cần cắt (ví dụ: Cắt bớt 4.5cm), Mã chỉ màu cần dùng, và Mã vạch bưu kiện để kẹp vào cạp quần.",
+              realLifeAnalogy: "Phiếu ghi chú của bác sĩ phẫu thuật dán trên đầu giường bệnh nhân ghi rõ vị trí cần mổ.",
+              physicalAction: "Máy in nhả ra tấm thẻ cứng màu vàng có mã vạch; nhân viên dùng kẹp nhựa kẹp chặt thẻ vào cạp quần trước khi chuyển sang bàn thợ may.",
+              devicesUsed: "Máy in thẻ cứng công nghiệp Sato & Kẹp nhựa an toàn",
+              physicalZone: "Bàn đệm tiếp nhận đồ may (Alteration Buffer)",
+              riskConsequence: "Mất phiếu chỉ thị khiến thợ may không biết phải cắt bao nhiêu cm, hoặc cắt nhầm kích thước của khách hàng khác.",
+              errorHandling: "Mã vạch trên thẻ được in 2 mặt để thợ may có thể quét từ bất kỳ góc độ nào mà không cần lật mở quần.",
+              lockMechanism: "Alteration Card Print Task Lock.",
+              inventoryImpact: "Đính kèm chỉ thị gia công vật lý vào sản phẩm thực tế.",
+              payload: { cardId: "ALT_CARD_20260919_0088", customerOrderId: "ORD_EC_98821", cutLengthCm: 4.5, threadColorCode: "NAVY_69", seamType: "BLIND_STITCH" }
+            },
+            {
+              code: "IV_AP_0012_01_EC & IV_AP_0012_02_EC",
+              name: "EC Retrieve Alteration Offer & EC Register Alteration Offer Raising",
+              type: "API",
+              method: "POST / PUT",
+              source: "Hệ thống Điều Phối Luồng May Đơn Hàng (Alteration Dispatcher)",
+              target: "Hàng Đợi Công Việc Xưởng May (Tailoring Work Queue)",
+              whyNeeded: "Tra cứu và tạo việc làm (Job Ticket) đưa vào hàng đợi của xưởng may; hệ thống tự động tính toán năng lực phục vụ của 10 máy may trong ca trực.",
+              realLifeAnalogy: "Màn hình lấy số thứ tự tại quầy giao dịch ngân hàng: Điều phối khách đến quầy đang trống nhân viên.",
+              physicalAction: "Hệ thống phân bổ công việc cắt gấu của đơn hàng cho máy may số 3 đang rảnh rỗi.",
+              devicesUsed: "Màn hình hiển thị hàng đợi công việc Tablet tại bàn may",
+              physicalZone: "Xưởng may nội bộ kho",
+              riskConsequence: "Đơn hàng may bị dồn ứ tại một thợ may trong khi các thợ may khác ngồi chơi, làm chậm trễ tiến độ giao hàng toàn kho.",
+              errorHandling: "Tự động cân bằng tải (Load Balancing) công việc theo tay nghề và tốc độ của từng thợ may.",
+              lockMechanism: "Tailoring Queue Item Lock.",
+              inventoryImpact: "Theo dõi trạng thái tiến độ gia công của sản phẩm trong kho.",
+              payload: { alterationTicketId: "ALT_TCK_088", assignedSewingStation: "SEW_STATION_03", estimatedDurationMinutes: 8, status: "ASSIGNED" }
+            },
+            {
+              code: "CM_ML_0003 & IV_ML_0001_07",
+              name: "Retrieve Alteration Information (WIV Module) & Register Alteration Result (WES Module)",
+              type: "MODULE",
+              method: "INTERNAL MODULE",
+              source: "Máy Quét Cầm Tay Tại Bàn Thợ May",
+              target: "Sổ Cái WIV & WES Outbound Consolidation Engine",
+              whyNeeded: "Thợ may may xong, quét mã vạch trên thẻ Alteration Card để xác nhận hoàn tất; hệ thống đổi trạng thái chiếc quần thành 'Đã may xong', mở khóa chuyển ra bàn đóng gói Luồng 3.",
+              realLifeAnalogy: "Bác sĩ ký xác nhận ca mổ thành công, bệnh nhân được chuyển từ phòng mổ sang phòng hồi sức.",
+              physicalAction: "Thợ may dùng bàn là ủi phẳng gấu quần mới may, quét mã Barcode 'BÍP'; băng chuyền tự động cuốn chiếc quần về trạm gom đơn Put Wall.",
+              devicesUsed: "Máy quét mã vạch có dây Honeywell & Bàn là hơi nước công nghiệp",
+              physicalZone: "Bàn hoàn thiện sản phẩm may",
+              riskConsequence: "Quần đã may xong nhưng hệ thống không ghi nhận, đơn hàng bị treo ở trạng thái 'Đang sửa' và không bao giờ được đóng gói xuất đi.",
+              errorHandling: "Kiểm tra xác nhận chữ ký điện tử của thợ may chịu trách nhiệm về đường may hoàn thiện.",
+              lockMechanism: "Alteration Completion State Transition Lock.",
+              inventoryImpact: "Chuyển trạng thái sản phẩm từ ĐANG_SỬA sang SẴN_SÀNG_ĐÓNG_GÓI.",
+              payload: { alterationTicketId: "ALT_TCK_088", completedByTailor: "THO_MAY_LAN_02", qualityPassed: true, routedToPackingWall: "PUT_WALL_B04" }
+            }
+          ]
+        }
+      ]
+    };
+
+    let currentStepIndex = 0;
+    let isPlaying = false;
+    let playInterval = null;
+    let playbackSpeed = 1.0;
+    let activeApiForModal = null;
+    let packetAnimationProgress = 0;
+    let animationFrameId = null;
+
+    const canvas = document.getElementById('flowCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    function resizeCanvas() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      drawSimulation();
+    });
+
+    // 4 Distinct Lanes for Flow 6 Master Data Hub
+    const LANES = [
+      { id: 0, name: "1. HQ ERP / Enterprise Systems", color: "#60a5fa", y: 0.16, icon: "🏢" },
+      { id: 1, name: "2. WES Master Orchestrator", color: "#fbbf24", y: 0.38, icon: "🧠" },
+      { id: 2, name: "3. WIV Ledger & Location Core", color: "#34d399", y: 0.60, icon: "📑" },
+      { id: 3, name: "4. Thiết Bị / Robot & Xưởng May", color: "#c084fc", y: 0.83, icon: "🤖" },
+    ];
+
+    function drawSimulation() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Draw Lane Backgrounds & Guides
+      LANES.forEach((lane) => {
+        const laneY = h * lane.y;
+
+        ctx.strokeStyle = "rgba(51, 65, 85, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(30, laneY);
+        ctx.lineTo(w - 30, laneY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Lane badge
+        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.strokeStyle = lane.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(14, laneY - 14, 225, 28, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "bold 11px Inter, sans-serif";
+        ctx.fillStyle = lane.color;
+        ctx.fillText(`${lane.icon} ${lane.name}`, 22, laneY + 4);
+      });
+
+      // 2. Active Step Connection & Glowing Packet
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      const sourceLaneObj = LANES[step.animation.sourceLane];
+      const targetLaneObj = LANES[step.animation.targetLane];
+
+      const startX = 270;
+      const endX = w - 80;
+      const startY = h * sourceLaneObj.y;
+      const endY = h * targetLaneObj.y;
+
+      // Draw connection flow path curve
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(99, 102, 241, 0.25)";
+      ctx.lineWidth = 3;
+      ctx.moveTo(startX, startY);
+      
+      const cp1X = startX + (endX - startX) * 0.5;
+      const cp1Y = startY;
+      const cp2X = startX + (endX - startX) * 0.5;
+      const cp2Y = endY;
+      ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
+      ctx.stroke();
+
+      // Flow direction arrow particles
+      const t = packetAnimationProgress;
+      const curX = Math.pow(1 - t, 3) * startX + 
+                   3 * Math.pow(1 - t, 2) * t * cp1X + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2X + 
+                   Math.pow(t, 3) * endX;
+      const curY = Math.pow(1 - t, 3) * startY + 
+                   3 * Math.pow(1 - t, 2) * t * cp1Y + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2Y + 
+                   Math.pow(t, 3) * endY;
+
+      // Packet Glow Outer
+      const glowGrad = ctx.createRadialGradient(curX, curY, 2, curX, curY, 20);
+      glowGrad.addColorStop(0, step.animation.packetColor);
+      glowGrad.addColorStop(0.5, step.animation.packetColor + "66");
+      glowGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(curX, curY, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Packet Core Dot
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(curX, curY, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Floating Packet Tooltip Label
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx.strokeStyle = step.animation.packetColor;
+      ctx.lineWidth = 1;
+      const tagText = `${step.animation.packetLabel}`;
+      ctx.font = "500 10px 'JetBrains Mono', monospace";
+      const tagWidth = ctx.measureText(tagText).width;
+      
+      ctx.beginPath();
+      ctx.roundRect(curX - tagWidth / 2 - 8, curY - 26, tagWidth + 16, 20, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillText(tagText, curX - tagWidth / 2, curY - 13);
+
+      // Source and Target Terminal Nodes
+      drawNode(ctx, startX, startY, sourceLaneObj.color);
+      drawNode(ctx, endX, endY, targetLaneObj.color);
+    }
+
+    function drawNode(context, x, y, color) {
+      context.fillStyle = color;
+      context.beginPath();
+      context.arc(x, y, 7, 0, Math.PI * 2);
+      context.fill();
+
+      context.strokeStyle = "rgba(255,255,255,0.8)";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(x, y, 9, 0, Math.PI * 2);
+      context.stroke();
+    }
+
+    function animateLoop() {
+      packetAnimationProgress += 0.012 * playbackSpeed;
+      if (packetAnimationProgress > 1) {
+        packetAnimationProgress = 0;
+      }
+
+      drawSimulation();
+      animationFrameId = requestAnimationFrame(animateLoop);
+    }
+
+    function renderStepProgressBar() {
+      const container = document.getElementById('stepProgressList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      FLOW_DATA.steps.forEach((step, idx) => {
+        const isActive = idx === currentStepIndex;
+        const btn = document.createElement('button');
+        btn.className = `flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all ${
+          isActive 
+            ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-md shadow-indigo-500/20 font-semibold' 
+            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+        }`;
+        btn.innerHTML = `
+          <span class="w-5 h-5 rounded-full ${isActive ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-[10px] font-mono font-bold">
+            ${step.id}
+          </span>
+          <span class="whitespace-nowrap">${step.shortTitle}</span>
+        `;
+        btn.addEventListener('click', () => {
+          goToStep(idx);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderCurrentStepDetails() {
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      // Update Header Badges
+      const badgeNum = document.getElementById('stepBadgeNumber');
+      const badgeTitle = document.getElementById('stepBadgeTitle');
+      const whIcon = document.getElementById('warehouseStageIcon');
+      const whTitle = document.getElementById('warehouseStageTitle');
+      const whDesc = document.getElementById('warehouseStageDesc');
+      const statusText = document.getElementById('packetTransmissionStatus');
+      const apiCount = document.getElementById('apiCountBadge');
+
+      if (badgeNum) badgeNum.textContent = step.badge;
+      if (badgeTitle) badgeTitle.textContent = step.name.split(':')[1]?.trim() || step.name;
+      if (whIcon) whIcon.textContent = step.icon;
+      if (whTitle) whTitle.textContent = step.warehouseTitle;
+      if (whDesc) whDesc.textContent = step.warehouseDesc;
+      if (statusText) statusText.textContent = `Truyền: ${step.animation.packetLabel}`;
+      if (apiCount) apiCount.textContent = `${step.apis.length} APIs/Batch`;
+
+      // Update Physical Transformation Matrix Box
+      const transContainer = document.getElementById('transformationContainer');
+      if (transContainer) {
+        transContainer.innerHTML = `
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-slate-500 uppercase font-mono block mb-1">TRẠNG THÁI TRƯỚC</span>
+            <p class="text-slate-300 font-medium">${step.transformation.before}</p>
+          </div>
+          <div class="bg-indigo-950/30 p-2.5 rounded-lg border border-indigo-800/40 text-center">
+            <span class="text-[10px] text-indigo-400 uppercase font-mono block mb-1">HÀNH ĐỘNG CHUYỂN ĐỔI</span>
+            <p class="text-indigo-200 font-medium">${step.transformation.action}</p>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-violet-400 uppercase font-mono block mb-1">KẾT QUẢ ĐÍCH</span>
+            <p class="text-violet-300 font-medium">${step.transformation.after}</p>
+          </div>
+        `;
+      }
+
+      // Render tab contents
+      renderStepDeepDive(step);
+      renderApiList(step.apis);
+      renderSequenceDiagram(step);
+      renderStepProgressBar();
+    }
+
+    function renderStepDeepDive(step) {
+      const container = document.getElementById('stepDeepDiveContainer');
+      if (!container || !step) return;
+
+      const dd = step.businessDeepDive;
+      container.innerHTML = `
+        <div class="bg-indigo-950/20 border border-indigo-500/30 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-indigo-300 text-xs uppercase flex items-center gap-1.5">
+            <span>💡</span>
+            <span>Bản chất nghiệp vụ cốt lõi</span>
+          </h4>
+          <p class="text-slate-200 text-xs leading-relaxed">${dd.coreMeaning}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-violet-300 text-xs uppercase flex items-center gap-1.5">
+            <span>⚠️</span>
+            <span>Tại sao bước này sống còn đối với kho thông minh?</span>
+          </h4>
+          <p class="text-slate-300 text-xs leading-relaxed">${dd.whyCritical}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <h4 class="font-bold text-indigo-400 text-xs uppercase flex items-center gap-1.5">
+            <span>📋</span>
+            <span>Trình tự thao tác thực tế tại hiện trường</span>
+          </h4>
+          <div class="space-y-1.5 text-xs">
+            ${dd.physicalProcess.map(item => `
+              <div class="flex items-start gap-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 text-slate-300">
+                <span class="text-indigo-400 font-bold shrink-0">✔</span>
+                <span>${item}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3 space-y-1">
+          <h4 class="font-bold text-rose-300 text-xs uppercase flex items-center gap-1.5">
+            <span>🛡️</span>
+            <span>Cơ chế phòng vệ rủi ro & an toàn vận hành</span>
+          </h4>
+          <p class="text-rose-200/90 text-xs leading-relaxed">${dd.riskMitigation}</p>
+        </div>
+      `;
+    }
+
+    function renderApiList(apis) {
+      const container = document.getElementById('apiListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      apis.forEach((api) => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 p-3 rounded-xl transition-all cursor-pointer group shadow-sm";
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs font-bold text-indigo-300 group-hover:text-indigo-200 transition-colors">${api.code}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+              api.method.includes('PUT') ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30' :
+              api.method.includes('POST') ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30' :
+              api.method.includes('BATCH') ? 'bg-violet-500/10 text-violet-300 border border-violet-500/30' :
+              'bg-pink-500/10 text-pink-300 border border-pink-500/30'
+            }">${api.method}</span>
+          </div>
+          <h4 class="text-xs font-semibold text-slate-200 mb-1 leading-snug">${api.name}</h4>
+          <p class="text-[11px] text-slate-400 line-clamp-2 leading-normal">${api.whyNeeded || api.physicalAction}</p>
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1.5 border-t border-slate-800/60">
+            <span class="truncate max-w-[180px]">${api.source}</span>
+            <span class="text-indigo-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">Mổ xẻ ➔</span>
+          </div>
+        `;
+        card.addEventListener('click', () => openApiModal(api));
+        container.appendChild(card);
+      });
+    }
+
+    function renderSequenceDiagram(step) {
+      const container = document.getElementById('sequenceDiagramContainer');
+      if (!container || !step) return;
+
+      let ascii = `=== SƠ ĐỒ TUẦN TỰ (SEQUENCE FLOW) - ${step.badge} ===\n\n`;
+      ascii += `[HQ ERP CENTRAL]      [WES MASTER HUB]     [WIV LOCATION CORE]  [ROBOT/HARDWARE/SEW]\n`;
+      ascii += `        │                    │                    │                    │\n`;
+
+      step.apis.forEach((api, i) => {
+        const num = i + 1;
+        if (api.source.includes('HQ') || api.source.includes('ERP') || api.source.includes('Cubiscan') || api.source.includes('Trade')) {
+          ascii += `        │ ────(${num}) ${api.code}───> │                    │                    │\n`;
+          ascii += `        │                    │ [Nạp Master Data: ${api.name.slice(0, 20)}...]\n`;
+        } else if (api.target.includes('WIV') || api.name.includes('Location') || api.name.includes('Area') || api.name.includes('Priority')) {
+          ascii += `        │                    │ ────(${num}) Cập nhật Tọa độ/Bản đồ ─> │                    │\n`;
+          ascii += `        │                    │                    │ [Ghi nhận Cấu Hình Sổ Cái] │\n`;
+          ascii += `        │                    │ <─── Trả lời Xác Nhận ──── │                    │\n`;
+        } else if (api.target.includes('Exotec') || api.target.includes('WCS') || api.target.includes('Robot') || api.target.includes('Máy In') || api.source.includes('Máy Quét')) {
+          ascii += `        │                    │ ────(${num}) Đồng bộ Tham số Thiết bị ──────────────> │\n`;
+          ascii += `        │                    │                    │                    │ [Exotec/Sorting/Thợ may]\n`;
+          ascii += `        │                    │ <─── Báo cáo Sẵn sàng Hoạt động ─────────── │\n`;
+        } else {
+          ascii += `        │                    │ ────(${num}) ${api.code} ───> │                    │\n`;
+        }
+        ascii += `        │                    │                    │                    │\n`;
+      });
+
+      ascii += `\n✔ Hoàn tất chu trình cấu hình & đồng bộ dữ liệu của ${step.badge}`;
+      container.innerHTML = `<pre class="whitespace-pre overflow-x-auto text-indigo-400 leading-relaxed font-mono">${ascii}</pre>`;
+    }
+
+    function openApiModal(api) {
+      activeApiForModal = api;
+      const modal = document.getElementById('apiModal');
+      if (!modal) return;
+
+      const badge = document.getElementById('modalMethodBadge');
+      if (badge) {
+        badge.textContent = api.method;
+        badge.className = "px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider";
+        if (api.method.includes("PUT")) badge.classList.add("bg-amber-500/20", "text-amber-300", "border", "border-amber-500/40");
+        else if (api.method.includes("POST")) badge.classList.add("bg-indigo-500/20", "text-indigo-300", "border", "border-indigo-500/40");
+        else if (api.method.includes("BATCH")) badge.classList.add("bg-violet-500/20", "text-violet-300", "border", "border-violet-500/40");
+        else badge.classList.add("bg-pink-500/20", "text-pink-300", "border", "border-pink-500/40");
+      }
+
+      const setElText = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = txt || "Không có thông tin";
+      };
+
+      setElText('modalApiCode', api.code);
+      setElText('modalApiName', api.name);
+      setElText('modalSourceSystem', api.source);
+      setElText('modalTargetSystem', api.target);
+      setElText('modalWhyNeeded', api.whyNeeded || api.businessRules);
+      setElText('modalRealLifeAnalogy', api.realLifeAnalogy || "Quá trình đồng bộ Master Data tương tự thiết lập danh bạ và quy tắc điều hành chung.");
+      setElText('modalPhysicalActionDetailed', api.physicalAction);
+      setElText('modalDevicesUsed', api.devicesUsed || "Máy in Sato, Máy trạm WES, Cảm biến quang");
+      setElText('modalPhysicalZone', api.physicalZone || "Phòng điều hành CNTT & Hạ tầng kho");
+      setElText('modalRiskConsequence', api.riskConsequence || "Có thể gây sai lệch tham số điều phối hoặc từ chối đơn hàng.");
+      setElText('modalErrorHandling', api.errorHandling || api.businessRules);
+      setElText('modalLockMechanism', api.lockMechanism || "Master Data Concurrency Mutex Lock");
+      setElText('modalInventoryDetailed', api.inventoryImpact);
+
+      const jsonEl = document.getElementById('modalJsonPayload');
+      if (jsonEl) jsonEl.textContent = JSON.stringify(api.payload, null, 2);
+
+      // Default to Business Tab in modal
+      switchModalTab('modalTabBtnBusiness', 'modalTabContentBusiness');
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('apiModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    /* Modal Sub-Tab Switcher */
+    const modalTabs = [
+      { btnId: 'modalTabBtnBusiness', contentId: 'modalTabContentBusiness' },
+      { btnId: 'modalTabBtnPhysical', contentId: 'modalTabContentPhysical' },
+      { btnId: 'modalTabBtnRisk', contentId: 'modalTabContentRisk' },
+      { btnId: 'modalTabBtnTech', contentId: 'modalTabContentTech' },
+    ];
+
+    function switchModalTab(targetBtnId, targetContentId) {
+      modalTabs.forEach(tab => {
+        const btn = document.getElementById(tab.btnId);
+        const content = document.getElementById(tab.contentId);
+        if (btn && content) {
+          if (tab.btnId === targetBtnId) {
+            btn.className = "pb-2 px-2 border-b-2 border-indigo-500 text-white font-semibold text-xs transition-colors";
+            content.classList.remove('hidden');
+          } else {
+            btn.className = "pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 text-xs transition-colors";
+            content.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    modalTabs.forEach(tab => {
+      const btn = document.getElementById(tab.btnId);
+      if (btn) {
+        btn.addEventListener('click', () => switchModalTab(tab.btnId, tab.contentId));
+      }
+    });
+
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalCloseActionBtn = document.getElementById('modalCloseActionBtn');
+    const apiModal = document.getElementById('apiModal');
+
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+    if (modalCloseActionBtn) modalCloseActionBtn.addEventListener('click', closeModal);
+    if (apiModal) {
+      apiModal.addEventListener('click', (e) => {
+        if (e.target.id === 'apiModal') closeModal();
+      });
+    }
+
+    // Copy JSON payload with feedback
+    const modalCopyBtn = document.getElementById('modalCopyBtn');
+    if (modalCopyBtn) {
+      modalCopyBtn.addEventListener('click', () => {
+        if (!activeApiForModal) return;
+        const text = JSON.stringify(activeApiForModal.payload, null, 2);
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          modalCopyBtn.innerHTML = `✓ Đã sao chép!`;
+          setTimeout(() => {
+            modalCopyBtn.innerHTML = `
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Sao chép JSON
+            `;
+          }, 2000);
+        } catch (err) {
+          console.error('Copy error', err);
+        }
+        document.body.removeChild(textArea);
+      });
+    }
+
+    function goToStep(index) {
+      if (index < 0) index = 0;
+      if (index >= FLOW_DATA.steps.length) index = FLOW_DATA.steps.length - 1;
+      currentStepIndex = index;
+      packetAnimationProgress = 0;
+      renderCurrentStepDetails();
+    }
+
+    function nextStep() {
+      if (currentStepIndex < FLOW_DATA.steps.length - 1) {
+        goToStep(currentStepIndex + 1);
+      } else if (isPlaying) {
+        goToStep(0);
+      }
+    }
+
+    function prevStep() {
+      if (currentStepIndex > 0) {
+        goToStep(currentStepIndex - 1);
+      }
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const btnPlay = document.getElementById('btnPlay');
+      const iconPlay = document.getElementById('iconPlay');
+      const txtPlay = document.getElementById('txtPlay');
+
+      if (isPlaying) {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-indigo-600', 'bg-rose-600');
+          btnPlay.classList.replace('hover:bg-indigo-500', 'hover:bg-rose-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tạm dừng";
+
+        playInterval = setInterval(() => {
+          nextStep();
+        }, 5000 / playbackSpeed);
+      } else {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-rose-600', 'bg-indigo-600');
+          btnPlay.classList.replace('hover:bg-rose-500', 'hover:bg-indigo-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tự động phát";
+        clearInterval(playInterval);
+      }
+    }
+
+    const btnPlay = document.getElementById('btnPlay');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+    const selSpeed = document.getElementById('selSpeed');
+    const btnReset = document.getElementById('btnReset');
+
+    if (btnPlay) btnPlay.addEventListener('click', togglePlay);
+    if (btnNext) btnNext.addEventListener('click', () => { if (isPlaying) togglePlay(); nextStep(); });
+    if (btnPrev) btnPrev.addEventListener('click', () => { if (isPlaying) togglePlay(); prevStep(); });
+    if (selSpeed) {
+      selSpeed.addEventListener('change', (e) => {
+        playbackSpeed = parseFloat(e.target.value) || 1.0;
+        if (isPlaying) {
+          clearInterval(playInterval);
+          playInterval = setInterval(nextStep, 5000 / playbackSpeed);
+        }
+      });
+    }
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        if (isPlaying) togglePlay();
+        goToStep(0);
+      });
+    }
+
+    const tabBtnDeepDive = document.getElementById('tabBtnDeepDive');
+    const tabBtnList = document.getElementById('tabBtnList');
+    const tabBtnDiagram = document.getElementById('tabBtnDiagram');
+    const stepDeepDiveContainer = document.getElementById('stepDeepDiveContainer');
+    const apiListContainer = document.getElementById('apiListContainer');
+    const sequenceDiagramContainer = document.getElementById('sequenceDiagramContainer');
+    const tabHeadingText = document.getElementById('tabHeadingText');
+
+    if (tabBtnDeepDive) {
+      tabBtnDeepDive.addEventListener('click', () => {
+        tabBtnDeepDive.className = "px-2.5 py-1 rounded bg-indigo-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.remove('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Nghiệp Vụ Bước Này";
+      });
+    }
+
+    if (tabBtnList) {
+      tabBtnList.addEventListener('click', () => {
+        tabBtnList.className = "px-2.5 py-1 rounded bg-indigo-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (apiListContainer) apiListContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Danh Sách API / Batch";
+      });
+    }
+
+    if (tabBtnDiagram) {
+      tabBtnDiagram.addEventListener('click', () => {
+        tabBtnDiagram.className = "px-2.5 py-1 rounded bg-indigo-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Sơ Đồ Tuần Tự (Sequence)";
+      });
+    }
+
+    // Modal triggers
+    const btnOpenGlossary = document.getElementById('btnOpenGlossary');
+    const glossaryModal = document.getElementById('glossaryModal');
+    const closeGlossaryBtn = document.getElementById('closeGlossaryBtn');
+    const closeGlossaryActionBtn = document.getElementById('closeGlossaryActionBtn');
+
+    if (btnOpenGlossary && glossaryModal) {
+      btnOpenGlossary.addEventListener('click', () => glossaryModal.classList.remove('hidden'));
+    }
+    if (closeGlossaryBtn && glossaryModal) {
+      closeGlossaryBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+    if (closeGlossaryActionBtn && glossaryModal) {
+      closeGlossaryActionBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+
+    const btnOpenStory = document.getElementById('btnOpenStory');
+    const storyModal = document.getElementById('storyModal');
+    const closeStoryBtn = document.getElementById('closeStoryBtn');
+    const closeStoryActionBtn = document.getElementById('closeStoryActionBtn');
+
+    if (btnOpenStory && storyModal) {
+      btnOpenStory.addEventListener('click', () => storyModal.classList.remove('hidden'));
+    }
+    if (closeStoryBtn && storyModal) {
+      closeStoryBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+    if (closeStoryActionBtn && storyModal) {
+      closeStoryActionBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        if (glossaryModal) glossaryModal.classList.add('hidden');
+        if (storyModal) storyModal.classList.add('hidden');
+      }
+    });
+
+    const apiSearchInput = document.getElementById('apiSearchInput');
+    if (apiSearchInput) {
+      apiSearchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        if (!term) {
+          renderCurrentStepDetails();
+          return;
+        }
+
+        let matchedApis = [];
+        FLOW_DATA.steps.forEach((step) => {
+          step.apis.forEach(api => {
+            if (
+              api.code.toLowerCase().includes(term) ||
+              api.name.toLowerCase().includes(term) ||
+              api.physicalAction.toLowerCase().includes(term) ||
+              api.method.toLowerCase().includes(term) ||
+              (api.whyNeeded && api.whyNeeded.toLowerCase().includes(term))
+            ) {
+              matchedApis.push({ ...api, fromStep: step.badge });
+            }
+          });
+        });
+
+        // Switch to API list tab to show search results
+        if (tabBtnList) tabBtnList.click();
+
+        const countBadge = document.getElementById('apiCountBadge');
+        if (countBadge) countBadge.textContent = `${matchedApis.length} kết quả`;
+
+        const container = document.getElementById('apiListContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (matchedApis.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-8 text-slate-500 text-xs">
+              Không tìm thấy API hoặc Batch nào khớp với "${term}".
+            </div>
+          `;
+          return;
+        }
+
+        matchedApis.forEach(api => {
+          const card = document.createElement('div');
+          card.className = "bg-slate-900/90 border border-indigo-500/40 p-3 rounded-xl hover:border-indigo-400 transition-all cursor-pointer";
+          card.innerHTML = `
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="font-mono font-bold text-indigo-300">${api.code}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${api.fromStep}</span>
+            </div>
+            <p class="text-xs text-white font-medium mb-1">${api.name}</p>
+            <p class="text-[11px] text-slate-400">${api.whyNeeded || api.physicalAction}</p>
+          `;
+          card.addEventListener('click', () => openApiModal(api));
+          container.appendChild(card);
+        });
+      });
+    }
+
+    // Window Onload Handler
+    window.onload = function() {
+      resizeCanvas();
+      renderCurrentStepDetails();
+      animateLoop();
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luồng 2: Xuất Hàng Chuỗi Cửa Hàng B2B (DC Outbound) - Sequence & Business Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              400: '#fb923c',
+              500: '#f97316',
+              600: '#ea580c',
+              900: '#7c2d12',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-orange-500 selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+      <!-- Title & Flow Badge -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 text-white font-bold text-base">
+          L2
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg text-white tracking-tight">LUỒNG 2: Xuất Hàng Chuỗi Cửa Hàng B2B</h1>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">DC Outbound</span>
+          </div>
+          <p class="text-xs text-slate-400">Kiến trúc cấp phát hàng • Sổ cái WIV - Robot Exotec - Xe Smart Cart - Băng chuyền Sorting</p>
+        </div>
+      </div>
+
+      <!-- Quick Knowledge & Story Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="btnOpenGlossary" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>📚</span>
+          <span>Cẩm Nang B2B Outbound</span>
+        </button>
+        <button id="btnOpenStory" class="px-3 py-1.5 bg-orange-950/60 hover:bg-orange-900/80 text-orange-300 border border-orange-500/40 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition-all">
+          <span>🏬</span>
+          <span>Chuyến Xe Về Store Vincom</span>
+        </button>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700/60 shadow-inner">
+        <button id="btnPrev" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước trước">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button id="btnPlay" class="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow transition-all active:scale-95">
+          <svg id="iconPlay" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span id="txtPlay">Tự động phát</span>
+        </button>
+        <button id="btnNext" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors" title="Bước kế">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div class="h-4 w-px bg-slate-700 mx-1"></div>
+        <select id="selSpeed" class="bg-slate-900 text-xs text-slate-300 font-mono rounded px-2 py-1 border border-slate-700 outline-none focus:border-orange-500">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2.0x</option>
+        </select>
+        <button id="btnReset" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-700/50 rounded-lg transition-colors" title="Khởi động lại">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+
+      <!-- Quick Search Bar -->
+      <div class="relative w-full lg:w-60">
+        <input id="apiSearchInput" type="text" placeholder="Tìm API, Batch SP_..." 
+               class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-1.5 pl-8 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors font-mono">
+        <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- Step Progress Bar -->
+  <section class="bg-slate-900/40 border-b border-slate-800/80 px-4 py-2.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto pb-1" id="stepProgressList">
+      <!-- Injected via JavaScript -->
+    </div>
+  </section>
+
+  <main class="max-w-7xl mx-auto p-4 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+    
+    <!-- LEFT COLUMN: Canvas Animation & Physical Simulation (7 Cols) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      
+      <!-- Interactive 4-Lanes Animation Canvas Card -->
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl relative overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex w-2.5 h-2.5 rounded-full bg-orange-400 animate-ping"></span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+              Sơ Đồ Tương Tác 4 Lớp Xuất Hàng (4-Lanes Outbound Engine)
+            </h2>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="text-slate-400">Trạng thái gói tin:</span>
+            <span id="packetTransmissionStatus" class="font-mono text-orange-400 font-medium">Sẵn sàng điều phối</span>
+          </div>
+        </div>
+
+        <!-- Animation Canvas Container -->
+        <div class="relative w-full h-[360px] bg-slate-950/80 rounded-xl border border-slate-800/90 overflow-hidden shadow-inner">
+          <canvas id="flowCanvas" class="w-full h-full block"></canvas>
+          
+          <!-- Physical Warehouse Mini Visualizer Overlay (Bottom-Right) -->
+          <div class="absolute bottom-3 right-3 bg-slate-900/95 border border-slate-700/80 backdrop-blur rounded-xl p-3 max-w-xs text-xs shadow-xl pointer-events-none">
+            <div class="flex items-center gap-2 font-semibold text-slate-200 mb-1">
+              <span id="warehouseStageIcon" class="text-base">📋</span>
+              <span id="warehouseStageTitle">Bàn Điều Phối & Phân Bổ WIV</span>
+            </div>
+            <p id="warehouseStageDesc" class="text-slate-400 text-[11px] leading-snug">
+              Hệ thống tiếp nhận nhu cầu đặt hàng từ các Store bán lẻ và tính toán mô phỏng tồn kho tức thời.
+            </p>
+          </div>
+
+          <!-- Step Badge Overlay -->
+          <div class="absolute top-3 left-3 bg-orange-950/85 border border-orange-500/40 backdrop-blur px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg">
+            <span class="text-xs font-bold text-orange-300" id="stepBadgeNumber">BƯỚC 1</span>
+            <span class="text-xs text-slate-200 font-medium" id="stepBadgeTitle">Tiếp nhận đơn & Phân bổ tồn kho</span>
+          </div>
+        </div>
+
+        <!-- 4 Lanes Legend Info -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs">
+          <div class="bg-blue-950/30 border border-blue-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-400 shadow-sm shadow-blue-400/50"></span>
+            <div>
+              <div class="font-bold text-blue-200">1. Chuỗi Store / ERP</div>
+              <div class="text-[10px] text-slate-400">Đơn hàng chuỗi & Hải quan</div>
+            </div>
+          </div>
+          <div class="bg-orange-950/30 border border-orange-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-orange-400 shadow-sm shadow-orange-400/50"></span>
+            <div>
+              <div class="font-bold text-orange-200">2. WES Orchestrator</div>
+              <div class="text-[10px] text-slate-400">Điều phối lệnh nhặt & xuất</div>
+            </div>
+          </div>
+          <div class="bg-amber-950/30 border border-amber-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+            <div>
+              <div class="font-bold text-amber-200">3. WIV Ledger</div>
+              <div class="text-[10px] text-slate-400">Mô phỏng & Giữ chỗ tồn kho</div>
+            </div>
+          </div>
+          <div class="bg-emerald-950/30 border border-emerald-800/40 rounded-lg p-2 flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+            <div>
+              <div class="font-bold text-emerald-200">4. Hardware / Exotec</div>
+              <div class="text-[10px] text-slate-400">Xe Smart Cart, Sorting, Xe tải</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Physical Transformation Matrix Card -->
+      <div class="glass-panel rounded-2xl p-4 shadow-xl border border-slate-800 flex flex-col gap-2.5">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Chuyển Đổi Thực Thể & Trạng Thái Vật Lý Xuất Hàng (Outbound Transformation)
+        </h3>
+        
+        <div id="transformationContainer" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 items-center text-xs">
+          <!-- Populated dynamically via JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Step API Explorer & Sequence Deep Dive (5 Cols) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+      <div class="glass-panel rounded-2xl p-4 shadow-2xl flex-1 flex flex-col min-h-[580px]">
+        
+        <!-- Header with 3 Tabs -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <span id="tabHeadingText">Nghiệp Vụ Bước Này</span>
+              <span id="apiCountBadge" class="bg-orange-600/30 text-orange-300 border border-orange-500/40 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">6 APIs</span>
+            </h2>
+            <p class="text-xs text-slate-400" id="currentStepSubtitle">Chi tiết hành vi nghiệp vụ, phân bổ tồn kho và thực thi sàn kho</p>
+          </div>
+          <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+            <button id="tabBtnDeepDive" class="px-2.5 py-1 rounded bg-orange-600 text-white font-medium transition-all text-[11px]">Nghiệp vụ</button>
+            <button id="tabBtnList" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Danh sách API</button>
+            <button id="tabBtnDiagram" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]">Sơ đồ tuần tự</button>
+          </div>
+        </div>
+
+        <!-- TAB 1: Business Deep Dive View -->
+        <div id="stepDeepDiveContainer" class="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderStepDeepDive() -->
+        </div>
+
+        <!-- TAB 2: List View of APIs -->
+        <div id="apiListContainer" class="hidden flex-1 overflow-y-auto space-y-2 pr-1 max-h-[520px]">
+          <!-- Populated dynamically via renderApiList() -->
+        </div>
+
+        <!-- TAB 3: Sequence Diagram View -->
+        <div id="sequenceDiagramContainer" class="hidden flex-1 overflow-y-auto max-h-[520px] p-3 bg-slate-950/90 rounded-xl border border-slate-800/80 font-mono text-[11px] leading-relaxed text-slate-300">
+          <!-- Populated dynamically via renderSequenceDiagram() -->
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JARGON BUSTER MODAL (CẨM NANG NGHIỆP VỤ B2B OUTBOUND) -->
+  <div id="glossaryModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-amber-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">📚</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Cẩm Nang Nghiệp Vụ Xuất Hàng B2B Chuỗi Cửa Hàng</h3>
+            <p class="text-xs text-amber-300">Giải thích bản chất từ gốc rễ - Đơn Store, Mô phỏng WIV, Nhặt thùng/lẻ & Xe tải</p>
+          </div>
+        </div>
+        <button id="closeGlossaryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-orange-300 text-xs uppercase mb-1">1. Xuất hàng B2B (Store Outbound) khác gì với B2C TMĐT?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            • <strong>B2C TMĐT (EC Outbound):</strong> Nhặt từng chiếc áo lẻ bỏ vào gói hàng nhỏ gửi cho từng cá nhân, phụ thuộc vào shipper và bưu điện.<br>
+            • <strong>B2B Chuỗi Cửa Hàng (DC Outbound):</strong> Xuất hàng trăm thùng carton lớn theo lịch trình xe tải cố định về các Store (Vincom, Aeon, Tràng Tiền...). Ưu tiên xuất nguyên thùng (Original Carton) và nhặt gom số lượng lớn để tối ưu chi phí vận chuyển xe tải 8-15 tấn.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-orange-300 text-xs uppercase mb-1">2. Vì sao phải "Simulate Allocation" (Mô phỏng) trước khi "Submit Allocation"?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Khi 50 cửa hàng cùng đặt hàng một lúc, lượng tồn kho của mã áo hot có thể không đủ chia cho tất cả. <strong>Simulate Allocation</strong> là bước "chạy thử trên máy tính": kiểm tra tồn kho sổ cái WIV xem nếu cấp theo mức độ ưu tiên (Priority) thì cửa hàng nào đủ, cửa hàng nào thiếu, và thiếu nguyên thùng hay thiếu lẻ. Sau khi thuật toán giải quyết bài toán tối ưu xong mới <strong>Submit Allocation</strong> để chính thức đóng băng (Hard Lock) số lượng đó, tránh tình trạng tranh giành tồn kho.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-orange-300 text-xs uppercase mb-1">3. Ba phương thức nhặt hàng B2B: Original Carton, Solid Individual & Exotec</h4>
+          <p class="text-slate-300 leading-relaxed">
+            • <strong>Original Carton (Nguyên thùng):</strong> Cửa hàng đặt 50 chiếc áo vừa tròn 1 thùng carton nguyên seal từ xưởng may. Xe nâng chỉ việc xúc nguyên thùng ra bến xuất mà không cần bóc mở.<br>
+            • <strong>Solid Individual (Kệ tĩnh nhặt lẻ):</strong> Cửa hàng chỉ cần thêm 3 chiếc áo size XL. Công nhân đẩy xe tới ô kệ cố định để nhặt đúng 3 chiếc lẻ.<br>
+            • <strong>Exotec Picking (Robot nhặt tự động):</strong> Robot Skypod tự trèo giàn lấy khay Live Tote chứa áo mang tới trạm nhặt để công nhân lấy ra chia vào thùng xuất của cửa hàng.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-orange-300 text-xs uppercase mb-1">4. Pre-Issued vs Post-Issued (In phiếu trước hay in phiếu sau)?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            • <strong>Pre-Issued (In nhãn trước):</strong> In sẵn tập tem nhãn dán thùng trước khi đi nhặt. Công nhân dán nhãn lên xe và nhặt tới đâu quét xác nhận tới đó (thường dùng cho khu vực nhặt thủ công theo danh sách in sẵn).<br>
+            • <strong>Post-Issued (Nhặt xong mới in nhãn):</strong> Công nhân gom đủ hàng vào thùng xong mới dùng máy Handy Terminal tít mã thùng và bấm lệnh cho máy in nhả tem xuất kho dán đè lên niêm phong.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-orange-300 text-xs uppercase mb-1">5. Loading Group & Quét Barcode ném lên xe tải để làm gì?</h4>
+          <p class="text-slate-300 leading-relaxed">
+            Một chiếc xe tải 10 tấn sẽ giao hàng cho 4 cửa hàng trên cùng một tuyến đường (VD: Store Quận 1 ➔ Store Quận 3 ➔ Store Thủ Đức). Hệ thống gom các thùng hàng thành <strong>Loading Group</strong>: Hàng của cửa hàng giao cuối cùng phải xếp sâu tít bên trong thùng xe, hàng của cửa hàng giao đầu tiên phải xếp ngay sát cửa xe. Quét barcode từng thùng khi bốc lên xe giúp còi báo động rú lên ngay nếu công nhân xếp nhầm thùng của Store Quận 7 sang xe đi Bình Dương!
+          </p>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeGlossaryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đã hiểu, đóng cửa sổ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORY MODE MODAL (CHUYẾN XE VỀ STORE VINCOM LANDMARK 81) -->
+  <div id="storyModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-orange-500/40 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div class="flex items-center gap-2.5">
+          <span class="text-xl">🏬</span>
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Hành Trình Chuyến Xe Cấp Hàng Cho Store Vincom Landmark 81</h3>
+            <p class="text-xs text-orange-300">Từ lệnh đặt hàng cuối tuần đến khi xe tải 10 tấn lăn bánh khỏi bến xuất DC</p>
+          </div>
+        </div>
+        <button id="closeStoryBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold shrink-0">1</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-blue-300 text-xs mb-1">08:00 Sáng - Cửa hàng gửi đơn & Chạy mô phỏng WIV</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Quản lý Store Landmark 81 thấy cuối tuần sắp cháy hàng áo polo và áo chống nắng, lập tức chốt đơn xin cấp 1.200 sản phẩm. Batch <code class="font-mono text-orange-300">SP_BT_0033_02_DC</code> nạp đơn về WES. Hệ thống gọi ngay WIV API <code class="font-mono text-orange-300">SP_AP_0001_01_DC</code> để chạy mô phỏng phân bổ: Kho tổng DC có đủ 20 thùng nguyên và 200 chiếc lẻ! Sổ cái WIV lập tức khóa cứng tồn kho qua <code class="font-mono text-orange-300">SP_AP_0007_02</code>.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-bold shrink-0">2</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-amber-300 text-xs mb-1">08:30 Sáng - Bắn lệnh sang Robot Exotec & Xe Smart Cart</h4>
+            <p class="text-slate-300 leading-relaxed">
+              WES tự động chia việc: 20 thùng nguyên được phân công cho xe nâng tầm cao; 200 áo lẻ được bắn sang giàn robot Exotec (<code class="font-mono text-orange-300">SP_AP_0010_12</code>) và đẩy hành trình lên màn hình xe nhặt hàng thông minh (<code class="font-mono text-orange-300">SP_AP_0010_13</code>). Khóa lệnh nhặt <code class="font-mono text-orange-300">SP_AP_0010_10</code> kích hoạt để các ca kíp không nhặt đè việc của nhau.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold shrink-0">3</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-purple-300 text-xs mb-1">09:15 Sáng - Thực thi nhặt hàng đa phương thức</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Anh Nam lái xe nâng quét mã nhặt 20 thùng nguyên (<code class="font-mono text-orange-300">SP_AP_0013_02_DC</code>). Cùng lúc đó tại trạm Exotec, robot Skypod tự trèo lên giàn kệ cao 12m mang 4 khay Live Tote chứa áo thun ra cho chị Hà trút vào thùng xuất của Store Landmark 81 (<code class="font-mono text-orange-300">SP_AP_0013_04</code>). Mọi lượt nhặt đều được xác nhận tức thời.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold shrink-0">4</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-emerald-300 text-xs mb-1">10:00 Sáng - Đóng thùng, In phiếu & Băng chuyền Sorting tự động</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Công nhân dùng máy Handy Terminal quét mã thùng, máy in Zebra nhả ngay nhãn thùng giao hàng <code class="font-mono text-orange-300">SP_AP_0012_02</code> và phiếu giao hàng Delivery Note cho tài xế. Thùng hàng được đẩy lên băng chuyền tự động. Hệ thống WCS điều khiển các tay gạt khí nén bắn các thùng hàng chạy thẳng về Cửa xuất Dock 06 dành riêng cho tuyến xe Vincom.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-teal-500/20 text-teal-400 border border-teal-500/40 flex items-center justify-center font-bold shrink-0">5</div>
+          <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 flex-1">
+            <h4 class="font-bold text-teal-300 text-xs mb-1">11:00 Sáng - Quét mã chất lên xe tải & Chốt xuất kho</h4>
+            <p class="text-slate-300 leading-relaxed">
+              Bác tài xế xe tải biển số 50H-129.44 cầm máy quét tít từng thùng hàng khi chất lên sàn xe (<code class="font-mono text-orange-300">SP_AP_0012_06_DC</code>). Đủ 25 kiện, trưởng ca bấm nút chốt xuất kho <code class="font-mono text-orange-300">SP_AP_0012_10</code>. Sổ cái WIV chính thức trừ số lượng tồn, hệ thống gửi file sang ERP và bắn dữ liệu hải quan CMS. Xe tải đóng bạt lên đường về Landmark 81!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/70 flex justify-end">
+        <button id="closeStoryActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Đóng câu chuyện
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API INSPECTOR MODAL -->
+  <div id="apiModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-900 border border-slate-700/80 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div class="flex items-center gap-3">
+          <span id="modalMethodBadge" class="px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider">PUT</span>
+          <div>
+            <h3 id="modalApiCode" class="text-sm font-mono font-bold text-white tracking-wide">SP_AP_0007_02</h3>
+            <p id="modalApiName" class="text-xs text-slate-300">Submit Shipment Allocation</p>
+          </div>
+        </div>
+        <button id="modalCloseBtn" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Systems Involved Route -->
+      <div class="px-5 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between gap-3 text-center font-mono text-xs">
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Nguồn Gửi (Source)</span>
+          <span id="modalSourceSystem" class="text-blue-400 font-bold text-xs">WES Allocation Engine</span>
+        </div>
+        <div class="text-slate-600 flex items-center">
+          <span class="text-orange-400 font-bold">━━━━ ➔ </span>
+        </div>
+        <div class="flex-1">
+          <span class="text-[10px] text-slate-500 uppercase block font-sans">Hệ Nhận & Xử Lý (Target)</span>
+          <span id="modalTargetSystem" class="text-amber-400 font-bold text-xs">WIV Ledger (Sổ cái)</span>
+        </div>
+      </div>
+
+      <!-- 4 Inspection Tabs inside Modal -->
+      <div class="flex border-b border-slate-800 bg-slate-950/80 px-5 pt-2 gap-2 text-xs">
+        <button id="modalTabBtnBusiness" class="pb-2 px-2 border-b-2 border-orange-500 text-white font-semibold">1. Nghiệp vụ cốt lõi</button>
+        <button id="modalTabBtnPhysical" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">2. Thao tác sàn kho</button>
+        <button id="modalTabBtnRisk" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">3. Rủi ro & Khóa Lock</button>
+        <button id="modalTabBtnTech" class="pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200">4. Sổ cái WIV & JSON</button>
+      </div>
+
+      <!-- Modal Body (Tab Contents) -->
+      <div class="p-5 overflow-y-auto space-y-3 text-xs flex-1">
+        
+        <!-- Tab Content 1: Business -->
+        <div id="modalTabContentBusiness" class="space-y-3">
+          <div class="bg-orange-950/20 border border-orange-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-orange-300 uppercase tracking-wider text-[11px] mb-1">Mục đích & Tại sao phải có hàm này?</h4>
+            <p id="modalWhyNeeded" class="text-slate-200 leading-relaxed">Nội dung giải thích chi tiết...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-amber-300 uppercase tracking-wider text-[11px] mb-1">Ví dụ thực tế đời thường (Analogy):</h4>
+            <p id="modalRealLifeAnalogy" class="text-slate-300 leading-relaxed">Ví dụ đời thường...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 2: Physical Work -->
+        <div id="modalTabContentPhysical" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Hành động của công nhân & thiết bị:</h4>
+            <p id="modalPhysicalActionDetailed" class="text-slate-300 leading-relaxed">Mô tả thao tác...</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Thiết bị phần cứng sử dụng</span>
+              <p id="modalDevicesUsed" class="text-slate-200 font-medium mt-0.5">Xe nâng, Handy Terminal</p>
+            </div>
+            <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-2.5">
+              <span class="text-[10px] text-slate-500 block uppercase font-mono">Khu vực vật lý (Physical Zone)</span>
+              <p id="modalPhysicalZone" class="text-slate-200 font-medium mt-0.5">Khu vực nhặt hàng Zone A</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content 3: Risk & Lock -->
+        <div id="modalTabContentRisk" class="hidden space-y-3">
+          <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3">
+            <h4 class="font-bold text-rose-300 uppercase tracking-wider text-[11px] mb-1">Nếu hàm này bị lỗi hoặc bỏ qua thì sao?</h4>
+            <p id="modalRiskConsequence" class="text-rose-200/90 leading-relaxed">Hậu quả rủi ro...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-1">Quy tắc kiểm tra (Validation) & Xử lý lỗi:</h4>
+            <p id="modalErrorHandling" class="text-slate-300 leading-relaxed">Quy tắc nghiệp vụ...</p>
+          </div>
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-amber-300 uppercase tracking-wider text-[11px] mb-1">Cơ chế khóa Lock (Concurrency):</h4>
+            <p id="modalLockMechanism" class="text-amber-200/90 leading-relaxed">Cơ chế lock...</p>
+          </div>
+        </div>
+
+        <!-- Tab Content 4: Tech & WIV -->
+        <div id="modalTabContentTech" class="hidden space-y-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <h4 class="font-bold text-amber-300 uppercase tracking-wider text-[11px] mb-1">Tác động Sổ Cái Tồn Kho WIV:</h4>
+            <p id="modalInventoryDetailed" class="text-slate-300 leading-relaxed">Biến động tồn kho...</p>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] font-mono">Dữ Liệu Mẫu (Payload / Response JSON)</h4>
+              <button id="modalCopyBtn" class="text-orange-400 hover:text-orange-300 text-[11px] font-medium flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Sao chép JSON
+              </button>
+            </div>
+            <pre id="modalJsonPayload" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] font-mono text-orange-300 overflow-x-auto max-h-40">
+              { "loading": true }
+            </pre>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+        <span class="text-slate-500 text-[11px]">Nhấn <kbd class="px-1 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">ESC</kbd> để đóng</span>
+        <button id="modalCloseActionBtn" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors">
+          Đóng cửa sổ
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* Complete Specification of LUỒNG 2: XUẤT HÀNG CHUỖI CỬA HÀNG B2B (DC OUTBOUND) */
+    const FLOW_DATA = {
+      id: "FLOW_2",
+      title: "LUỒNG 2: XUẤT HÀNG CHUỖI CỬA HÀNG B2B (DC OUTBOUND)",
+      description: "Mô phỏng quy trình cấp hàng định kỳ hoặc đột xuất cho các cửa hàng bán lẻ: Gom đơn, chạy mô phỏng phân bổ tồn kho, nhặt nguyên thùng hoặc lẻ, kiểm tra RFID, đóng thùng xe tải và chốt xuất kho.",
+      steps: [
+        {
+          id: 1,
+          name: "Bước 1: Tiếp nhận đơn xuất & Phân bổ tồn kho (Shipment & Allocation)",
+          shortTitle: "1. Tiếp nhận & Phân bổ WIV",
+          badge: "BƯỚC 1",
+          icon: "📋",
+          warehouseTitle: "Bàn Điều Phối & Phân Bổ Tồn Kho",
+          warehouseDesc: "WES nhận danh sách đơn hàng từ các chuỗi Store bán lẻ, gọi sang sổ cái WIV chạy thuật toán mô phỏng cấp phát và khóa cứng tồn kho để chuẩn bị xuất.",
+          businessDeepDive: {
+            coreMeaning: "Cửa hàng bán lẻ không đặt mua lẻ tẻ 1-2 chiếc như khách online, mà gửi đơn đặt hàng hàng trăm chiếc theo đợt xe tải. Hệ thống phải nạp đơn, kiểm tra mức độ ưu tiên của các Store (Cửa hàng Flagship trung tâm được ưu tiên cấp trước), sau đó gọi sang Sổ cái WIV để 'chạy mô phỏng' (Simulate Allocation) xem kho có đủ hàng không trước khi chính thức chốt giữ chỗ (Submit Allocation).",
+            whyCritical: "Nếu không chạy mô phỏng mà nhặt hàng bừa bãi, các cửa hàng nhỏ đến trước sẽ lấy hết hàng của các siêu cửa hàng lớn mang lại 80% doanh thu. Ngoài ra, nếu thiếu hàng nguyên thùng (Original Carton Shortage), hệ thống phải kịp thời kích hoạt luồng khắc phục để không làm trễ giờ xe tải xuất phát.",
+            physicalProcess: [
+              "1. Máy chủ WES nhận file danh sách đơn hàng từ hệ thống ERP chuỗi Store qua batch SP_BT_0033_02_DC.",
+              "2. Nạp bảng xếp hạng ưu tiên cửa hàng (Store Priority) qua batch SP_BT_0029_02_DC.",
+              "3. WES gọi API SP_AP_0001_01_DC sang Sổ cái WIV để chạy thử mô phỏng phân bổ hàng trên máy tính.",
+              "4. Sau khi kết quả khớp, WES gọi SP_AP_0007_02 để đóng băng (Hard Lock) số lượng hàng trên sổ cái.",
+              "5. Cụm batch phân tán SP_BT_0046_01/02/03 kích hoạt xử lý kết quả phân bổ và giải quyết các trường hợp thiếu thùng nguyên."
+            ],
+            riskMitigation: "Nếu phát hiện thiếu hàng nguyên thùng (Original Carton Shortage), cơ chế Recover Failure tự động chuyển hướng sang khu vực nhặt lẻ hoặc phát lệnh châm hàng bổ sung khẩn cấp."
+          },
+          transformation: {
+            before: "Đơn đặt hàng ở trạng thái KẾ_HOẠCH_TREO (Planned Store Orders)",
+            action: "Mô phỏng cấp phát WIV & Khóa cứng giữ chỗ (Simulate & Submit Allocation)",
+            after: "Tồn kho chuyển sang trạng thái ĐÃ_PHÂN_BỔ_XUẤT (Allocated For Picking)"
+          },
+          animation: {
+            sourceLane: 0,
+            targetLane: 2,
+            packetLabel: "Store Orders & Allocation Lock",
+            packetColor: "#f97316"
+          },
+          apis: [
+            {
+              code: "SP_BT_0033_02_DC",
+              name: "Import Shipment Instruction IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "Hệ thống Quản lý Bán lẻ Chuỗi Store (Retail ERP)",
+              target: "WES Outbound Database",
+              whyNeeded: "Kéo danh mục toàn bộ các đơn hàng xin cấp hàng bổ sung từ các cửa hàng bán lẻ (Store POS/ERP) về máy chủ WES.",
+              realLifeAnalogy: "Như danh sách đồ ăn mà các bàn tiệc trong nhà hàng gửi về cho bếp trưởng chuẩn bị nấu nướng.",
+              physicalAction: "Batch tự động nạp hàng chục nghìn dòng đơn hàng mỗi sáng từ máy chủ trung tâm của tập đoàn.",
+              devicesUsed: "Hệ thống Scheduler Batch Server",
+              physicalZone: "Data Center trung tâm",
+              riskConsequence: "Nếu batch không chạy, kho không biết hôm nay phải xuất hàng gì cho các cửa hàng, các kệ hàng bán lẻ sẽ bị rỗng.",
+              errorHandling: "Kiểm tra mã cửa hàng hợp lệ, mã SKU đang kinh doanh và ngày giao hàng yêu cầu.",
+              lockMechanism: "Transaction Level READ_COMMITTED.",
+              inventoryImpact: "Ghi nhận nhu cầu xuất hàng (Open Demand), chưa tác động tới tồn vật lý.",
+              payload: { batchId: "SP_BT_0033_02_DC_881", storeOrdersCount: 42, totalRequestedPieces: 28400, status: "IMPORTED" }
+            },
+            {
+              code: "SP_BT_0029_02_DC",
+              name: "Import Shipment Priority IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "Ban Kế hoạch Phân phối Chuỗi cung ứng (HQ SCM)",
+              target: "WES Allocation Engine",
+              whyNeeded: "Nạp trọng số ưu tiên giao hàng cho từng cửa hàng (ví dụ: Store Flagship Vincom Landmark ưu tiên 1, Store tỉnh lẻ ưu tiên 3).",
+              realLifeAnalogy: "Như thẻ ưu tiên VIP tại sân bay: khách VIP được làm thủ tục và lên máy bay trước khi hàng ghế phổ thông được phục vụ.",
+              physicalAction: "Gán hệ số ưu tiên cấp hàng vào cơ sở dữ liệu phân bổ của WES.",
+              devicesUsed: "SCM Integration Adapter",
+              physicalZone: "Tầng logic phần mềm",
+              riskConsequence: "Hàng hot bị chia đều hoặc ưu tiên nhầm cho cửa hàng nhỏ bán ế, trong khi cửa hàng lớn doanh thu khủng lại bị đứt hàng.",
+              errorHandling: "Mặc định gán Priority = Normal nếu cửa hàng chưa được cấu hình ưu tiên.",
+              lockMechanism: "Store Priority Table Lock.",
+              inventoryImpact: "Định hướng thuật toán phân bổ tồn kho.",
+              payload: { priorityBatchId: "PRIO-2026-W38", storeRanking: [{ storeId: "STR_VN_001_VINCOM", rank: 1 }, { storeId: "STR_VN_042_PROVINCE", rank: 3 }] }
+            },
+            {
+              code: "SP_AP_0001_01",
+              name: "Retrieve Shipment Instruction Detail",
+              type: "API",
+              method: "POST",
+              source: "Màn hình Quản lý Xuất hàng (Outbound Dispatcher UI)",
+              target: "WES Outbound Server",
+              whyNeeded: "Cho phép điều phối viên kho xem chi tiết từng mã SKU, màu, kích cỡ và số lượng mà từng cửa hàng yêu cầu.",
+              realLifeAnalogy: "Bếp trưởng xem chi tiết từng món: bàn số 4 gọi 2 đĩa bò lúc lắc, 1 đĩa salad và 3 cốc bia.",
+              physicalAction: "Điều phối viên bấm xem đơn hàng của Store Landmark 81 trên màn hình máy tính trung tâm kho.",
+              devicesUsed: "Máy trạm điều phối Workstation",
+              physicalZone: "Phòng điều hành kho Outbound Control Room",
+              riskConsequence: "Không phát hiện kịp thời các đơn hàng bất thường (ví dụ một cửa hàng đặt nhầm gấp 10 lần số lượng).",
+              errorHandling: "Phân trang dữ liệu linh hoạt, lọc theo mã tuyến xe tải hoặc mã cửa hàng.",
+              lockMechanism: "Read-only Query.",
+              inventoryImpact: "Không tác động tồn kho.",
+              payload: { storeId: "STR_VN_001_VINCOM", requestedDate: "2026-09-19", details: [{ sku: "JACKET-PARKA-NVY-L", requestedQty: 150 }] }
+            },
+            {
+              code: "SP_AP_0001_01_DC",
+              name: "Simulate Shipment Allocation (WIV API)",
+              type: "API",
+              method: "POST",
+              source: "WES Allocation Orchestrator",
+              target: "WIV Ledger (Sổ cái tồn kho tức thời)",
+              whyNeeded: "Chạy mô phỏng trước trên máy tính xem tồn kho hiện tại có đủ cấp không, tính toán chia bao nhiêu thùng nguyên và bao nhiêu chiếc lẻ.",
+              realLifeAnalogy: "Bạn nhẩm tính trong đầu xem với 1 triệu đồng trong ví thì có đủ tiền mua quà cho 5 người bạn không trước khi rút tiền ra trả.",
+              physicalAction: "Sổ cái WIV chạy thuật toán đối soát 50.000 dòng tồn kho trong bộ nhớ RAM cực nhanh (dưới 800ms).",
+              devicesUsed: "WIV In-Memory Compute Cluster",
+              physicalZone: "Hạ tầng Database Server WIV",
+              riskConsequence: "Nếu nhặt hàng thực tế mà không mô phỏng trước, công nhân sẽ chạy khắp kho tìm hàng nhưng đến nơi kệ lại trống rỗng.",
+              errorHandling: "Báo cáo chính xác danh sách các mã SKU bị thiếu (Shortage List) và gợi ý xuất bớt theo tỷ lệ.",
+              lockMechanism: "Simulated Non-blocking Snapshot Read.",
+              inventoryImpact: "Tạo kịch bản cấp phát ảo, chưa trừ tồn chính thức.",
+              payload: { simulationId: "SIM_ALLOC_20260919_01", totalDemands: 28400, allocatableQty: 27950, shortageCount: 450 }
+            },
+            {
+              code: "SP_AP_0007_02",
+              name: "Submit Shipment Allocation",
+              type: "API",
+              method: "PUT",
+              source: "WES Outbound Engine",
+              target: "WIV Ledger (Sổ cái tồn kho tức thời)",
+              whyNeeded: "Chính thức xác nhận kết quả phân bổ và khóa cứng (Hard Lock) số lượng hàng trên sổ cái WIV để chuyển sang trạng thái chờ nhặt.",
+              realLifeAnalogy: "Như khi bạn bấm nút 'Thanh toán' đặt vé xem phim: ghế ngồi chuyển sang màu đỏ và không ai khác có thể mua được ghế đó nữa.",
+              physicalAction: "WIV chuyển trạng thái số lượng hàng từ Khả dụng sang Đã phân bổ giữ chỗ (Allocated).",
+              devicesUsed: "WIV High-Throughput Ledger Engine",
+              physicalZone: "Sổ cái WIV",
+              riskConsequence: "Nếu không khóa cứng, luồng xuất TMĐT B2C ở kho bên cạnh có thể nhặt mất số hàng này của chuỗi cửa hàng.",
+              errorHandling: "Bảo đảm tính toàn vẹn ACID: hoặc phân bổ thành công trọn gói hoặc hoàn nguyên nguyên trạng (Rollback).",
+              lockMechanism: "Pessimistic Allocation Row Lock.",
+              inventoryImpact: "Chuyển tồn kho từ AVAILABLE ➔ ALLOCATED_FOR_SHIPMENT.",
+              payload: { submissionId: "SUB_ALLOC_99012", allocatedLines: 1420, lockedStockUnits: 27950, allocationStatus: "COMMITTED" }
+            },
+            {
+              code: "SP_BT_0046_01 / 02 / 03",
+              name: "Get Shipment Allocation Result (Producer) -> Assign (Member) -> Recover Original Carton Failure (Aggregator)",
+              type: "BATCH",
+              method: "BATCH CLUSTER",
+              source: "WES Batch Orchestrator",
+              target: "WES Picking Execution Pipeline",
+              whyNeeded: "Cụm batch 3 giai đoạn xử lý kết quả phân bổ phân tán: Tách các thùng hàng nguyên, phân chia cho công nhân và tự động xử lý sự cố nếu thiếu thùng nguyên.",
+              realLifeAnalogy: "Tổ trưởng chia việc: người nhặt thùng to phụ trách xe nâng, người nhặt lẻ phụ trách giỏ nhựa, nếu thiếu thùng to thì chuyển sang bóc lẻ bù vào.",
+              physicalAction: "Hệ thống phân chia 1.200 lệnh nhặt thành các gói công việc chi tiết sẵn sàng phát xuống sàn kho.",
+              devicesUsed: "Hệ thống phân tán Master-Worker Architecture",
+              physicalZone: "Tầng điều phối tác vụ kho",
+              riskConsequence: "Đơn hàng bị treo nếu việc phân bổ gặp sự cố thiếu thùng nguyên mà không có cơ chế tự động bù đắp.",
+              errorHandling: "Tự động chuyển đổi nhu cầu từ Thùng nguyên sang Nhặt lẻ (Carton-to-Piece fallback).",
+              lockMechanism: "Distributed Lock trên từng Shipment Order ID.",
+              inventoryImpact: "Sẵn sàng cho việc tạo chỉ thị nhặt hàng vật lý.",
+              payload: { pipeline: "SP_BT_0046", cartonsAssigned: 450, piecesAssigned: 8200, recoveredShortages: 12, status: "READY_FOR_PICKING" }
+            }
+          ]
+        },
+        {
+          id: 2,
+          name: "Bước 2: Tạo chỉ thị nhặt hàng (Picking Instruction)",
+          shortTitle: "2. Tạo chỉ thị nhặt hàng",
+          badge: "BƯỚC 2",
+          icon: "🏷️",
+          warehouseTitle: "Trạm Phát Lệnh Nhặt Hàng Tự Động",
+          warehouseDesc: "Hệ thống tự động gom nhóm các việc nhặt, bắn lệnh sang robot Exotec, nạp dữ liệu lên xe Smart Cart và in danh sách nhặt hàng ra giấy.",
+          businessDeepDive: {
+            coreMeaning: "Sau khi hàng đã được giữ chỗ trên sổ sách, kho phải chuyển đổi các dòng dữ liệu đó thành hành động vật lý: Ai nhặt? Nhặt bằng gì? Nhặt ở ô kệ nào? WES tự động sinh các lượt nhặt (Picking Run), khóa lệnh để chống tranh giành, đồng thời phân bổ nhiệm vụ: Hàng trên cao thì robot Exotec lấy, hàng dưới đất thì nạp vào xe Smart Cart, khu vực thủ công thì in danh sách giấy.",
+            whyCritical: "Tối ưu hóa đường đi của nhân viên là yếu tố quyết định năng suất kho. Nếu không nhóm lệnh thông minh, công nhân sẽ phải đi bộ 15-20km mỗi ca làm việc chỉ để nhặt từng món đồ rải rác.",
+            physicalProcess: [
+              "1. Batch SP_BT_0031_02 gom các món đồ gần nhau trên cùng dãy kệ thành một đợt nhặt tối ưu.",
+              "2. WES khóa lệnh nhặt qua SP_AP_0010_10 để gán cứng cho nhân viên hoặc thiết bị.",
+              "3. Bắn lệnh qua API SP_AP_0010_12 sang hệ thống robot Exotec để chuẩn bị cắp khay hàng.",
+              "4. Đẩy lộ trình nhặt hàng lên máy tính bảng gắn trên xe Smart Cart qua SP_AP_0010_13.",
+              "5. Máy in công nghiệp in sẵn phiếu nhặt hàng (Pre-issued hoặc Post-issued) cho khu vực nhặt thủ công."
+            ],
+            riskMitigation: "Nếu mạng Wi-Fi khu vực sâu bị chập chờn, xe Smart Cart tự động chuyển sang chế độ nhặt ngoại tuyến (Offline Picking Caching) để không gián đoạn công nhân."
+          },
+          transformation: {
+            before: "Dữ liệu phân bổ tồn kho ở dạng danh sách chứng từ",
+            action: "Tạo chỉ thị nhặt hàng + Bắn lệnh sang Robot Exotec & Xe Smart Cart",
+            after: "Chỉ thị nhặt hàng kích hoạt sẵn sàng trên thiết bị của công nhân và Robot"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 3,
+            packetLabel: "Picking Instructions to Robot & Carts",
+            packetColor: "#34d399"
+          },
+          apis: [
+            {
+              code: "SP_BT_0031_02",
+              name: "Create Picking Instruction (Member)",
+              type: "BATCH",
+              method: "BATCH",
+              source: "WES Picking Optimization Engine",
+              target: "WES Work Queue Database",
+              whyNeeded: "Tính toán lộ trình di chuyển ngắn nhất (Traveling Salesman Problem) và gom nhóm các mã hàng cùng một dãy kệ vào một lượt nhặt duy nhất.",
+              realLifeAnalogy: "Như khi bạn đi siêu thị: bạn gom mua hết rau củ ở quầy rau rồi mới sang quầy thịt, chứ không chạy đi chạy lại giữa hai đầu siêu thị.",
+              physicalAction: "Chạy thuật toán nhóm lệnh nhặt hàng tự động trong vài giây.",
+              devicesUsed: "WES Route Optimization Engine",
+              physicalZone: "Máy chủ WES",
+              riskConsequence: "Công nhân bị kiệt sức vì phải đi bộ vòng vèo khắp diện tích kho 30.000m2.",
+              errorHandling: "Giới hạn tải trọng tối đa cho mỗi lượt nhặt (không quá 150kg/lượt xe Cart).",
+              lockMechanism: "Batch Process Lock.",
+              inventoryImpact: "Chuyển đơn sang trạng thái ĐÃ_TẠO_LỆNH_NHẶT.",
+              payload: { pickingRunId: "RUN_20260919_B2B_01", totalTasks: 180, estimatedDistanceMeters: 420, optimizedLocations: 24 }
+            },
+            {
+              code: "SP_AP_0010_10",
+              name: "Acquire Lock On Picking Instruction",
+              type: "API",
+              method: "PUT",
+              source: "Thiết bị nhặt hàng (HT / Smart Cart Tablet)",
+              target: "WES Lock Manager (Redis Distributed Lock)",
+              whyNeeded: "Khóa chặt lệnh nhặt hàng khi một nhân viên hoặc xe Cart bấm chọn, ngăn không cho nhân viên khác nhận trùng lượt nhặt đó.",
+              realLifeAnalogy: "Như tài xế xe ôm công nghệ bấm nút 'Nhận cuốc xe': cuốc xe biến mất trên màn hình của các tài xế khác xung quanh.",
+              physicalAction: "Công nhân quét mã nhân viên trên xe Smart Cart để nhận quyền thực hiện đợt nhặt số 01.",
+              devicesUsed: "Màn hình cảm ứng trên xe Smart Cart",
+              physicalZone: "Khu vực tập kết xe nhặt hàng",
+              riskConsequence: "Hai công nhân cùng đi nhặt một đơn hàng, dẫn đến nhặt thừa gấp đôi và lãng phí nhân lực.",
+              errorHandling: "Khóa tự động hết hạn (TTL Lock Timeout) sau 45 phút nếu công nhân không thao tác để trả lệnh cho người khác.",
+              lockMechanism: "Redis Distributed SETNX with TTL.",
+              inventoryImpact: "Đảm bảo tính duy nhất của tác vụ nhặt hàng.",
+              payload: { pickingInstructionId: "PI_B2B_00991", lockedByWorker: "WORKER_NAM_04", lockToken: "LCK_CART_8819A", ttlMinutes: 45 }
+            },
+            {
+              code: "SP_AP_0010_12",
+              name: "Send Picking Instruction To Automated Warehouse",
+              type: "API",
+              method: "PUT",
+              source: "WES Outbound Engine",
+              target: "Hệ thống Robot Tự Động Exotec WCS",
+              whyNeeded: "Bắn danh sách các khay hàng Live Tote cần lấy sang hệ thống robot Exotec để các chú robot Skypod tự trèo giàn kệ mang khay ra.",
+              realLifeAnalogy: "Như việc gọi thang máy tự động chở người từ tầng 10 xuống sảnh tầng 1.",
+              physicalAction: "Hệ thống máy tính Exotec nhận danh sách khay và điều động 6 robot Skypod cùng lúc di chuyển trên giàn kệ.",
+              devicesUsed: "Exotec Skypod Master Controller",
+              physicalZone: "Giàn kệ tự động Exotec ASRS",
+              riskConsequence: "Robot đứng im không làm việc, làm trễ toàn bộ quy trình xuất hàng B2B.",
+              errorHandling: "Xác nhận hàng đợi lệnh nhặt của Exotec (Queue Acknowledgement); nếu quá tải, tự động chia nhỏ lệnh.",
+              lockMechanism: "WCS Hardware Queue Lock.",
+              inventoryImpact: "Chuyển các khay Live Tote sang trạng thái ĐANG_ĐƯỢC_ROBOT_LẤY.",
+              payload: { exotecJobId: "EXO_OUT_20260919_44", targetTotes: ["TOTE-EXO-77291", "TOTE-EXO-77295"], destinationStation: "PICK_STATION_02" }
+            },
+            {
+              code: "SP_AP_0010_13 & SP_BT_0001",
+              name: "Send Picking Instruction to Picking Cart & Picking Instruction to Picking Cart IF Export",
+              type: "API/BATCH",
+              method: "PUT/BATCH",
+              source: "WES Outbound Engine",
+              target: "Xe nhặt hàng thông minh (Smart Picking Cart)",
+              whyNeeded: "Đẩy toàn bộ lộ trình, sơ đồ các ô kệ cần tới và số lượng cần lấy lên màn hình máy tính bảng gắn trên xe nhặt hàng có đèn chỉ dẫn.",
+              realLifeAnalogy: "Như bật ứng dụng Google Maps chỉ đường từng ngã rẽ khi bạn lái xe trong thành phố.",
+              physicalAction: "Màn hình tablet trên xe đẩy sáng đèn, hiển thị vị trí tiếp theo: 'Dãy 04, Ô B-12, lấy 8 chiếc áo polo màu đen size L'.",
+              devicesUsed: "Xe nhặt hàng thông minh gắn Tablet công nghiệp và đèn Pick-by-Light",
+              physicalZone: "Khu vực kệ tĩnh nhặt hàng thủ công",
+              riskConsequence: "Công nhân phải cầm giấy dò từng dòng rất chậm và dễ hoa mắt nhặt nhầm size hoặc nhầm màu.",
+              errorHandling: "Đồng bộ hóa dữ liệu hai chiều qua giao thức WebSocket; hỗ trợ lưu trữ cục bộ khi mất sóng Wi-Fi.",
+              lockMechanism: "Cart Session Lock.",
+              inventoryImpact: "Kích hoạt tác vụ nhặt hàng trên thiết bị di động.",
+              payload: { cartId: "SMART_CART_12", totalStops: 14, pickItemsCount: 120, syncStatus: "STREAMING_ACTIVE" }
+            },
+            {
+              code: "SP_AP_0010_08_DC & SP_AP_0010_06",
+              name: "Print Picking List (For Pre Issued) & Print Picking List (For Post Issued)",
+              type: "API",
+              method: "PUT",
+              source: "Trạm điều hành xuất hàng",
+              target: "Máy in công nghiệp Zebra / Máy Handy Terminal",
+              whyNeeded: "In phiếu nhặt hàng ra giấy cho các khu vực kho truyền thống hoặc in sẵn tập tem nhãn dán thùng (Pre-issued: in tem dán trước; Post-issued: nhặt xong mới in tem dán sau).",
+              realLifeAnalogy: "In danh sách đồ cần mua trước khi đi chợ hoặc in hóa đơn sau khi đã chọn xong đồ trong giỏ hàng.",
+              physicalAction: "Máy in Zebra tại bàn làm việc nhả ra danh sách nhặt hàng có mã vạch barcode cho từng vị trí ô kệ.",
+              devicesUsed: "Máy in nhiệt công nghiệp Zebra ZT411",
+              physicalZone: "Bàn làm việc trưởng ca Outbound",
+              riskConsequence: "Khu vực không có sóng vô tuyến hoặc xe nâng không gắn tablet sẽ không có chỉ dẫn để lấy hàng.",
+              errorHandling: "Lưu vết lịch sử in (Reprint Audit Log) để kiểm soát việc in lại phiếu tránh gian lận.",
+              lockMechanism: "Print Task Lock.",
+              inventoryImpact: "Ghi nhận phiếu nhặt đã được phát hành.",
+              payload: { printMode: "PRE_ISSUED", listId: "PL_DC_2026_889", printerIp: "192.168.20.15", totalBarcodes: 24 }
+            }
+          ]
+        },
+        {
+          id: 3,
+          name: "Bước 3: Thực thi nhặt hàng thực tế (Picking Execution)",
+          shortTitle: "3. Thực thi nhặt hàng",
+          badge: "BƯỚC 3",
+          icon: "📦",
+          warehouseTitle: "Khu Vực Kệ Hàng & Trạm Nhặt Robot Exotec",
+          warehouseDesc: "Xe nâng xúc nguyên thùng carton lớn, công nhân đẩy xe Smart Cart nhặt từng sản phẩm lẻ và trạm Exotec trút hàng từ khay robot sang thùng xuất.",
+          businessDeepDive: {
+            coreMeaning: "Đây là khâu tốn nhiều nhân lực và vận động cơ bắp nhất tại kho. Quá trình nhặt hàng B2B diễn ra đồng thời trên 3 mặt trận: (1) Xe nâng nhặt nguyên thùng carton lớn đưa thẳng ra cửa bến; (2) Công nhân dùng xe đẩy thông minh nhặt từng chiếc áo lẻ ở kệ thấp; (3) Robot Exotec tự động lấy khay trên cao mang tới trạm để công nhân trút sang thùng xuất cho cửa hàng.",
+            whyCritical: "Sai sót nhặt nhầm món ở bước này sẽ dẫn đến việc cửa hàng bán lẻ nhận sai hàng, khách mua tại store không có size, phải làm thủ tục đổi trả liên kho rất tốn kém chi phí logistics.",
+            physicalProcess: [
+              "1. Anh Nam lái xe nâng quét mã nhặt 20 thùng carton nguyên kiện (Original Carton) qua SP_AP_0013_02_DC.",
+              "2. Chị Hoa đẩy xe Smart Cart tới kệ tĩnh, quét mã vạch sản phẩm lẻ (Solid Individual) qua SP_AP_0013_01.",
+              "3. Robot Skypod đưa khay Live Tote tới trạm; chị Hà lấy 50 áo trút sang thùng xuất qua SP_AP_0013_04/05.",
+              "4. Xe Smart Cart kết thúc hành trình, tự động truyền file xác nhận nhặt xong về hệ thống qua SP_BT_0002_02.",
+              "5. Màn hình WES cập nhật tiến độ nhặt đạt 100%, chuẩn bị chuyển hàng sang khu vực đóng thùng và dán nhãn."
+            ],
+            riskMitigation: "Máy Handy Terminal bắt buộc quét kiểm tra mã vạch 100% món đồ (Barcode Scan Validation): nếu công nhân cầm nhầm áo size S thay vì size M, máy sẽ rung và phát tiếng kêu báo lỗi cấm bỏ vào thùng."
+          },
+          transformation: {
+            before: "Hàng hóa nằm yên vị trên ô kệ lưu trữ (Storage Grid)",
+            action: "Quét mã nhặt thùng nguyên + Nhặt lẻ xe Cart + Nhặt khay Robot Exotec",
+            after: "Hàng hóa đã được gom tập kết tại các thùng xuất của từng Store (Picked State)"
+          },
+          animation: {
+            sourceLane: 3,
+            targetLane: 1,
+            packetLabel: "Picking Results (Carton, Piece, Exotec)",
+            packetColor: "#fbbf24"
+          },
+          apis: [
+            {
+              code: "SP_AP_0013_02_DC & SP_AP_0013_03_DC",
+              name: "Register Original Carton Picking Result (For Post Issued / Pre Issued)",
+              type: "API",
+              method: "PUT",
+              source: "Xe nâng hàng (Reach Truck HT)",
+              target: "WES Outbound Engine",
+              whyNeeded: "Xác nhận nhặt nguyên thùng carton lớn còn nguyên đai nguyên kiện của nhà máy (Original Carton) và đưa thẳng ra khu vực tập kết xuất hàng.",
+              realLifeAnalogy: "Như việc bạn mua cả thùng nước ngọt 24 lon bê thẳng ra cốp xe hơi mà không cần bóc thùng kiểm tra từng lon.",
+              physicalAction: "Tài xế xe nâng quét mã vạch thùng carton trên giá kệ cao 8m, hạ thùng xuống pallet và quét xác nhận nhặt xong.",
+              devicesUsed: "Xe nâng tầm cao Reach Truck gắn máy quét mã vạch tầm xa",
+              physicalZone: "Khu vực kệ cao High-Bay Selective Racking",
+              riskConsequence: "Lấy nhầm thùng carton chứa mã hàng khác khiến cửa hàng nhận sai hàng loạt hàng chục chiếc áo.",
+              errorHandling: "Kiểm tra mã vạch thùng carton và số lượng thùng còn lại trên pallet; nếu thiếu, hệ thống chuyển báo lỗi Shortage.",
+              lockMechanism: "Original Carton Barcode Lock.",
+              inventoryImpact: "Trừ tồn kho nguyên thùng tại vị trí kệ cao tầng.",
+              payload: { cartonBarcode: "CTN-2026-99011", pickedLocation: "RACK-HB-04-12", destinationDock: "DOCK_06", status: "CARTON_PICKED" }
+            },
+            {
+              code: "SP_AP_0013_01",
+              name: "Register Solid Individual Picking Result",
+              type: "API",
+              method: "PUT",
+              source: "Máy Handy Terminal của công nhân nhặt lẻ",
+              target: "WES Outbound Engine",
+              whyNeeded: "Ghi nhận kết quả nhặt từng sản phẩm lẻ tại các vị trí kệ cố định (Solid Individual Location) cho các đơn hàng cửa hàng chỉ lấy vài chiếc.",
+              realLifeAnalogy: "Bạn đi dọc các kệ siêu thị nhặt từng gói snack, từng hộp sữa bỏ vào giỏ hàng cá nhân.",
+              physicalAction: "Công nhân cầm máy Handy Terminal quét mã vạch trên mác áo, đèn LED trên giỏ hàng nhấp nháy xanh báo bỏ đúng giỏ.",
+              devicesUsed: "Máy quét mã vạch không dây Keyence BT-A700",
+              physicalZone: "Khu vực kệ tĩnh tầng thấp Solid Picking Zone",
+              riskConsequence: "Nhặt nhầm size áo (ví dụ size S thành size L) do mắt thường nhìn giống hệt nhau.",
+              errorHandling: "So khớp tuyệt đối mã vạch EAN/PLU; nếu quét sai mã, máy rung cảnh báo và khóa màn hình cho tới khi quét đúng.",
+              lockMechanism: "Row-level Optimistic Lock.",
+              inventoryImpact: "Trừ tồn kho từng chiếc lẻ tại ô kệ tĩnh.",
+              payload: { scannedBarcode: "8935012345678", sku: "TSHIRT-DRY-BLK-M", pickedQuantity: 3, binLocation: "LOC-A-02-04" }
+            },
+            {
+              code: "SP_AP_0013_04 & SP_AP_0013_05",
+              name: "Register Picking Case Result For Exotec & Register Picking Result For Exotec",
+              type: "API",
+              method: "PUT",
+              source: "Trạm làm việc Robot Exotec (Picking Station UI)",
+              target: "WES Outbound Engine / Exotec Controller",
+              whyNeeded: "Ghi nhận kết quả công nhân tại trạm làm việc Exotec lấy quần áo từ khay robot mang tới, đổ vào thùng xuất hàng cho từng cửa hàng bán lẻ.",
+              realLifeAnalogy: "Như cô nhân viên bưu điện lấy đồ từ các ngăn kéo tự động và chia vào từng hòm thư của từng khu phố.",
+              physicalAction: "Màn hình trạm Exotec chỉ thị 'Lấy 12 chiếc bỏ vào Thùng Store Vincom'. Chị Hà thao tác và bấm nút xác nhận màu xanh trên bàn.",
+              devicesUsed: "Trạm bốc hàng Exotec Pick Station có đèn Put-to-Light",
+              physicalZone: "Trạm xuất hàng tự động Exotec Station 02",
+              riskConsequence: "Bỏ nhầm đồ sang thùng của cửa hàng khác nếu công nhân không chú ý đèn chỉ thị Put-to-Light.",
+              errorHandling: "Cân cảm biến trọng lượng tại khay đích: nếu bỏ thiếu hoặc thừa 1 chiếc áo, trọng lượng sai lệch sẽ không cho phép hoàn tất.",
+              lockMechanism: "Station Compartment Lock.",
+              inventoryImpact: "Trừ tồn trong khay Live Tote của robot Exotec.",
+              payload: { exotecStationId: "PICK_STN_02", sourceTote: "TOTE-EXO-77291", targetOutboundCase: "CASE-STORE-001", piecesPicked: 12 }
+            },
+            {
+              code: "SP_BT_0002_02",
+              name: "Import Picking Result From Picking Cart IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "Hệ thống quản lý xe Smart Cart",
+              target: "WES Outbound Database",
+              whyNeeded: "Tiếp nhận toàn bộ file tổng kết các lượt nhặt hàng mà xe Smart Cart đã thực hiện xong trong đợt để cập nhật tổng thể lên hệ thống.",
+              realLifeAnalogy: "Người giao hàng nộp lại toàn bộ cuống biên lai giao nhận sau một chuyến đi giao hàng khắp thành phố.",
+              physicalAction: "Xe Smart Cart cắm vào dock sạc và tự động đồng bộ hàng trăm dòng kết quả nhặt qua mạng Wi-Fi công nghiệp.",
+              devicesUsed: "Smart Cart Docking Station Gateway",
+              physicalZone: "Trạm sạc và kết nối xe Cart",
+              riskConsequence: "Hệ thống bị chậm cập nhật tiến độ, không kích hoạt được khâu đóng thùng và dán nhãn tiếp theo.",
+              errorHandling: "Khớp đối soát tổng số món cần nhặt so với số món thực nhặt; tự động tạo danh sách Exception nếu có món bị bỏ sót.",
+              lockMechanism: "Batch Integration Lock.",
+              inventoryImpact: "Chốt hoàn tất công đoạn nhặt hàng vật lý trên toàn kho.",
+              payload: { cartId: "SMART_CART_12", runId: "RUN_20260919_B2B_01", totalItemsScanned: 120, exceptionsCount: 0, status: "SYNC_SUCCESS" }
+            }
+          ]
+        },
+        {
+          id: 4,
+          name: "Bước 4: Đóng gói, In phiếu giao hàng & Chuẩn bị phân loại (Packing & Slips)",
+          shortTitle: "4. Đóng gói & In phiếu HT",
+          badge: "BƯỚC 4",
+          icon: "📦",
+          warehouseTitle: "Bàn Đóng Thùng & Băng Chuyền Phân Loại WCS",
+          warehouseDesc: "Kiểm tra đủ món theo từng Store, dùng máy quét HT in nhãn thùng xuất, in phiếu giao hàng cho tài xế và kích hoạt băng chuyền Sorting tự động.",
+          businessDeepDive: {
+            coreMeaning: "Sau khi các món đồ từ 3 nguồn (thùng nguyên, nhặt lẻ, trạm robot) đã gom về đủ, bước này tiến hành hợp nhất theo từng cửa hàng đích: Đóng nắp thùng carton, dùng máy quét Handy Terminal tít mã thùng để máy in nhả nhãn Shipping Label dán ngoài thùng, in phiếu Delivery Note cho tài xế xe tải, rồi đẩy thùng lên băng chuyền tự động để phân loại về đúng cửa xe.",
+            whyCritical: "Đây là chốt chặn cuối cùng kiểm tra sự toàn vẹn của thùng hàng. Nếu dán nhầm nhãn thùng hoặc thiếu phiếu Delivery Note, tài xế xe tải sẽ không được phép nhận hàng và bảo vệ cổng kho sẽ chặn không cho xe rời bến.",
+            physicalProcess: [
+              "1. Màn hình WES kiểm tra thấy thùng hàng của Store Landmark 81 đã gom đủ 100% số lượng qua SP_AP_0012_01.",
+              "2. Công nhân gập nắp thùng carton, dán băng keo niêm phong.",
+              "3. Cầm máy Handy Terminal quét mã thùng, máy in Zebra nhả nhãn Shipping Label qua SP_AP_0012_02.",
+              "4. In 3 liên phiếu giao hàng Delivery Note qua SP_AP_0012_14_DC để tài xế và cửa hàng ký biên bản.",
+              "5. Cụm batch SP_BT_0075_01/03/05 kích hoạt hệ thống băng chuyền phân loại tự động WCS đẩy thùng về đúng cửa xuất."
+            ],
+            riskMitigation: "Cổng kiểm soát quang học trên băng chuyền tự động quét mã nhãn thùng: nếu thùng nào chưa được kích hoạt in nhãn hoặc in sai, tay gạt tự động đẩy thùng sang làn sửa lỗi (Reject Lane) để kiểm tra lại."
+          },
+          transformation: {
+            before: "Hàng hóa nằm rời rạc trong các khay nhặt",
+            action: "Đóng nắp thùng carton + In nhãn dán Shipping Label + In phiếu Delivery Note",
+            after: "Thùng hàng hoàn chỉnh niêm phong, di chuyển trên băng chuyền Sorting về cửa Dock"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 3,
+            packetLabel: "Shipping Slips & Sorting Commands",
+            packetColor: "#06b6d4"
+          },
+          apis: [
+            {
+              code: "SP_AP_0012_01",
+              name: "Retrieve Packing Result",
+              type: "API",
+              method: "POST",
+              source: "Màn hình Trạm Đóng gói (Packing Station UI)",
+              target: "WES Outbound Server",
+              whyNeeded: "Kiểm tra xác nhận xem thùng hàng xuất cho cửa hàng đã gom đủ tất cả các sản phẩm hay chưa trước khi đóng nắp niêm phong.",
+              realLifeAnalogy: "Như tiếp viên hàng không đếm lại số lượng suất ăn trên xe đẩy xem đã đủ cho toàn bộ hành khách khoang thương gia chưa.",
+              physicalAction: "Công nhân nhìn màn hình kiểm tra: 'Store Landmark 81 - Thùng số 03: Đã gom 40/40 sản phẩm (100%)'.",
+              devicesUsed: "Màn hình cảm ứng trạm kiểm tra đóng gói",
+              physicalZone: "Bàn đóng gói hàng xuất Packing Line",
+              riskConsequence: "Đóng nắp thùng thiếu hàng khiến cửa hàng nhận thiếu đồ, gây khiếu nại và gián đoạn kinh doanh.",
+              errorHandling: "Nếu thiếu dù chỉ 1 sản phẩm, hệ thống từ chối đóng gói và hiển thị danh sách món đang bị trễ.",
+              lockMechanism: "Outbound Case Packing Lock.",
+              inventoryImpact: "Chuyển trạng thái kiện hàng sang ĐỦ_ĐIỀU_KIỆN_ĐÓNG_THÙNG.",
+              payload: { outboundCaseId: "CASE-STORE-001", targetStore: "STR_VN_001_VINCOM", totalItemsExpected: 40, totalItemsPacked: 40, isComplete: true }
+            },
+            {
+              code: "SP_AP_0012_02",
+              name: "Issue Slip By HT",
+              type: "API",
+              method: "PUT",
+              source: "Máy quét cầm tay (Handy Terminal)",
+              target: "Máy in mã vạch Zebra / WES Server",
+              whyNeeded: "Công nhân dùng máy Handy Terminal quét mã thùng carton, lập tức kích hoạt máy in Zebra nhả ra tem nhãn xuất kho (Shipping Label) có mã vạch nhận diện.",
+              realLifeAnalogy: "Như quầy làm thủ tục sân bay in thẻ hành lý (Baggage Tag) và dán vòng quanh quai vali của bạn.",
+              physicalAction: "Công nhân tít mã thùng, máy in nhả nhãn, công nhân bóc dán lên mặt trên của thùng carton.",
+              devicesUsed: "Máy kiểm kho Handy Terminal & Máy in Zebra để bàn",
+              physicalZone: "Bàn dán nhãn xuất hàng",
+              riskConsequence: "Thùng hàng không có nhãn định danh sẽ trở thành thùng vô chủ trên băng chuyền tự động.",
+              errorHandling: "Mỗi thùng chỉ được in 1 tem nhãn duy nhất; nếu in lại, hệ thống ghi nhận Reprints Warning.",
+              lockMechanism: "Case Label Issuance Lock.",
+              inventoryImpact: "Ghi nhận thùng hàng đã được niêm phong hợp lệ.",
+              payload: { caseBarcode: "CASE-STORE-001", shippingLabelId: "LBL-VN-2026-99120", printStatus: "PRINTED_SUCCESS" }
+            },
+            {
+              code: "SP_AP_0012_14_DC",
+              name: "Print Delivery Note",
+              type: "API",
+              method: "PUT",
+              source: "Trạm bàn giao chứng từ cửa xuất",
+              target: "Máy in laser văn phòng",
+              whyNeeded: "In phiếu giao hàng tổng hợp (Delivery Note) khổ A4 liệt kê toàn bộ các thùng hàng và mã sản phẩm trên chuyến xe để tài xế ký nhận.",
+              realLifeAnalogy: "Như hợp đồng vận chuyển hoặc biên bản giao nhận hàng hóa mà shipper đưa bạn ký khi nhận bưu phẩm.",
+              physicalAction: "Máy in văn phòng in 3 bản phiếu Delivery Note có chữ ký điện tử của trưởng ca kho.",
+              devicesUsed: "Máy in Laser đa năng HP LaserJet Enterprise",
+              physicalZone: "Văn phòng điều phối cửa xuất hàng",
+              riskConsequence: "Xe tải bị công an giao thông hoặc quản lý thị trường kiểm tra trên đường sẽ bị phạt hoặc tạm giữ hàng nếu thiếu chứng từ hợp pháp.",
+              errorHandling: "Khớp đúng số lượng kiện và giá trị hàng hóa theo quy định của Bộ Công Thương và Bộ Tài Chính.",
+              lockMechanism: "Document Generation Lock.",
+              inventoryImpact: "Tạo chứng từ xuất kho chính thức.",
+              payload: { deliveryNoteNo: "DN-DC-2026-08912", truckPlate: "50H-129.44", totalCartons: 25, totalValueVnd: 420000000 }
+            },
+            {
+              code: "SP_BT_0075_01 / 03 / 05",
+              name: "Create Packing Result -> Send Shipment Inspection Instruction To WCS -> Send Sorting Preparation Instruction To WCS",
+              type: "BATCH",
+              method: "BATCH CLUSTER",
+              source: "WES Core Orchestrator",
+              target: "Hệ thống điều khiển Băng chuyền phân loại tự động WCS",
+              whyNeeded: "Gửi tập lệnh chuẩn bị phân loại sang hệ thống băng chuyền con lăn WCS để máy quét trên băng tải biết thùng hàng này phải rẽ vào máng trượt (Chute) của cửa xe tải nào.",
+              realLifeAnalogy: "Như hệ thống đường ray xe lửa tự động bẻ ghi để đoàn tàu chạy vào đúng sân ga đích.",
+              physicalAction: "Thùng hàng trôi trên băng tải với tốc độ 2.5m/giây, camera quét mã nhãn và cánh tay gạt khí nén gạt thùng rẽ sang Cửa xuất Dock 06.",
+              devicesUsed: "Băng chuyền phân loại Cross-Belt Sorter & Bộ điều khiển PLC Siemens",
+              physicalZone: "Hệ thống băng chuyền phân loại tự động trung tâm kho",
+              riskConsequence: "Thùng hàng bị chạy thẳng ra cửa xe khác, dẫn tới chở nhầm hàng sang thành phố khác.",
+              errorHandling: "Nếu camera không đọc được mã (No Read Barcode), thùng tự động rẽ sang nhánh Exception Lane để công nhân dán lại tem.",
+              lockMechanism: "WCS Sorter Routing Lock.",
+              inventoryImpact: "Chuyển thùng hàng vào lộ trình băng tải phân loại tự động.",
+              payload: { conveyorInstructionId: "SORT_JOB_8819", targetDockChute: "CHUTE_DOCK_06", cartonBarcode: "CASE-STORE-001", speedMps: 2.5 }
+            }
+          ]
+        },
+        {
+          id: 5,
+          name: "Bước 5: Chất hàng lên xe tải & Chốt xuất kho (Loading & Finalization)",
+          shortTitle: "5. Chất xe tải & Chốt xuất kho",
+          badge: "BƯỚC 5",
+          icon: "🚚",
+          warehouseTitle: "Cửa Xuất Hàng (Shipping Dock) & Thùng Xe Tải",
+          warehouseDesc: "Tạo nhóm chất hàng theo tuyến xe, quét mã từng thùng khi ném lên xe tải, chốt hoàn tất xuất kho, xuất dữ liệu cho ERP và khai báo hải quan CMS.",
+          businessDeepDive: {
+            coreMeaning: "Đây là thời khắc kết thúc toàn bộ chu trình xuất hàng B2B. Các thùng hàng tập kết tại cửa Dock được tài xế và công nhân bốc xếp lên xe tải. Mỗi thùng khi bước qua cửa xe đều phải được quét mã barcode (Loading Scan) để chắc chắn không xếp nhầm xe. Khi xe đã đủ hàng, trưởng ca bấm nút Chốt xuất kho (Finalize Shipment), sổ cái WIV chính thức trừ tồn kho vĩnh viễn, hệ thống tự động xuất dữ liệu cho ERP và nộp tờ khai hải quan CMS.",
+            whyCritical: "Sau khi xe tải đóng bạt lăn bánh ra khỏi cổng kho, mọi sai sót không thể sửa chữa được nữa. Quét kiểm tra lúc xếp xe là lá chắn phòng thủ tuyệt đối chống giao nhầm cửa hàng và chống thất thoát tài sản.",
+            physicalProcess: [
+              "1. Tạo nhóm chất hàng (Loading Group) theo tuyến đường và in nhãn dán lên thành xe qua SP_AP_0011_01/03.",
+              "2. Bác tài xế dùng máy quét Handy Terminal tít mã từng thùng khi chất lên sàn xe qua SP_AP_0012_06_DC.",
+              "3. Đủ 25 thùng, trưởng ca bấm nút xác nhận chốt xuất kho qua SP_AP_0012_10.",
+              "4. Batch tự động SP_BT_0098_01 kích hoạt đóng toàn bộ chứng từ đơn hàng.",
+              "5. Xuất dữ liệu đơn đã xuất cho ERP qua SP_BT_0004/06 và nộp file tờ khai hải quan CMS qua SP_BT_0005_DC."
+            ],
+            riskMitigation: "Nếu công nhân bốc nhầm một thùng hàng của tuyến xe khác đưa lên xe này, máy quét cầm tay sẽ phát còi hú chói tai (Wrong Truck Alarm) và chặn không cho quét tiếp."
+          },
+          transformation: {
+            before: "Thùng hàng nằm chờ tại sàn bến xuất Dock",
+            action: "Quét Barcode chất lên xe tải + Chốt hoàn tất xuất kho Finalization",
+            after: "Hàng hóa nằm trên xe tải lăn bánh, Sổ cái WIV trừ tồn kho, Hải quan CMS thông qua"
+          },
+          animation: {
+            sourceLane: 1,
+            targetLane: 0,
+            packetLabel: "Shipment Finalized & CMS Export Files",
+            packetColor: "#e11d48"
+          },
+          apis: [
+            {
+              code: "SP_AP_0011_01 & SP_AP_0011_03",
+              name: "Retrieve Loading Group & Print Loading Group Label",
+              type: "API",
+              method: "POST/PUT",
+              source: "Màn hình Trưởng bến xuất hàng (Dock Master UI)",
+              target: "WES Server / Máy in nhãn",
+              whyNeeded: "Gom các cửa hàng nằm trên cùng một cung đường vận chuyển vào cùng một nhóm chất hàng (Loading Group), in nhãn tuyến xe dán lên kính xe tải.",
+              realLifeAnalogy: "Như việc chia lộ trình cho xe buýt: xe số 150 sẽ chạy qua Suối Tiên ➔ Chợ Bến Thành.",
+              physicalAction: "Trưởng bến in nhãn Loading Group dán lên cửa thùng xe tải biển số 50H-129.44.",
+              devicesUsed: "Máy in nhãn mã vạch di động",
+              physicalZone: "Cửa bến xuất hàng Dock 06",
+              riskConsequence: "Xếp hàng lộn xộn khiến tài xế đến cửa hàng đầu tiên phải dỡ hết hàng của cửa hàng khác ra sàn xe mới lấy được đồ.",
+              errorHandling: "Tự động sắp xếp thứ tự chất hàng theo nguyên tắc LIFO (Last In First Out: hàng giao trước xếp ngoài cửa, hàng giao sau xếp trong cùng).",
+              lockMechanism: "Loading Group Sequence Lock.",
+              inventoryImpact: "Quy định trật tự vật lý trên thùng xe tải.",
+              payload: { loadingGroupId: "LG_ROUTE_Q1_BENTHANH", assignedTruck: "50H-129.44", totalStoresOnRoute: 3, totalCartons: 85 }
+            },
+            {
+              code: "SP_AP_0012_06_DC",
+              name: "Register Loading Result",
+              type: "API",
+              method: "PUT",
+              source: "Máy quét cầm tay Handy Terminal tại cửa xe tải",
+              target: "WES Outbound Engine",
+              whyNeeded: "Quét mã barcode của từng thùng hàng khi công nhân bê chất lên thùng xe tải để kiểm soát 100% không bao giờ bị xếp nhầm xe.",
+              realLifeAnalogy: "Như nhân viên soát vé quét vé máy bay của từng hành khách ngay tại cửa ống lồng trước khi bước vào khoang máy bay.",
+              physicalAction: "Công nhân xếp thùng vào thùng xe tải, đưa máy tít 'Tít' một tiếng, màn hình báo màu xanh 'Hợp lệ 25/25 thùng'.",
+              devicesUsed: "Máy quét mã vạch Handy Terminal kết nối 4G/Wi-Fi",
+              physicalZone: "Sàn thùng xe tải tại Cửa Dock 06",
+              riskConsequence: "Chở nhầm một thùng áo khoác đắt tiền sang một cửa hàng nhỏ ở tỉnh khác gây thất thoát khó thu hồi.",
+              errorHandling: "Nếu quét nhầm thùng không thuộc chuyến xe này, máy rung mạnh, màn hình chớp đỏ và phát âm thanh cảnh báo lỗi.",
+              lockMechanism: "Loading Verification Lock.",
+              inventoryImpact: "Chuyển trạng thái kiện hàng sang ĐÃ_CHẤT_LÊN_XE_TẢI (LOADED_ON_TRUCK).",
+              payload: { truckPlate: "50H-129.44", cartonBarcode: "CASE-STORE-001", currentLoadedCount: 25, totalExpectedCount: 25, status: "ALL_LOADED" }
+            },
+            {
+              code: "SP_AP_0012_10 & SP_BT_0098_01",
+              name: "Register Shipment Finalization & Finalize Shipment Automatically (Batch)",
+              type: "API/BATCH",
+              method: "PUT/BATCH",
+              source: "Trạm điều hành cửa xuất (Dock Master UI)",
+              target: "WES Database / WIV Ledger",
+              whyNeeded: "Chính thức ký chốt đóng chuyến xe xuất kho, hoàn tất toàn bộ chu trình vận hành của đơn hàng, kích hoạt trừ tồn kho sổ cái tức thời.",
+              realLifeAnalogy: "Như việc tài xế đóng cửa thùng xe, bấm khóa chì niêm phong chì seal và nổ máy xe xuất phát.",
+              physicalAction: "Trưởng ca kiểm tra thấy tỷ lệ chất xe đạt 100%, bấm nút màu xanh 'Chốt xuất kho' trên màn hình.",
+              devicesUsed: "Máy tính trạm điều hành bến xuất",
+              physicalZone: "Bàn làm việc trưởng ca Outbound",
+              riskConsequence: "Đơn hàng bị treo ở trạng thái dở dang, doanh thu không được ghi nhận và báo cáo tồn kho bị sai lệch.",
+              errorHandling: "Chỉ cho phép chốt khi toàn bộ các kiện hàng trong nhóm đã được quét thành công 100%.",
+              lockMechanism: "Shipment Finalization Global Lock.",
+              inventoryImpact: "Sổ cái WIV chính thức TRỪ TỒN KHO VĨNH VIỄN (SHIPPED & DEDUCTED).",
+              payload: { shipmentNo: "SHP-VN-2026-00412", finalizedAt: "2026-09-19T11:15:00Z", totalCartonsShipped: 25, finalStatus: "SHIPPED_CLOSED" }
+            },
+            {
+              code: "SP_BT_0004_02_DC & SP_BT_0006_02_DC",
+              name: "Export Shipment Result For WMS IF (Member) & Export Shipment Result IF",
+              type: "BATCH",
+              method: "BATCH",
+              source: "WES Database",
+              target: "Hệ thống ERP Tập đoàn / Hệ thống WMS cấp cao",
+              whyNeeded: "Xuất dữ liệu chi tiết các mặt hàng và số lượng đã xuất kho gửi về hệ thống ERP của tập đoàn để kế toán hạch toán giảm giá vốn hàng bán (COGS).",
+              realLifeAnalogy: "Kế toán công ty ghi nhận xuất kho: Nợ Giá vốn hàng bán / Có Hàng hóa trong kho.",
+              physicalAction: "Hệ thống tự động đóng gói file kết quả xuất kho và truyền qua giao thức an toàn sFTP về ERP.",
+              devicesUsed: "ERP Integration Gateway",
+              physicalZone: "Phòng máy chủ Data Center",
+              riskConsequence: "Số liệu kế toán doanh nghiệp không khớp với thực tế hàng đã xuất khỏi kho.",
+              errorHandling: "Mã hóa dữ liệu và cơ chế Retry tự động nếu đường truyền Internet tới ERP bị gián đoạn.",
+              lockMechanism: "Financial Interface Lock.",
+              inventoryImpact: "Đồng bộ hóa số dư tài sản doanh nghiệp.",
+              payload: { erpSyncBatch: "SP_BT_0006_02_DC_991", recordsExported: 1420, syncStatus: "ERP_CONFIRMED" }
+            },
+            {
+              code: "SP_BT_0005_DC",
+              name: "Shipment Result For CMS IF Export",
+              type: "BATCH",
+              method: "BATCH",
+              source: "WES Bonded Warehouse Outbound Module",
+              target: "Hệ thống Hải quan Kho Ngoại Quan (CMS)",
+              whyNeeded: "Khai báo dữ liệu điện tử sang hệ thống Hải quan CMS đối với các lô hàng xuất từ kho ngoại quan vào nội địa hoặc tái xuất ra nước ngoài.",
+              realLifeAnalogy: "Trình tờ khai hải quan xuất kho để cán bộ hải quan giám sát xác nhận hàng rời khỏi khu vực miễn thuế.",
+              physicalAction: "Đóng gói file dữ liệu tờ khai hải quan kèm chữ ký số điện tử gửi sang cổng Hải quan CMS.",
+              devicesUsed: "Hệ thống kết nối một cửa quốc gia Hải quan CMS",
+              physicalZone: "Bộ phận pháp chế và thủ tục hải quan",
+              riskConsequence: "Vi phạm quy định quản lý kho ngoại quan, có thể bị xử phạt hành chính hoặc truy thu thuế.",
+              errorHandling: "Khớp đúng số tờ khai nhập khẩu ban đầu, trừ lùi định mức tờ khai hải quan chính xác.",
+              lockMechanism: "Customs Clearance Export Lock.",
+              inventoryImpact: "Giải phóng nghĩa vụ giám sát hải quan đối với lô hàng xuất.",
+              payload: { customsDeclarationNo: "105928371920", exportType: "DOMESTIC_CONSUMPTION_ENTRY", customsStatus: "CUSTOMS_CLEARED_EXPORT" }
+            }
+          ]
+        }
+      ]
+    };
+
+    let currentStepIndex = 0;
+    let isPlaying = false;
+    let playInterval = null;
+    let playbackSpeed = 1.0;
+    let activeApiForModal = null;
+    let packetAnimationProgress = 0;
+    let animationFrameId = null;
+
+    const canvas = document.getElementById('flowCanvas');
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    function resizeCanvas() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      drawSimulation();
+    });
+
+    const LANES = [
+      { id: 0, name: "1. Store ERP / CMS", color: "#60a5fa", y: 0.16, icon: "🏬" },
+      { id: 1, name: "2. WES Orchestrator", color: "#fb923c", y: 0.38, icon: "💻" },
+      { id: 2, name: "3. WIV Ledger", color: "#fbbf24", y: 0.60, icon: "📑" },
+      { id: 3, name: "4. Hardware / Exotec / Carts", color: "#34d399", y: 0.83, icon: "🤖" },
+    ];
+
+    function drawSimulation() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Draw Lane Backgrounds & Guides
+      LANES.forEach((lane) => {
+        const laneY = h * lane.y;
+
+        ctx.strokeStyle = "rgba(51, 65, 85, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(30, laneY);
+        ctx.lineTo(w - 30, laneY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Lane badge
+        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.strokeStyle = lane.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(14, laneY - 14, 185, 28, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "bold 11px Inter, sans-serif";
+        ctx.fillStyle = lane.color;
+        ctx.fillText(`${lane.icon} ${lane.name}`, 22, laneY + 4);
+      });
+
+      // 2. Active Step Connection & Glowing Packet
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      const sourceLaneObj = LANES[step.animation.sourceLane];
+      const targetLaneObj = LANES[step.animation.targetLane];
+
+      const startX = 235;
+      const endX = w - 80;
+      const startY = h * sourceLaneObj.y;
+      const endY = h * targetLaneObj.y;
+
+      // Draw connection flow path curve
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(249, 115, 22, 0.25)";
+      ctx.lineWidth = 3;
+      ctx.moveTo(startX, startY);
+      
+      const cp1X = startX + (endX - startX) * 0.5;
+      const cp1Y = startY;
+      const cp2X = startX + (endX - startX) * 0.5;
+      const cp2Y = endY;
+      ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
+      ctx.stroke();
+
+      // Flow direction arrow particles
+      const t = packetAnimationProgress;
+      const curX = Math.pow(1 - t, 3) * startX + 
+                   3 * Math.pow(1 - t, 2) * t * cp1X + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2X + 
+                   Math.pow(t, 3) * endX;
+      const curY = Math.pow(1 - t, 3) * startY + 
+                   3 * Math.pow(1 - t, 2) * t * cp1Y + 
+                   3 * (1 - t) * Math.pow(t, 2) * cp2Y + 
+                   Math.pow(t, 3) * endY;
+
+      // Packet Glow Outer
+      const glowGrad = ctx.createRadialGradient(curX, curY, 2, curX, curY, 20);
+      glowGrad.addColorStop(0, step.animation.packetColor);
+      glowGrad.addColorStop(0.5, step.animation.packetColor + "66");
+      glowGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(curX, curY, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Packet Core Dot
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(curX, curY, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Floating Packet Tooltip Label
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx.strokeStyle = step.animation.packetColor;
+      ctx.lineWidth = 1;
+      const tagText = `${step.animation.packetLabel}`;
+      ctx.font = "500 10px 'JetBrains Mono', monospace";
+      const tagWidth = ctx.measureText(tagText).width;
+      
+      ctx.beginPath();
+      ctx.roundRect(curX - tagWidth / 2 - 8, curY - 26, tagWidth + 16, 20, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillText(tagText, curX - tagWidth / 2, curY - 13);
+
+      // Source and Target Terminal Nodes
+      drawNode(ctx, startX, startY, sourceLaneObj.color);
+      drawNode(ctx, endX, endY, targetLaneObj.color);
+    }
+
+    function drawNode(context, x, y, color) {
+      context.fillStyle = color;
+      context.beginPath();
+      context.arc(x, y, 7, 0, Math.PI * 2);
+      context.fill();
+
+      context.strokeStyle = "rgba(255,255,255,0.8)";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.arc(x, y, 9, 0, Math.PI * 2);
+      context.stroke();
+    }
+
+    function animateLoop() {
+      packetAnimationProgress += 0.012 * playbackSpeed;
+      if (packetAnimationProgress > 1) {
+        packetAnimationProgress = 0;
+      }
+
+      drawSimulation();
+      animationFrameId = requestAnimationFrame(animateLoop);
+    }
+
+    function renderStepProgressBar() {
+      const container = document.getElementById('stepProgressList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      FLOW_DATA.steps.forEach((step, idx) => {
+        const isActive = idx === currentStepIndex;
+        const btn = document.createElement('button');
+        btn.className = `flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all ${
+          isActive 
+            ? 'bg-orange-600/30 border-orange-500 text-white shadow-md shadow-orange-500/20 font-semibold' 
+            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+        }`;
+        btn.innerHTML = `
+          <span class="w-5 h-5 rounded-full ${isActive ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-[10px] font-mono font-bold">
+            ${step.id}
+          </span>
+          <span class="whitespace-nowrap">${step.shortTitle}</span>
+        `;
+        btn.addEventListener('click', () => {
+          goToStep(idx);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderCurrentStepDetails() {
+      const step = FLOW_DATA.steps[currentStepIndex];
+      if (!step) return;
+
+      // Update Header Badges
+      const badgeNum = document.getElementById('stepBadgeNumber');
+      const badgeTitle = document.getElementById('stepBadgeTitle');
+      const whIcon = document.getElementById('warehouseStageIcon');
+      const whTitle = document.getElementById('warehouseStageTitle');
+      const whDesc = document.getElementById('warehouseStageDesc');
+      const statusText = document.getElementById('packetTransmissionStatus');
+      const apiCount = document.getElementById('apiCountBadge');
+
+      if (badgeNum) badgeNum.textContent = step.badge;
+      if (badgeTitle) badgeTitle.textContent = step.name.split(':')[1]?.trim() || step.name;
+      if (whIcon) whIcon.textContent = step.icon;
+      if (whTitle) whTitle.textContent = step.warehouseTitle;
+      if (whDesc) whDesc.textContent = step.warehouseDesc;
+      if (statusText) statusText.textContent = `Truyền: ${step.animation.packetLabel}`;
+      if (apiCount) apiCount.textContent = `${step.apis.length} APIs/Batch`;
+
+      // Update Physical Transformation Matrix Box
+      const transContainer = document.getElementById('transformationContainer');
+      if (transContainer) {
+        transContainer.innerHTML = `
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-slate-500 uppercase font-mono block mb-1">TRẠNG THÁI TRƯỚC</span>
+            <p class="text-slate-300 font-medium">${step.transformation.before}</p>
+          </div>
+          <div class="bg-orange-950/30 p-2.5 rounded-lg border border-orange-800/40 text-center">
+            <span class="text-[10px] text-orange-400 uppercase font-mono block mb-1">HÀNH ĐỘNG CHUYỂN ĐỔI</span>
+            <p class="text-orange-200 font-medium">${step.transformation.action}</p>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <span class="text-[10px] text-emerald-500 uppercase font-mono block mb-1">KẾT QUẢ ĐÍCH</span>
+            <p class="text-emerald-300 font-medium">${step.transformation.after}</p>
+          </div>
+        `;
+      }
+
+      // Render tab contents
+      renderStepDeepDive(step);
+      renderApiList(step.apis);
+      renderSequenceDiagram(step);
+      renderStepProgressBar();
+    }
+
+    function renderStepDeepDive(step) {
+      const container = document.getElementById('stepDeepDiveContainer');
+      if (!container || !step) return;
+
+      const dd = step.businessDeepDive;
+      container.innerHTML = `
+        <div class="bg-orange-950/20 border border-orange-500/30 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-orange-300 text-xs uppercase flex items-center gap-1.5">
+            <span>💡</span>
+            <span>Bản chất nghiệp vụ cốt lõi</span>
+          </h4>
+          <p class="text-slate-200 text-xs leading-relaxed">${dd.coreMeaning}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+          <h4 class="font-bold text-amber-300 text-xs uppercase flex items-center gap-1.5">
+            <span>⚠️</span>
+            <span>Tại sao bước này sống còn đối với kho?</span>
+          </h4>
+          <p class="text-slate-300 text-xs leading-relaxed">${dd.whyCritical}</p>
+        </div>
+
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <h4 class="font-bold text-emerald-300 text-xs uppercase flex items-center gap-1.5">
+            <span>📋</span>
+            <span>Trình tự thao tác thực tế tại hiện trường</span>
+          </h4>
+          <div class="space-y-1.5 text-xs">
+            ${dd.physicalProcess.map(item => `
+              <div class="flex items-start gap-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80 text-slate-300">
+                <span class="text-emerald-400 font-bold shrink-0">✔</span>
+                <span>${item}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3 space-y-1">
+          <h4 class="font-bold text-rose-300 text-xs uppercase flex items-center gap-1.5">
+            <span>🛡️</span>
+            <span>Cơ chế phòng vệ rủi ro & sự cố</span>
+          </h4>
+          <p class="text-rose-200/90 text-xs leading-relaxed">${dd.riskMitigation}</p>
+        </div>
+      `;
+    }
+
+    function renderApiList(apis) {
+      const container = document.getElementById('apiListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      apis.forEach((api) => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900/90 border border-slate-800 hover:border-orange-500/60 p-3 rounded-xl transition-all cursor-pointer group shadow-sm";
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs font-bold text-orange-300 group-hover:text-orange-200 transition-colors">${api.code}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+              api.method.includes('PUT') ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30' :
+              api.method.includes('POST') ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' :
+              api.method.includes('BATCH') ? 'bg-violet-500/10 text-violet-300 border border-violet-500/30' :
+              'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30'
+            }">${api.method}</span>
+          </div>
+          <h4 class="text-xs font-semibold text-slate-200 mb-1 leading-snug">${api.name}</h4>
+          <p class="text-[11px] text-slate-400 line-clamp-2 leading-normal">${api.whyNeeded || api.physicalAction}</p>
+          <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1.5 border-t border-slate-800/60">
+            <span class="truncate max-w-[180px]">${api.source}</span>
+            <span class="text-orange-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">Mổ xẻ ➔</span>
+          </div>
+        `;
+        card.addEventListener('click', () => openApiModal(api));
+        container.appendChild(card);
+      });
+    }
+
+    function renderSequenceDiagram(step) {
+      const container = document.getElementById('sequenceDiagramContainer');
+      if (!container || !step) return;
+
+      let ascii = `=== SƠ ĐỒ TUẦN TỰ (SEQUENCE FLOW) - ${step.badge} ===\n\n`;
+      ascii += `[STORE ERP/CMS]      [WES ENGINE]        [WIV LEDGER]        [HARDWARE/ROBOT]\n`;
+      ascii += `      │                    │                    │                    │\n`;
+
+      step.apis.forEach((api, i) => {
+        const num = i + 1;
+        if (api.source.includes('Chuỗi') || api.source.includes('Retail') || api.source.includes('SCM') || api.source.includes('Store')) {
+          ascii += `      │ ────(${num}) ${api.code}───> │                    │                    │\n`;
+          ascii += `      │                    │ [Xử lý: ${api.name.slice(0, 24)}...]\n`;
+        } else if (api.target.includes('WIV') || api.name.includes('Simulate') || api.name.includes('Submit')) {
+          ascii += `      │                    │ ────(${num}) ${api.code}───> │                    │\n`;
+          ascii += `      │                    │                    │ [Phân bổ giữ chỗ]  │\n`;
+          ascii += `      │                    │ <─── Trả kết quả ─ │                    │\n`;
+        } else if (api.target.includes('Hardware') || api.target.includes('Robot') || api.target.includes('Exotec') || api.target.includes('Cart') || api.target.includes('WCS')) {
+          ascii += `      │                    │ ────(${num}) ${api.code}───────────────────────> │\n`;
+          ascii += `      │                    │                    │                    │ [Thực thi vật lý]\n`;
+        } else if (api.source.includes('Xe') || api.source.includes('Robot') || api.source.includes('HT') || api.source.includes('Station')) {
+          ascii += `      │                    │ <───(${num}) Xác nhận hoàn tất ──────────────── │\n`;
+        } else {
+          ascii += `      │ <───(${num}) ${api.code} ─── │                    │                    │\n`;
+        }
+        ascii += `      │                    │                    │                    │\n`;
+      });
+
+      ascii += `\n✔ Hoàn tất chu trình của ${step.badge}`;
+      container.innerHTML = `<pre class="whitespace-pre overflow-x-auto text-orange-400 leading-relaxed font-mono">${ascii}</pre>`;
+    }
+
+    function openApiModal(api) {
+      activeApiForModal = api;
+      const modal = document.getElementById('apiModal');
+      if (!modal) return;
+
+      const badge = document.getElementById('modalMethodBadge');
+      if (badge) {
+        badge.textContent = api.method;
+        badge.className = "px-2.5 py-1 rounded-md text-xs font-mono font-bold uppercase tracking-wider";
+        if (api.method.includes("PUT")) badge.classList.add("bg-amber-500/20", "text-amber-300", "border", "border-amber-500/40");
+        else if (api.method.includes("POST")) badge.classList.add("bg-emerald-500/20", "text-emerald-300", "border", "border-emerald-500/40");
+        else if (api.method.includes("BATCH")) badge.classList.add("bg-violet-500/20", "text-violet-300", "border", "border-violet-500/40");
+        else badge.classList.add("bg-cyan-500/20", "text-cyan-300", "border", "border-cyan-500/40");
+      }
+
+      const setElText = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = txt || "Không có thông tin";
+      };
+
+      setElText('modalApiCode', api.code);
+      setElText('modalApiName', api.name);
+      setElText('modalSourceSystem', api.source);
+      setElText('modalTargetSystem', api.target);
+      setElText('modalWhyNeeded', api.whyNeeded || api.businessRules);
+      setElText('modalRealLifeAnalogy', api.realLifeAnalogy || "Quá trình kiểm tra và cấp phát tương tự việc phân chia hàng hóa theo đơn đặt trước.");
+      setElText('modalPhysicalActionDetailed', api.physicalAction);
+      setElText('modalDevicesUsed', api.devicesUsed || "Máy Handy Terminal, Xe nâng, Băng chuyền");
+      setElText('modalPhysicalZone', api.physicalZone || "Khu vực bốc xếp xuất hàng Outbound");
+      setElText('modalRiskConsequence', api.riskConsequence || "Có thể gây thiếu hàng hoặc xuất sai chủng loại cho cửa hàng.");
+      setElText('modalErrorHandling', api.errorHandling || api.businessRules);
+      setElText('modalLockMechanism', api.lockMechanism || "Database Concurrency Control Lock");
+      setElText('modalInventoryDetailed', api.inventoryImpact);
+
+      const jsonEl = document.getElementById('modalJsonPayload');
+      if (jsonEl) jsonEl.textContent = JSON.stringify(api.payload, null, 2);
+
+      // Default to Business Tab in modal
+      switchModalTab('modalTabBtnBusiness', 'modalTabContentBusiness');
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('apiModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    /* Modal Sub-Tab Switcher */
+    const modalTabs = [
+      { btnId: 'modalTabBtnBusiness', contentId: 'modalTabContentBusiness' },
+      { btnId: 'modalTabBtnPhysical', contentId: 'modalTabContentPhysical' },
+      { btnId: 'modalTabBtnRisk', contentId: 'modalTabContentRisk' },
+      { btnId: 'modalTabBtnTech', contentId: 'modalTabContentTech' },
+    ];
+
+    function switchModalTab(targetBtnId, targetContentId) {
+      modalTabs.forEach(tab => {
+        const btn = document.getElementById(tab.btnId);
+        const content = document.getElementById(tab.contentId);
+        if (btn && content) {
+          if (tab.btnId === targetBtnId) {
+            btn.className = "pb-2 px-2 border-b-2 border-orange-500 text-white font-semibold text-xs transition-colors";
+            content.classList.remove('hidden');
+          } else {
+            btn.className = "pb-2 px-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 text-xs transition-colors";
+            content.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    modalTabs.forEach(tab => {
+      const btn = document.getElementById(tab.btnId);
+      if (btn) {
+        btn.addEventListener('click', () => switchModalTab(tab.btnId, tab.contentId));
+      }
+    });
+
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalCloseActionBtn = document.getElementById('modalCloseActionBtn');
+    const apiModal = document.getElementById('apiModal');
+
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+    if (modalCloseActionBtn) modalCloseActionBtn.addEventListener('click', closeModal);
+    if (apiModal) {
+      apiModal.addEventListener('click', (e) => {
+        if (e.target.id === 'apiModal') closeModal();
+      });
+    }
+
+    // Copy JSON payload with feedback
+    const modalCopyBtn = document.getElementById('modalCopyBtn');
+    if (modalCopyBtn) {
+      modalCopyBtn.addEventListener('click', () => {
+        if (!activeApiForModal) return;
+        const text = JSON.stringify(activeApiForModal.payload, null, 2);
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          modalCopyBtn.innerHTML = `✓ Đã sao chép!`;
+          setTimeout(() => {
+            modalCopyBtn.innerHTML = `
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              Sao chép JSON
+            `;
+          }, 2000);
+        } catch (err) {
+          console.error('Copy error', err);
+        }
+        document.body.removeChild(textArea);
+      });
+    }
+
+    function goToStep(index) {
+      if (index < 0) index = 0;
+      if (index >= FLOW_DATA.steps.length) index = FLOW_DATA.steps.length - 1;
+      currentStepIndex = index;
+      packetAnimationProgress = 0;
+      renderCurrentStepDetails();
+    }
+
+    function nextStep() {
+      if (currentStepIndex < FLOW_DATA.steps.length - 1) {
+        goToStep(currentStepIndex + 1);
+      } else if (isPlaying) {
+        goToStep(0);
+      }
+    }
+
+    function prevStep() {
+      if (currentStepIndex > 0) {
+        goToStep(currentStepIndex - 1);
+      }
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const btnPlay = document.getElementById('btnPlay');
+      const iconPlay = document.getElementById('iconPlay');
+      const txtPlay = document.getElementById('txtPlay');
+
+      if (isPlaying) {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-orange-600', 'bg-amber-600');
+          btnPlay.classList.replace('hover:bg-orange-500', 'hover:bg-amber-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tạm dừng";
+
+        playInterval = setInterval(() => {
+          nextStep();
+        }, 5000 / playbackSpeed);
+      } else {
+        if (btnPlay) {
+          btnPlay.classList.replace('bg-amber-600', 'bg-orange-600');
+          btnPlay.classList.replace('hover:bg-amber-500', 'hover:bg-orange-500');
+        }
+        if (iconPlay) iconPlay.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+        if (txtPlay) txtPlay.textContent = "Tự động phát";
+        clearInterval(playInterval);
+      }
+    }
+
+    const btnPlay = document.getElementById('btnPlay');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+    const selSpeed = document.getElementById('selSpeed');
+    const btnReset = document.getElementById('btnReset');
+
+    if (btnPlay) btnPlay.addEventListener('click', togglePlay);
+    if (btnNext) btnNext.addEventListener('click', () => { if (isPlaying) togglePlay(); nextStep(); });
+    if (btnPrev) btnPrev.addEventListener('click', () => { if (isPlaying) togglePlay(); prevStep(); });
+    if (selSpeed) {
+      selSpeed.addEventListener('change', (e) => {
+        playbackSpeed = parseFloat(e.target.value) || 1.0;
+        if (isPlaying) {
+          clearInterval(playInterval);
+          playInterval = setInterval(nextStep, 5000 / playbackSpeed);
+        }
+      });
+    }
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        if (isPlaying) togglePlay();
+        goToStep(0);
+      });
+    }
+
+    const tabBtnDeepDive = document.getElementById('tabBtnDeepDive');
+    const tabBtnList = document.getElementById('tabBtnList');
+    const tabBtnDiagram = document.getElementById('tabBtnDiagram');
+    const stepDeepDiveContainer = document.getElementById('stepDeepDiveContainer');
+    const apiListContainer = document.getElementById('apiListContainer');
+    const sequenceDiagramContainer = document.getElementById('sequenceDiagramContainer');
+    const tabHeadingText = document.getElementById('tabHeadingText');
+
+    if (tabBtnDeepDive) {
+      tabBtnDeepDive.addEventListener('click', () => {
+        tabBtnDeepDive.className = "px-2.5 py-1 rounded bg-orange-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.remove('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Nghiệp Vụ Bước Này";
+      });
+    }
+
+    if (tabBtnList) {
+      tabBtnList.addEventListener('click', () => {
+        tabBtnList.className = "px-2.5 py-1 rounded bg-orange-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnDiagram) tabBtnDiagram.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (apiListContainer) apiListContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Danh Sách API / Module";
+      });
+    }
+
+    if (tabBtnDiagram) {
+      tabBtnDiagram.addEventListener('click', () => {
+        tabBtnDiagram.className = "px-2.5 py-1 rounded bg-orange-600 text-white font-medium transition-all text-[11px]";
+        if (tabBtnDeepDive) tabBtnDeepDive.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (tabBtnList) tabBtnList.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-all text-[11px]";
+        if (sequenceDiagramContainer) sequenceDiagramContainer.classList.remove('hidden');
+        if (stepDeepDiveContainer) stepDeepDiveContainer.classList.add('hidden');
+        if (apiListContainer) apiListContainer.classList.add('hidden');
+        if (tabHeadingText) tabHeadingText.textContent = "Sơ Đồ Tuần Tự (Sequence)";
+      });
+    }
+
+    // Modal triggers
+    const btnOpenGlossary = document.getElementById('btnOpenGlossary');
+    const glossaryModal = document.getElementById('glossaryModal');
+    const closeGlossaryBtn = document.getElementById('closeGlossaryBtn');
+    const closeGlossaryActionBtn = document.getElementById('closeGlossaryActionBtn');
+
+    if (btnOpenGlossary && glossaryModal) {
+      btnOpenGlossary.addEventListener('click', () => glossaryModal.classList.remove('hidden'));
+    }
+    if (closeGlossaryBtn && glossaryModal) {
+      closeGlossaryBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+    if (closeGlossaryActionBtn && glossaryModal) {
+      closeGlossaryActionBtn.addEventListener('click', () => glossaryModal.classList.add('hidden'));
+    }
+
+    const btnOpenStory = document.getElementById('btnOpenStory');
+    const storyModal = document.getElementById('storyModal');
+    const closeStoryBtn = document.getElementById('closeStoryBtn');
+    const closeStoryActionBtn = document.getElementById('closeStoryActionBtn');
+
+    if (btnOpenStory && storyModal) {
+      btnOpenStory.addEventListener('click', () => storyModal.classList.remove('hidden'));
+    }
+    if (closeStoryBtn && storyModal) {
+      closeStoryBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+    if (closeStoryActionBtn && storyModal) {
+      closeStoryActionBtn.addEventListener('click', () => storyModal.classList.add('hidden'));
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        if (glossaryModal) glossaryModal.classList.add('hidden');
+        if (storyModal) storyModal.classList.add('hidden');
+      }
+    });
+
+    // Live search filter across APIs
+    const apiSearchInput = document.getElementById('apiSearchInput');
+    if (apiSearchInput) {
+      apiSearchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        if (!term) {
+          renderCurrentStepDetails();
+          return;
+        }
+
+        let matchedApis = [];
+        FLOW_DATA.steps.forEach((step) => {
+          step.apis.forEach(api => {
+            if (
+              api.code.toLowerCase().includes(term) ||
+              api.name.toLowerCase().includes(term) ||
+              api.physicalAction.toLowerCase().includes(term) ||
+              api.method.toLowerCase().includes(term) ||
+              (api.whyNeeded && api.whyNeeded.toLowerCase().includes(term))
+            ) {
+              matchedApis.push({ ...api, fromStep: step.badge });
+            }
+          });
+        });
+
+        // Switch to API list tab to show search results
+        if (tabBtnList) tabBtnList.click();
+
+        const countBadge = document.getElementById('apiCountBadge');
+        if (countBadge) countBadge.textContent = `${matchedApis.length} kết quả`;
+
+        const container = document.getElementById('apiListContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (matchedApis.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-8 text-slate-500 text-xs">
+              Không tìm thấy API hoặc Batch nào khớp với "${term}".
+            </div>
+          `;
+          return;
+        }
+
+        matchedApis.forEach(api => {
+          const card = document.createElement('div');
+          card.className = "bg-slate-900/90 border border-orange-500/40 p-3 rounded-xl hover:border-orange-400 transition-all cursor-pointer";
+          card.innerHTML = `
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="font-mono font-bold text-orange-300">${api.code}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${api.fromStep}</span>
+            </div>
+            <p class="text-xs text-white font-medium mb-1">${api.name}</p>
+            <p class="text-[11px] text-slate-400">${api.whyNeeded || api.physicalAction}</p>
+          `;
+          card.addEventListener('click', () => openApiModal(api));
+          container.appendChild(card);
+        });
+      });
+    }
+
+    window.onload = function() {
+      resizeCanvas();
+      renderCurrentStepDetails();
+      animateLoop();
+    };
+  </script>
+</body>
+</html>
