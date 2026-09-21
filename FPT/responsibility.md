@@ -9,13 +9,12 @@ Nói tự nhiên, gãy gọn theo dòng thời gian một ngày làm việc:
 > "Dạ, công việc hàng ngày của em trong dự án được chia làm hai mảng chính:
 > **1. Về vai trò Sub-lead và điều phối:**
 > * Đầu ngày, em tham gia Daily Scrum cùng team để nắm tiến độ, rà soát xem có member nào đang gặp blocker (vướng spec, vướng môi trường hay lỗi kỹ thuật) để hỗ trợ gỡ ngay.
-> * Em làm việc trực tiếp với khách hàng hoặc BrSE/BA để làm rõ các Requirement/Spec mới của API và Batch, sau đó bóc tách thành các task kỹ thuật cụ thể, ước lượng thời gian (estimate) và phân chia cho anh em trong team.
-> * Trong ngày, em thực hiện code review cho các Pull Request của member, đảm bảo code tuân thủ convention, đúng ranh giới transaction và các câu truy vấn MyBatis được viết tối ưu trước khi merge.
-> * Cuối ngày hoặc định kỳ, em tổng hợp tình hình tiến độ và các rủi ro phát sinh để report cho Project Manager.
+> * Nếu có em sẽ trao đổi trực tiếp với BA để làm rõ các Requirement/Spec mới, ước lượng thời gian (estimate) và phân chia lại cho anh em trong team.
+> * Em cũng thực hiện code review cho các Pull Request của member, đảm bảo code tuân thủ convention, phân tích các bug có thể xảy ra, đảm bảo logic nghiệp vụ.
 > 
 > 
 > **2. Về vai trò Developer thực chiến:**
-> * Sau khi sắp xếp xong việc cho team, phần lớn thời gian còn lại em tập trung code các module nghiệp vụ phức tạp mà em trực tiếp phụ trách, chủ yếu là các API điều khiển trạm nhặt/robot và cụm Batch phân bổ tồn kho.
+> * Code các module nghiệp vụ mà em phụ trách
 > * Em cũng là người trực tiếp tham gia điều tra, fix các con bug khó mà member chưa giải quyết được, và tối ưu các đoạn logic/SQL bị chậm phát hiện trong quá trình test hoặc vận hành."
 > 
 > 
