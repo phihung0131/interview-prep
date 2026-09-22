@@ -4,9 +4,8 @@
 
 ### Mẫu trả lời (Tự nhiên, đúng chất Dev + Sub-lead thực chiến)
 
-> "Dạ chào anh/chị, em tên là [Tên], hiện tại em có [X] năm kinh nghiệm làm Backend Developer, thế mạnh chính của em là hệ sinh thái **Java, Spring Boot, MyBatis và PostgreSQL**.
-> Trong các dự án vừa qua, em có cơ hội tham gia phát triển các hệ thống quản lý có độ phức tạp cao về mặt nghiệp vụ và xử lý dữ liệu, điển hình là hệ thống kho vận tự động hóa WES/WIV. Tại đây, em vừa làm dev trực tiếp phát triển các module cốt lõi, vừa đảm nhận thêm vai trò **Sub-lead** hỗ trợ phân chia task, theo dõi tiến độ cho anh em và trao đổi spec trực tiếp với khách hàng.
-> Đến với buổi phỏng vấn hôm nay, em rất mong muốn được tìm hiểu sâu hơn về dự án của công ty cũng như chia sẻ những kinh nghiệm thực chiến của mình để xem hai bên có phù hợp để đồng hành cùng nhau hay không ạ."
+> "Dạ chào anh/chị, em tên là [Tên], hiện tại em có [X] năm kinh nghiệm làm Backend Developer, thế mạnh chính của em là về ngôn ngữ **Java và SQL**.
+> Trong các dự án hiện tại tại FPT, em có cơ hội tham gia phát triển các hệ thống quản lý hệ thống kho vận hành và quản lý tồn kho tự động hóa (WES/WIV). Tại đây, em vừa làm dev trực tiếp phát triển các module cốt lõi, vừa đảm nhận thêm vai trò **Sub-lead** hỗ trợ phân chia task, theo dõi tiến độ cho anh em và trao đổi spec trực tiếp với khách hàng."
 
 ---
 
