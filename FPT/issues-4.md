@@ -107,3 +107,23 @@ $$\text{Pool Size} = \text{Core CPU} \times \left(1 + \frac{\text{Wait Time}}{\t
 * `parallelStream()` mặc định dùng chung **ForkJoinPool.commonPool()** của toàn bộ JVM. Nếu batch job chiếm dụng hết pool này, tất cả các tác vụ khác trong ứng dụng cần dùng parallelStream sẽ bị nghẽn (starvation).
 * `@Async` nếu không chỉ định rõ bean `Executor` thì Spring có thể dùng pool mặc định không giới hạn queue (dễ dẫn tới `OutOfMemoryError` khi dữ liệu lớn).
 * Vì vậy, nguyên tắc tốt nhất là luôn khai báo một **Custom ThreadPoolExecutor** độc lập dành riêng cho batch job, có cấu hình rõ ràng: `CorePoolSize`, `MaxPoolSize`, `ArrayBlockingQueue` có giới hạn (Bounded Queue) và chính sách xử lý khi quá tải (như `CallerRunsPolicy` để tự động giảm tốc độ nạp việc khi hàng đợi đầy)."
+
+### Câu trả lời phỏng vấn (STAR — case thread pool regression, tham gia trực tiếp)
+
+> "Có một sự cố về hiệu năng khá nhớ mà em tham gia trực tiếp xử lý cùng team, xảy ra ngay sau một đợt refactor code.
+
+> Hệ thống có một batch job chạy vào ban đêm để tổng hợp lại toàn bộ biến động tồn kho trong ngày — nhập, xuất, kiểm kê — rồi chốt số liệu để sáng hôm sau nhân viên ca sáng có số tồn đúng khi bắt đầu làm việc. Bình thường job này chỉ chạy khoảng 20-30 phút là xong. Nhưng sau một bản release có đợt refactor lại module xử lý batch — dọn dẹp code cho gọn hơn — thì team trực đêm báo lên là job chạy gần 2 tiếng mới xong, có nguy cơ chưa kịp trước giờ ca sáng vào.
+
+> Em cùng team soát lại thì so sánh thời gian chạy trước và sau bản release đó, xác nhận đúng là bắt đầu chậm từ lúc deploy bản có refactor. Nhìn vào code thay đổi thì phát hiện ra vấn đề: trước đây phần xử lý dữ liệu được chia theo từng nhóm kho/danh mục và chạy song song bằng nhiều luồng. Nhưng trong lúc refactor, lúc gom các hàm lại cho gọn, không rõ vô tình thế nào mà phần cấu hình xử lý đa luồng đó bị bỏ sót, không còn được áp dụng đúng nữa — kết quả là toàn bộ hàng nghìn nhóm dữ liệu, đáng lẽ được nhiều luồng xử lý cùng lúc, giờ lại bị dồn hết chạy tuần tự trên một luồng duy nhất. Nên thời gian chạy mới bị nhân lên gấp nhiều lần như vậy.
+
+> Lúc đó team cũng cân nhắc là rollback về bản cũ cho nhanh, nhưng như vậy sẽ mất hết các cải thiện code khác trong đợt refactor, phải làm lại từ đầu. Nên bọn em chọn hướng khôi phục lại đúng cấu hình xử lý song song như thiết kế ban đầu, còn phần code đã dọn gọn thì vẫn giữ nguyên. Cái khó là phải tính lại cho đúng số luồng chạy song song bao nhiêu là hợp lý — nếu chạy quá nhiều luồng cùng lúc thì lại làm quá tải kết nối tới database, còn quá ít thì không tận dụng được tốc độ, coi như quay lại vấn đề cũ.
+
+> Sau khi tính toán lại và áp dụng, thời gian chạy job giảm từ gần 2 tiếng xuống chỉ còn khoảng 10 phút — nhanh hơn cả trước khi refactor, vì vừa giữ được code gọn hơn vừa cấu hình luồng đúng lại. Sau vụ đó, team cũng thêm một bước kiểm tra thời gian chạy của các batch job quan trọng vào checklist trước khi merge, để tránh lặp lại kiểu lỗi âm thầm như vậy."
+
+---
+
+**Vài lưu ý khi trình bày:**
+- Phần **"không rõ vô tình thế nào"** là cách nói an toàn khi bạn không chắc chi tiết kỹ thuật chính xác gây mất luồng (do gộp hàm, do config bị đè, do đổi sang cách gọi khác...) — không cần khẳng định chắc nịch nếu không nhớ rõ.
+- Nếu bị hỏi **"vậy làm sao biết số luồng bao nhiêu là hợp lý?"** — nếu bạn không nhớ công thức cụ thể, có thể trả lời tự nhiên: "Bọn em tính dựa theo số kết nối database tối đa cho phép, để đảm bảo batch job không chiếm hết pool kết nối, ảnh hưởng tới các job hay service khác đang chạy song song." — không cần nói công thức toán học nếu không tự tin giải thích khi bị hỏi sâu.
+- Nếu bị hỏi **"sao không rollback cho an toàn"** — câu trả lời sẵn có trong bài đã hợp lý: giữ lại phần cải thiện tốt, chỉ sửa đúng chỗ bị lỗi.
+- Nếu bị hỏi sâu về cơ chế thread pool (core size, queue, exception handling khi 1 thread lỗi) mà không nắm chắc, nên thành thật: "Phần cấu hình chi tiết lúc đó là cả team cùng bàn và chỉnh, em nhớ hướng chính là dựa vào số kết nối DB cho phép, còn con số cụ thể thì lâu rồi em không nhớ chính xác."

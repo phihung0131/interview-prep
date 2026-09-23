@@ -107,3 +107,24 @@ Chọn sửa triệt để thứ tự làm tròn trong code gốc. Là dev, khô
 1. Sort danh sách kiện hàng theo thể tích giảm dần.
 2. Duyệt từng kiện, dùng thuật toán không gian trống (Guillotine Split hoặc Coordinate Spaces) để tìm vị trí còn trống nhỏ nhất mà vừa với kiện đó.
 3. Kiểm tra các ràng buộc: xoay chiều kiện hàng (rotation), trọng tâm pallet và giới hạn tải trọng trước khi chốt tọa độ đặt kiện."
+
+### Câu trả lời phỏng vấn (STAR — case lỗi làm tròn tích lũy, trực tiếp làm)
+
+> "Có một con bug khá hay mà em trực tiếp nhận và xử lý, liên quan đến việc tính toán đóng gói pallet trong hệ thống logistics.
+
+> Hệ thống có một module tính xem một kiện hàng với kích thước như vậy thì xếp được bao nhiêu lên một pallet, từ đó suy ra cần bao nhiêu pallet cho một chuyến hàng, để hệ thống gợi ý loại xe tải phù hợp. Em nhận ticket từ bộ phận vận hành báo lên là số pallet thực tế lúc đóng hàng luôn nhiều hơn so với hệ thống tính toán ban đầu, dẫn đến việc hay bị thiếu xe, phải gọi thêm xe ngoài kế hoạch, phát sinh chi phí.
+
+> Em lấy dữ liệu của mấy đơn hàng bị lệch từ production về, rồi viết unit test để chạy lại đúng thuật toán đó với cùng bộ dữ liệu, so sánh với việc tính tay theo logic toán học thông thường. Kết quả là con số hệ thống trả về luôn thấp hơn hẳn so với tính tay — tức là hệ thống đang đánh giá pallet "đầy" sớm hơn thực tế rất nhiều.
+
+> Em đọc sâu vào code thì phát hiện ra vấn đề nằm ở chỗ làm tròn số. Lúc quy đổi đơn vị kích thước của từng cạnh kiện hàng, code cũ làm tròn xuống ngay ở từng bước tính trung gian của từng chiều dài, rộng, cao — thay vì tính toán chính xác rồi mới làm tròn ở bước cuối cùng. Vì làm tròn sớm như vậy nên mỗi chiều bị hụt đi một chút, và khi nhân ba chiều lại với nhau để ra thể tích, rồi nhân tiếp qua nhiều lớp kiện hàng, thì sai số nhỏ đó cộng dồn lại thành một khoảng lệch khá lớn.
+
+> Lúc đó có người đề xuất là cứ thêm một hệ số bù vào kết quả cuối cho nhanh, kiểu nhân thêm 10-15% gì đó. Nhưng em thấy cách đó không ổn, vì mỗi loại hàng có kích thước khác nhau, một hệ số cố định không thể đúng cho tất cả — có khi lại làm hệ thống tính vượt quá giới hạn tải trọng thật của xe. Nên em chọn sửa tận gốc: giữ độ chính xác cao nhất trong suốt quá trình tính toán, không làm tròn giữa chừng nữa, mà chỉ làm tròn đúng một lần ở kết quả cuối cùng thôi.
+
+> Sau khi sửa và deploy, số liệu hệ thống tính ra khớp sát với thực tế đóng hàng, số pallet cần dùng giảm đúng như kế hoạch ban đầu, bên vận hành cũng không còn phải điều xe phát sinh ngoài dự toán nữa."
+
+---
+
+**Vài lưu ý khi trình bày:**
+- Nếu bị hỏi **"sao biết chính xác là do làm tròn ở bước trung gian chứ không phải chỗ khác"** — trả lời theo hướng thực tế: "Em debug từng bước trong hàm, in ra giá trị trung gian sau mỗi phép tính, so với giá trị tính tay thì thấy lệch bắt đầu xuất hiện ngay từ bước quy đổi đơn vị, chứ không phải ở bước cuối" — không cần nói tới BigDecimal/kiểu số nguyên nếu bạn không chắc code thực tế dùng gì.
+- Nếu bị hỏi **"vậy sửa xong có test lại kỹ không, sợ ảnh hưởng đơn hàng khác"** — trả lời thật: "Em có chạy lại thử với nhiều bộ dữ liệu khác nhau từ các đơn cũ để so sánh trước/sau khi sửa, đảm bảo không có case nào bị lệch theo hướng ngược lại (tính dư so với thực tế, gây quá tải pallet)."
+- Nếu không chắc chắn được hỏi sâu về kiểu dữ liệu (float/double/BigDecimal) thì có thể nói ở mức khái quát: "Về chi tiết kiểu dữ liệu dùng lúc đó thì em không nhớ chính xác, nhưng ý chính là tránh làm tròn quá sớm khi các phép tính còn đang nối tiếp nhau."

@@ -109,3 +109,25 @@ Em quyết định chọn **Phương án 2: Giải quyết dứt điểm**:
 * Khi đơn hàng đi vào bước A, hệ thống sinh ra một `Trace ID` duy nhất và gắn vào metadata header của message.
 * Khi message đi qua các service C và D, `Trace ID` được truyền xuyên suốt (Context Propagation). Các service log kèm `Trace ID`, `Span ID` và trạng thái payload.
 * Nhờ đó, em có thể search trên giao diện tracing để thấy toàn bộ hành trình của một đơn hàng qua từng service và phát hiện ngay service nào đang chạy vào nhánh fallback."
+
+### Câu trả lời phỏng vấn (STAR — case fault masking, trực tiếp làm)
+
+> "Đây là một con bug khá thú vị mà em tự phát hiện và điều tra, liên quan đến việc một lỗi bị che giấu bởi một cơ chế khác trong hệ thống.
+
+> Bên em có một luồng xử lý đơn hàng chạy qua 4 bước nối tiếp nhau: bước A tiếp nhận và chuẩn hóa dữ liệu, bước B bổ sung thêm thông tin còn thiếu, bước C tính toán để chọn ra kho phù hợp nhất để lấy hàng, và bước D kiểm tra lần cuối rồi mới chốt lệnh xuất hàng xuống kho thực tế.
+
+> Bình thường thì không có ai báo lỗi gì cả, vì đơn hàng cuối cùng luôn xuất kho đúng. Em phát hiện ra vấn đề hoàn toàn tình cờ, lúc đang làm một cái dashboard để theo dõi thời gian xử lý của từng bước trong luồng đó — mục đích ban đầu chỉ là đo hiệu năng thôi. Nhưng khi log dữ liệu trung gian của từng bước ra để hiển thị lên dashboard, em nhìn qua log thì thấy có một số đơn mà kết quả chọn kho ở bước C rõ ràng bị sai — không khớp với logic mong đợi dựa trên dữ liệu đầu vào từ bước B. Nhưng lạ là bước D ngay sau đó vẫn luôn ra kết quả đúng.
+
+> Em ngồi soi kỹ thì phát hiện ra ở bước C có một lỗi logic khi gặp đơn hàng cồng kềnh — có một chỗ tính điểm ưu tiên cho các kho bị ghi đè sai, khiến kho gần bị tính điểm về 0, còn kho xa lại vô tình được xếp lên vị trí ưu tiên cao nhất. Còn ở bước D thì hóa ra người viết code trước đó có cài sẵn một lớp kiểm tra an toàn — nếu kho mà bước C đề xuất không đạt yêu cầu về thời gian giao hàng, bước D sẽ tự động âm thầm chuyển sang chọn kho gần nhất còn hàng, coi như một phương án dự phòng. Chính cái cơ chế dự phòng chạy ngầm, không báo gì cả này đã vô tình "sửa" luôn cái sai của bước C, nên nhìn từ ngoài vào thì hệ thống lúc nào cũng ra kết quả đúng.
+
+> Lúc đó em có cân nhắc là thôi bỏ qua cũng được, vì output cuối vẫn đúng mà. Nhưng em thấy vậy khá rủi ro — vì nếu sau này có ai đó vào tối ưu lại bước D, thấy cái đoạn dự phòng đó tưởng dư thừa nên bỏ đi, thì lỗi ở bước C sẽ lộ ra ngay lập tức và ảnh hưởng thật đến việc chọn kho. Nên em quyết định xử lý dứt điểm cả hai phía: sửa lại đúng lỗi tính điểm ở bước C, còn ở bước D thì em vẫn giữ lại cơ chế dự phòng đó vì nó cũng có ý nghĩa bảo vệ hệ thống, nhưng em thêm log cảnh báo mỗi khi nó được kích hoạt, để team biết ngay nếu có bất thường xảy ra ở các bước trước, thay vì để nó âm thầm che lấp lỗi như vậy.
+
+> Case này giúp em rút ra bài học là kết quả cuối đúng không có nghĩa là mọi bước bên trong đều đúng, nên việc theo dõi dữ liệu ở từng bước trung gian, chứ không chỉ mỗi đầu ra cuối cùng, là rất quan trọng để tránh những lỗi kiểu 'chạy đúng nhờ may mắn' như vậy."
+
+---
+
+**Vài lưu ý khi trình bày:**
+- Đây là case thể hiện tư duy khá tốt (chủ động, cẩn trọng, không chủ quan khi output đúng) — nên kể với giọng tự tin, không cần rào đón nhiều.
+- Nếu bị hỏi **"vậy sao biết chắc là do fallback ở D che lỗi, không phải trùng hợp dữ liệu"** — trả lời thật: "Em có thử tắt tạm cơ chế fallback đó trên môi trường test với đúng bộ dữ liệu gây lỗi, thấy kết quả bước D sai theo đúng lỗi từ C, nên xác nhận chắc chắn là do fallback che lại."
+- Nếu bị hỏi sâu về cách bạn viết test để bắt lỗi tương tự trong tương lai — có thể trả lời khái quát: "Sau đó em có viết thêm test riêng cho từng bước, kiểm tra kỹ output của bước C độc lập với input giả lập từ B, thay vì chỉ test đầu ra cuối cùng của cả luồng."
+- Nếu không nhớ rõ chi tiết kỹ thuật của lỗi ghi đè (variable/key override) thì có thể nói chung: "Chi tiết dòng code cụ thể thì lâu rồi em không nhớ chính xác, nhưng bản chất là một lỗi tính điểm bị ghi đè sai ở điều kiện biên."

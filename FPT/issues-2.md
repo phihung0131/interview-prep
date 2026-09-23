@@ -1,89 +1,20 @@
-# Case 2: Xử lý tranh chấp giữ tồn kho cho Hot SKU (Inventory Reservation Concurrency)
+### Câu trả lời phỏng vấn (bản sửa — dùng Optimistic Locking với updated_at làm version)
 
-**Bối cảnh nghiệp vụ**
+> "Có một bài toán concurrency khác em thấy khá hay, dù không phải lúc sự cố xảy ra em trực tiếp xử lý, mà là lúc em đọc lại code và tài liệu của hệ thống thì phát hiện ra cách team kiến trúc trước đó đã giải quyết — đó là bài toán **giữ tồn kho cho các mã hàng bán chạy (Hot SKU)** trong mùa sale.
 
-Trong hệ thống quản lý kho vận kết hợp bán hàng (WMS/OMS), trước khi một lệnh nhặt hàng thực tế được giao cho nhân viên hay robot dưới sàn, hệ thống phải thực hiện bước **Giữ chỗ tồn kho (Inventory Reservation / Soft Allocation)**. Khi đơn hàng được tạo, hệ thống trừ vào tồn khả dụng (`available_qty`) và cộng vào tồn tạm giữ (`reserved_qty`). Vào các đợt flash sale hoặc khung giờ cao điểm, hàng chục đến hàng trăm đơn hàng có thể cùng tranh chấp một mã hàng bán chạy (**Hot SKU**) tại cùng một kho trung tâm trong cùng một giây.
+> Về bối cảnh, em hiểu sơ là trước khi đơn hàng thật sự được giao xuống kho để nhặt, hệ thống phải trừ tạm tồn kho khả dụng để tránh bán trùng. Vào các đợt sale cao điểm, có lúc hàng trăm đơn cùng tranh nhau một mã hàng hot trong cùng một khoảng thời gian rất ngắn. Theo tài liệu để lại thì giai đoạn đầu hệ thống từng gặp tình trạng bán vượt tồn kho — khách đặt thành công nhưng đến lúc xuất kho thì hàng đã hết, phải hủy đơn thủ công.
 
-**Phát hiện**
+> Em có tò mò nên đào lại git history để xem cách xử lý ban đầu với cách xử lý sau này khác nhau ra sao. Hóa ra ban đầu code làm theo kiểu đọc số lượng ra, kiểm tra đủ hàng hay không, rồi mới ghi lại — tách thành nhiều bước riêng lẻ. Vấn đề là khi nhiều request cùng đọc gần như cùng lúc, chúng đọc ra cùng một con số tồn kho ban đầu, rồi cùng ghi đè kết quả lên nhau, nên dù logic mỗi request đều đúng nhưng tổng thể lại bị sai — kiểu nhiều đơn cùng trừ thành công trong khi hàng chỉ đủ cho một đơn.
 
-Vấn đề này từng xảy ra trong giai đoạn đầu của hệ thống: Sau các đợt khuyến mãi lớn, bộ phận CS và vận hành kho ghi nhận tình trạng **bán vượt tồn kho (overselling)**. Khách hàng đã thanh toán và hệ thống báo thành công, nhưng khi gom đơn để xuất kho thì thực tế kệ hàng đã hết sạch. Nhiều đơn hàng buộc phải hủy thủ công, gây ảnh hưởng uy tín và chi phí đền bù.
+> Cách team trước xử lý là dùng **optimistic locking**, nhưng thay vì thêm hẳn một cột version riêng, họ tận dụng luôn cột **updated_at** (thời điểm cập nhật gần nhất) làm giá trị version. Luồng xử lý là: request đọc dữ liệu tồn kho lên, kèm luôn giá trị updated_at tại thời điểm đọc. Sau khi validate xong các điều kiện đầu vào (đủ hàng hay không, hợp lệ hay không), lúc ghi xuống thì câu update sẽ kèm điều kiện so khớp đúng cái updated_at đã đọc lúc đầu. Nếu trong lúc đó có request khác đã ghi trước và làm updated_at thay đổi, thì điều kiện so khớp sẽ sai, câu update không match được dòng nào, hệ thống hiểu là bị xung đột phiên bản và quăng lỗi để tầng ứng dụng xử lý lại — chứ không âm thầm ghi đè lên nhau như cách cũ.
 
-**Điều tra & Học hỏi (Root Cause Analysis)**
+> Em cũng đọc thấy trước đó có cân nhắc dùng khóa cứng — kiểu khóa hẳn dòng dữ liệu trong lúc xử lý, nhưng với mã hàng hot có quá nhiều request cùng tranh chấp thì sẽ gây nghẽn nặng, request phải xếp hàng chờ. Optimistic locking thì ngược lại, không giữ khóa, ai đọc trước ghi trước thì thắng, còn lại bị từ chối và phải thử lại — phù hợp hơn với những trường hợp mà đa số request vẫn có thể xử lý nhanh mà không cần chờ đợi lẫn nhau.
 
-Khi tham gia dự án, em đã chủ động đào sâu lại tài liệu kỹ thuật và git history để hiểu cách các Senior/Architect tiền nhiệm giải quyết bài toán này:
-
-* **Nguyên nhân gốc rễ:** Code nguyên bản xử lý theo mô hình *Read-Modify-Write* tách biệt:
-1. `SELECT available_qty FROM inventory WHERE sku_id = ?;`
-2. Ứng dụng kiểm tra `if (available_qty >= order_qty)` và tính `new_qty = available_qty - order_qty`.
-3. `UPDATE inventory SET available_qty = new_qty WHERE sku_id = ?;`
-
-
-* **Cơ chế lỗi:** Khi nhiều request ùa vào cùng một mili-giây, các thread cùng đọc được con số tồn kho ban đầu như nhau. Chúng cùng tính toán và ghi đè kết quả, dẫn đến hiện tượng **Lost Update** kinh điển. Kết quả là 5 đơn hàng cùng trừ kho thành công trong khi số lượng thực tế chỉ đủ cho 1 đơn.
-
-**Phương án & Đánh đổi (Trade-offs)**
-
-Đội ngũ kiến trúc ban đầu đã phân tích 3 phương án:
-
-* *Phương án 1: Khóa bi quan (Pessimistic Locking - `SELECT ... FOR UPDATE`)*:
-*Ưu điểm:* Dữ liệu luôn chính xác 100%, dễ viết code.
-*Đánh đổi:* Khi hàng trăm request cùng nhắm vào một Hot SKU, việc ép xếp hàng tuần tự ở database gây hiện tượng **Lock Contention** nghiêm trọng. Response time tăng vọt, connection pool của DB bị cạn kiệt, kéo sập thông lượng (throughput) của toàn bộ hệ thống.
-* *Phương án 2: Khóa lạc quan dùng phiên bản (Optimistic Locking - `WHERE version = current_version`)*:
-*Ưu điểm:* Không giữ row lock dài ở DB, hiệu năng đọc rất cao.
-*Đánh đổi:* Với Hot SKU có tỷ lệ tranh chấp cực cao (high contention), nếu 100 request cùng đến thì chỉ có 1 request ghi thành công, 99 request còn lại bị conflict. Nếu cho retry tự động, hệ thống sẽ rơi vào bão request (**Retry Storm**), ngốn sạch tài nguyên CPU/Network mà tỷ lệ giữ hàng thành công vẫn rất thấp.
-* *Phương án 3: Cập nhật nguyên tử tại Database kèm điều kiện biên (Atomic In-place Update with Guard Condition)*:
-*Cú pháp:*
-`UPDATE inventory SET available_qty = available_qty - :order_qty, reserved_qty = reserved_qty + :order_qty WHERE sku_id = :sku_id AND available_qty >= :order_qty;`
-*Ưu điểm:* Loại bỏ hoàn toàn khoảng hở giữa đọc và ghi. Bản thân storage engine của DB (như InnoDB row-level lock) tự tuần tự hóa thao tác ghi trong vài micro-giây. Điều kiện `available_qty >= :order_qty` đóng vai trò chốt chặn nguyên tử: nếu thành công trả về `rows_affected = 1`, nếu hết hàng trả về `rows_affected = 0`.
-*Đánh đổi:* Mọi logic trừ tồn kho phải gói gọn trong 1 câu SQL đơn giản, không nhúng được các điều kiện logic tính toán phức tạp ở tầng code; nếu quy trình checkout phía sau bị lỗi thì bắt buộc phải viết thêm compensating transaction để hoàn tồn (rollback thủ công).
-
-**Quyết định & Kết quả**
-
-Team kiến trúc trước đó đã chốt chọn **Phương án 3 (Atomic In-place Update)**.
-
-Giải pháp này giúp triệt tiêu hoàn toàn lỗi overselling trong tất cả các mùa sale sau đó, đồng thời giữ latency của API giữ kho luôn ổn định dưới 20ms mà không làm nghẽn DB Connection Pool. Khi nghiên cứu lại case này, em đã nắm vững tư duy cân bằng giữa **Data Consistency** và **System Throughput** trong các bài toán chịu tải đồng thời cao.
+> Việc tìm hiểu lại case này giúp em hiểu rõ hơn là xử lý concurrency không phải lúc nào cũng cần khóa chặt mọi thứ lại, mà cần nhìn vào mức độ tranh chấp thực tế để chọn giải pháp phù hợp."
 
 ---
 
-### Câu trả lời phỏng vấn đầy đủ (Mạch lạc, trung thực về vai trò)
-
-> "Trong quá trình làm việc tại hệ thống quản lý kho và đơn hàng, có một bài toán về **High Concurrency** kinh điển mà em đã chủ động đào sâu nghiên cứu lại từ kiến trúc của các anh Senior đi trước, đó là bài toán **Giữ tồn kho (Inventory Reservation) cho các Hot SKU**.
-> Trước đây, vào các đợt flash sale, hệ thống từng gặp sự cố **Bán vượt tồn kho (Overselling)**. Khách đặt hàng và nhận thông báo thành công, nhưng khi gom đơn để xuất kho thì kệ thực tế đã hết hàng, khiến team vận hành phải hủy đơn thủ công.
-> Khi tìm hiểu lại nguyên nhân gốc rễ, em nhận thấy ban đầu hệ thống xử lý theo mô hình *Read-Modify-Write* tách biệt: ứng dụng `SELECT` số lượng ra bộ nhớ, kiểm tra logic `available_qty >= order_qty`, rồi mới chạy câu lệnh `UPDATE`. Khi hàng trăm request mua cùng một mã Hot SKU đổ về trong vài mili-giây, nhiều luồng cùng đọc ra số tồn kho giống nhau và cùng ghi đè kết quả lên DB, gây ra lỗi **Lost Update**.
-> Team kiến trúc lúc đó đã cân nhắc kỹ các phương án và đánh đổi:
-> 1. Nếu dùng **Pessimistic Locking (`SELECT FOR UPDATE`)**, dù an toàn nhưng với Hot SKU sẽ gây **Lock Contention** nghiêm trọng, giữ connection lâu làm nghẽn toàn bộ Connection Pool của cơ sở dữ liệu.
-> 2. Nếu dùng **Optimistic Locking bằng cột `version**`, do mức độ tranh chấp tại một SKU quá cao, 99% request sẽ bị conflict và văng lỗi. Nếu cho cơ chế retry chạy lại thì sẽ tạo ra bão request (**Retry Storm**), gây quá tải CPU hệ thống.
-> 3. Giải pháp tối ưu được chọn là **Cập nhật nguyên tử tại Database (Atomic In-place Update) kèm Guard Condition**:
-> `UPDATE inventory SET available_qty = available_qty - :qty, reserved_qty = reserved_qty + :qty WHERE sku_id = :sku AND available_qty >= :qty;`
-> 
-> 
-> Đánh đổi ở đây là toàn bộ nghiệp vụ kiểm tra và trừ tồn phải gói gọn trong một câu lệnh đơn giản, không nhúng được logic tính toán phức tạp ở tầng ứng dụng, và nếu các bước sau trong chu trình checkout bị lỗi thì phải có cơ chế bù trừ (Compensating Transaction) để hoàn lại số lượng. Đổi lại, hệ thống tận dụng được row-level lock cực ngắn của DB engine, triệt tiêu hoàn toàn lỗi overselling và giữ latency của API đặt hàng dưới 20ms.
-> Việc nghiên cứu kỹ giải pháp và trade-off của case study này giúp em tích lũy được tư duy quan trọng: Khi xử lý bài toán concurrency, không phải lúc nào cũng vác lock nặng nề ra dùng, mà cần nhìn vào mức độ tranh chấp (contention rate) để chọn điểm cân bằng giữa toàn vẹn dữ liệu và thông lượng hệ thống."
-
----
-
-### Các câu hỏi Interviewer có thể đào sâu tiếp & Hướng trả lời
-
-#### 1. "Sau khi câu lệnh Atomic Update chạy thành công (trả về `rows_affected = 1`), nhưng bước thanh toán hoặc bước tạo đơn tiếp theo bị lỗi/crash, em xử lý hoàn tồn kho (Rollback / Release) như thế nào?"
-
-* **Gợi ý trả lời:**
-"Vì thao tác giữ kho thường nằm trong quy trình checkout phân tán (Distributed Transaction), hệ thống áp dụng pattern **Saga / Compensating Transaction**:
-* Khi Atomic Update thành công, bản ghi reservation được sinh ra với trạng thái `PENDING` kèm một thời gian hết hạn (ví dụ TTL 15 phút).
-* Nếu các bước sau trả về lỗi, hệ thống kích hoạt API bù trừ:
-`UPDATE inventory SET available_qty = available_qty + :qty, reserved_qty = reserved_qty - :qty WHERE sku_id = :sku;`
-* Đồng thời có một worker chạy định kỳ quét các reservation ở trạng thái `PENDING` đã quá 15 phút (do crash hệ thống mà không gọi được API bù trừ) để tự động hoàn trả lại tồn khả dụng."
-
-
-
-#### 2. "Nếu một sự kiện siêu sale có tới hàng nghìn request/giây cùng đâm vào duy nhất 1 dòng DB của 1 SKU thì câu Atomic Update vẫn gây nghẽn Row Lock. Em có biết cách nào để scale tiếp không?"
-
-* **Gợi ý trả lời:**
-"Dạ đúng, vì Database serialize thao tác ghi trên cùng một hàng (row-level lock), nên hàng nghìn request/giây vẫn sẽ tạo hàng đợi nghẽn cổ chai. Để scale tiếp, có 2 hướng kiến trúc thường dùng:
-1. **Stock Partitioning / Sharding:** Chia 1 mã SKU thành nhiều slot (ví dụ chia 1.000 sản phẩm thành 10 dòng con, mỗi dòng 100 sản phẩm). Khi có request vào, hệ thống random hoặc băm theo user_id vào 1 trong 10 slot để trừ, giảm độ tranh chấp trên một row lock xuống 10 lần.
-2. **In-Memory Caching (Redis Counter):** Đưa toàn bộ lượng tồn kho của Hot SKU lên Redis và trừ bằng lệnh nguyên tử `DECRBY` hoặc Lua Script. Redis xử lý single-threaded in-memory với thông lượng hàng chục nghìn ops/giây. Sau khi giữ kho thành công trên Redis, hệ thống đẩy event vào Message Queue (như Kafka) để đồng bộ bất đồng bộ theo lô (batch update) xuống database chính."
-
-
-
-#### 3. "Tại sao không dùng Redis Distributed Lock để bọc lấy đoạn code trừ kho ở tầng ứng dụng?"
-
-* **Gợi ý trả lời:**
-"Nếu dùng Redis Distributed Lock, bản chất vẫn là **Pessimistic Lock** ở tầng ứng dụng: các request mua Hot SKU vẫn phải lần lượt xin lock, chờ đợi và nhả lock. Điều này không giải quyết được bài toán thông lượng mà còn tốn thêm nhiều network round-trip giữa app server và Redis cluster. Dùng Atomic Update tận dụng ngay lock nội tại của DB nhanh hơn nhiều, hoặc nếu dùng Redis thì dùng thẳng Lua Script/Atomic Counter chứ không nên dùng lock bao bọc."
+**Vài lưu ý:**
+- Nếu interviewer hỏi "vậy dùng updated_at làm version thì có rủi ro gì so với cột version riêng (kiểu số nguyên tăng dần)?" — bạn có thể trả lời thật: "Phần rủi ro sâu hơn của cách này thì em chưa tìm hiểu kỹ, nhưng em đoán nếu hệ thống có clock skew giữa các service hoặc độ chính xác timestamp không đủ (ví dụ chỉ tới giây) thì có thể hai lần update rất sát nhau bị trùng giá trị, khiến optimistic lock không phát hiện được xung đột." — đây là câu trả lời thể hiện tư duy phản biện dù không chắc chắn 100%, khá tốt cho phỏng vấn.
+- Nếu hỏi "vậy khi bị lỗi optimistic lock thì hệ thống retry thế nào" — thật thà: "Chi tiết cơ chế retry cụ thể em không nắm rõ, nhưng thường thì tầng ứng dụng sẽ đọc lại dữ liệu mới nhất và thử ghi lại, hoặc trả lỗi cho client để họ thử lại request."
+- Giữ nguyên phần mở đầu xác nhận vai trò "học lại, không trực tiếp xử lý" — nhất quán với các câu trả lời trước.
