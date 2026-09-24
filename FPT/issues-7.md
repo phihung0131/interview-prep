@@ -27,3 +27,19 @@
 - Nếu bị hỏi **"sao phát hiện ra được đúng race condition này, không phải nguyên nhân khác"** — trả lời thật: "Em lần theo timestamp trong log của cả hai luồng — máy quét và tiến trình tự động — thấy chúng chênh nhau chưa đến 2 phút và cùng đụng vào một bản ghi, nên nghi ngờ và xác nhận lại bằng cách đối chiếu đúng giá trị thời gian cập nhật ở từng bước."
 - Nếu bị hỏi **"sao không thấy lỗi này sớm hơn"** — có thể trả lời: "Vì tần suất xảy ra rất thấp, chỉ khi đúng hai điều kiện trùng nhau về thời gian, nên nó âm thầm tồn tại một thời gian trước khi bộc phát đủ nghiêm trọng để ảnh hưởng tới batch."
 - Nếu không chắc chắn 100% về việc bạn có phải người đề xuất giải pháp cuối cùng hay không, có thể điều chỉnh nhẹ câu "em đề xuất" thành "em cùng team đề xuất" cho an toàn.
+
+### Câu trả lời hoàn chỉnh, đã sửa đúng theo mô tả của bạn
+
+> "Em kể case này cho dễ hình dung nhé. Bên em có nghiệp vụ: khi một kiện hàng cần chỉnh sửa lại, hệ thống sẽ tạo ra một mã mới thay thế, còn mã cũ thì phải được đánh dấu là 'Retired' — hết hiệu lực, không ai được thao tác tiếp trên đó nữa. Việc đánh dấu 'Retired' này được xử lý bởi một batch chạy ngầm, kích hoạt ngay sau khi mã mới được tạo ra.
+
+> Vấn đề nằm ở đúng thời điểm đó có sự trùng hợp: giả sử lúc 11h58, một nhân viên dùng máy quét, quét mã **cũ** để loại bỏ hàng hư hỏng (scrap) — máy quét gọi API lấy thông tin bản ghi, trong đó có kèm một mốc thời gian cập nhật gần nhất, máy quét giữ lại mốc 11h58 này để dùng cho bước sau.
+
+> Gần như cùng lúc đó, cái batch retired mã cũ cũng chạy — nó update chính bản ghi đó để chuyển trạng thái thành Retired, khiến mốc thời gian cập nhật trong database đổi thành 11h59.
+
+> Đến khi nhân viên bấm xác nhận scrap, hệ thống gửi API hủy kèm mốc thời gian 11h58 mà máy quét đã lưu từ trước. Nhưng lúc này trong database mốc thời gian đã là 11h59 rồi — không khớp. Hệ thống mình có thiết kế: câu lệnh update chỉ chạy khi mốc thời gian khớp đúng, coi như một cách kiểm tra 'dữ liệu mình đang thấy có còn mới nhất hay không'. Vì không khớp nên câu lệnh update chạy nhưng không update được dòng nào — về bản chất, việc chuyển trạng thái sang 'đã scrap' đó **không hề xảy ra**.
+
+> Và đây là điểm em thấy nghiêm trọng nhất: hệ thống không hề kiểm tra lại xem câu update đó có thực sự thành công hay không, cũng không báo lỗi gì cả — nó cứ chạy tiếp như bình thường, coi như thao tác scrap đã xong. Nhưng thực chất bản ghi mã cũ vẫn giữ nguyên trạng thái cũ, không được đánh dấu đã scrap.
+
+> Trong khi đó, phần trừ tồn kho lại không phụ thuộc vào việc update trạng thái đó có thành công hay không — nó vẫn cứ chạy và trừ kho bình thường như thể scrap đã hoàn tất. Mà tồn kho thực tế của mã cũ này đã về 0 từ trước rồi, vì hàng đã xuất đi theo mã mới. Nên bị trừ thêm một lần nữa thì thành âm. Và vì trạng thái mã cũ vẫn chưa được đánh dấu là đã scrap, nên nhân viên quét lại được và scrap thêm lần nữa, kho lại càng âm sâu hơn — dẫn đến batch xử lý tồn kho ban đêm đọc phải số liệu âm vô lý đó và bị crash.
+
+> Sau khi tìm ra nguyên nhân, em đề xuất vá đúng hai chỗ: một là sau khi update trạng thái mà không có dòng nào bị ảnh hưởng thì phải coi đó là lỗi, dừng lại và báo ngay, không được để phần trừ kho chạy tiếp; hai là việc trừ kho phải gắn chặt với kết quả update trạng thái, không được tách rời độc lập như vậy. Bài học em rút ra là: có cơ chế kiểm tra dữ liệu mới nhất trước khi ghi thôi chưa đủ, quan trọng là toàn bộ các bước sau đó phải thực sự phụ thuộc vào kết quả kiểm tra đó, chứ không thể chạy tiếp một cách độc lập, im lặng cho qua được."
