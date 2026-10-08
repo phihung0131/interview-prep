@@ -1,3 +1,33 @@
+Tóm tắt case
+📦 Nghiệp vụ: Mã kiện hàng cũ phải được đánh dấu “Retired” sau khi có mã mới.
+
+⚡ Sự cố: Race condition giữa thao tác nhân viên (scrap) và batch tự động (retired).
+
+🕑 Cơ chế: Máy quét giữ timestamp cũ, trong khi batch update đổi timestamp mới → update scrap không match được dòng nào.
+
+🚨 Điểm hổng: Hệ thống không kiểm tra rows affected sau update, vẫn báo thành công và trừ kho.
+
+📉 Hậu quả: Tồn kho bị âm, batch xử lý ban đêm crash.
+
+Root cause & Insight
+Root cause: Race condition làm update không khớp, nhưng hệ thống không check kết quả.
+
+Insight quan trọng: Optimistic lock chỉ hiệu quả nếu tầng gọi thực sự kiểm tra và phản ứng đúng khi update bị từ chối.
+
+Giải pháp đề xuất
+✅ Bổ sung kiểm tra rows affected sau update → nếu = 0 thì báo lỗi.
+
+✅ Ràng buộc việc trừ kho phải phụ thuộc vào kết quả update trạng thái.
+
+✅ Kiểm tra trạng thái hợp lệ của bản ghi trước khi cho phép thao tác scrap.
+
+Cách trả lời khi bị hỏi thêm
+“Sao phát hiện ra race condition này?” → Lần theo log timestamp của cả hai luồng, thấy chênh lệch <2 phút, cùng đụng vào một bản ghi.
+
+“Sao không thấy lỗi này sớm hơn?” → Vì tần suất rất thấp, chỉ xảy ra khi hai điều kiện trùng thời gian, nên âm thầm tồn tại lâu.
+
+“Ai đề xuất giải pháp?” → Có thể nói “em cùng team đề xuất” để an toàn.
+
 ### Câu trả lời phỏng vấn (STAR — case WIV ABEND, trực tiếp làm)
 
 > "Có một sự cố khá phức tạp mà em trực tiếp điều tra, liên quan đến một race condition giữa hai luồng xử lý tưởng chừng không liên quan gì đến nhau.
