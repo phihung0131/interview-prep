@@ -19,7 +19,7 @@
 
 Thêm: **Bitmap** (điểm danh, đánh dấu người dùng hoạt động theo ngày rất tiết kiệm), **HyperLogLog** (đếm phần tử duy nhất gần đúng với 12 KB, ví dụ số người xem duy nhất), **Stream** (log sự kiện có consumer group), **Geo**.
 
-Ví dụ: bảng xếp hạng top video dùng ZSet, `ZINCRBY views 1 video:42` và `ZREVRANGE views 0 9 WITHSCORES`. Rate limiting cửa sổ trượt ở Notification Hub dùng ZSet lưu thời điểm request.
+Ví dụ: bảng xếp hạng top video dùng ZSet, `ZINCRBY views 1 video:42` và `ZREVRANGE views 0 9 WITHSCORES`. Rate limiting cửa sổ trượt có thể dùng ZSet lưu thời điểm request; còn Notification Hub của em dùng token bucket (chỉ hai số mỗi khóa, cập nhật bằng Lua).
 @fu Vì sao Hash tốt hơn nhiều key String cho một object?
 Hash nhỏ được mã hóa gọn (listpack) nên tiết kiệm bộ nhớ, và sửa được một trường mà không phải đọc/ghi cả JSON. Nhưng không đặt TTL riêng cho từng trường được (bản mới có HEXPIRE).
 
@@ -49,7 +49,7 @@ Pipeline gửi nhiều lệnh một lượt để giảm số vòng mạng, khô
 - **Write-through:** ghi qua cache, cache ghi đồng bộ xuống DB. Cache luôn mới; ghi chậm hơn và cache chứa cả dữ liệu ít đọc.
 - **Write-behind (write-back):** ghi vào cache, **xuống DB sau theo lô**. Ghi rất nhanh, gộp được nhiều lần ghi; **rủi ro mất dữ liệu** nếu cache chết trước khi xả, và DB trễ hơn thực tế.
 
-Em dùng **cache-aside**: ở Notification Hub để cache cấu hình tenant và quota (đọc mỗi request, đổi hiếm), TTL vài phút và xóa cache khi admin sửa. Kiểu gần **write-behind** hợp với bộ đếm lượt xem: `INCR` trong Redis rồi định kỳ gộp ghi xuống DB, chấp nhận lệch nhỏ và có đối soát.
+Em dùng **cache-aside**: ở Notification Hub, cổng vào hỏi service quản lý khách hàng xem API key có hợp lệ không, kết quả được **nhớ 30 giây** để không phải hỏi lại mỗi request; đổi lại một key vừa bị thu hồi vẫn có thể dùng thêm tối đa 30 giây. Kiểu gần **write-behind** hợp với bộ đếm lượt xem: `INCR` trong Redis rồi định kỳ gộp ghi xuống DB, chấp nhận lệch nhỏ và có đối soát.
 @fu Khi nào không nên cache?
 Dữ liệu đổi liên tục và phải chính xác tuyệt đối (số dư, tồn kho khi trừ), dữ liệu ít đọc lại, hoặc khi DB đã đủ nhanh. Cache thêm một nguồn lệch và một hệ thống phải vận hành.
 
@@ -117,7 +117,7 @@ Replication là **bất đồng bộ** nên failover có thể mất vài ghi cu
 
 **Khi Redis chết, hệ thống của em:**
 - **Cache:** **fail-open**, đọc thẳng DB, nhưng có circuit breaker và rate limit để DB không bị dồn sập; timeout Redis ngắn (50–100 ms) để không treo request.
-- **Rate limit:** tùy mục đích. Chống spam người dùng thì fail-open (cho qua, kèm giới hạn cục bộ thô trong instance); bảo vệ nhà cung cấp tính tiền theo lượt thì fail-closed.
+- **Rate limit:** tùy mục đích. Chống spam người dùng thì fail-open (cho qua, kèm giới hạn cục bộ thô trong instance); bảo vệ nhà cung cấp tính tiền theo lượt thì fail-closed. Ở Notification Hub: rate limit ở gateway cho qua khi Redis lỗi, còn giữ hạn mức gửi thì đóng cửa, trả 503, để không vượt hạn mức của khách.
 - **Khóa phân tán, idempotency:** không dựa duy nhất vào Redis; Notification Hub có lớp idempotency cuối ở PostgreSQL (upsert), Redis mất thì vẫn không gửi trùng.
 @fu Fork khi chụp RDB có vấn đề gì?
 Với RAM lớn, fork mất thời gian và copy-on-write làm tăng bộ nhớ khi ghi nhiều; cần chừa RAM và tắt transparent huge pages.

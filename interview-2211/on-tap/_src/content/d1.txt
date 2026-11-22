@@ -154,7 +154,7 @@ Nguyên nhân phụ cần loại trừ: cache feed nhiều tầng có TTL khác 
 
 **Ngăn tái diễn:** job đối soát tồn hằng ngày, alert khi tồn âm hoặc lệch.
 @fu Ở WMS em đã gặp chính xác chuyện này chưa?
-Kể theo trang “Case kiện Retired” (tồn kho âm do race condition) hoặc câu 5 ở trang WMS (batch chạy lại). Đừng nhận đã gặp nếu chưa.
+Kể theo trang “Case kiện Retired” (tồn kho âm do race condition) hoặc câu 11 ở [trang WMS](tra-loi-phong-van-wms.html#q5) (batch chạy lại). Đừng nhận đã gặp nếu chưa.
 
 @q 141
 @time khoảng 60 giây

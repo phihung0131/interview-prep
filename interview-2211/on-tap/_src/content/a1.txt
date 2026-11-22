@@ -28,7 +28,7 @@ Trả lời một câu: “Hệ thống điều phối hàng trong kho: nhận h
 @ans
 Vì em thấy **giá trị lõi của mọi dự án em làm nằm ở backend**, còn AI là công cụ.
 
-Ngay cả các dự án “AI” trên CV, phần nặng nhất vẫn là backend: Kestrel có crawl định kỳ, chống trùng, pgvector, auth, billing với webhook idempotent; lớp LLM của em thực chất là bài toán **timeout, retry, fallback và kiểm soát chi phí** khi gọi dịch vụ ngoài. Nền tảng AI ở FPT là tích hợp Jira, Confluence, GitHub và kiểm soát quyền truy cập dữ liệu.
+Ngay cả các dự án “AI” trên CV, phần nặng nhất vẫn là backend: Kestrel có crawl định kỳ, chống trùng, pgvector, auth, billing với webhook idempotent; lớp LLM của em thực chất là bài toán **timeout, retry, validate output theo schema và kiểm soát chi phí** khi gọi dịch vụ ngoài. Nền tảng AI ở FPT là tích hợp Jira, Confluence, GitHub và kiểm soát quyền truy cập dữ liệu.
 
 Em không làm nghiên cứu mô hình hay huấn luyện ML; em dùng AI để **làm backend nhanh hơn và review kỹ hơn**. Điều em muốn đào sâu tiếp là hệ thống quy mô lớn: dữ liệu, đồng thời, hệ phân tán. Đó cũng là lý do em chọn vị trí backend ở Zalo Media.
 @fu Vậy sau này em có muốn chuyển sang AI không?
@@ -42,7 +42,7 @@ Em nghĩ điểm khác của em là **em chứng minh bằng đo đạc, không 
 
 1. **Tuning query có số:** đọc EXPLAIN ANALYZE, thấy truy vấn quét 10 triệu dòng để lấy 1, thêm partial index tạo bằng CONCURRENTLY, đo cả trước–sau lẫn tác động lên ghi.
 2. **Xử lý đồng thời có tái hiện:** lỗi hiếm khay vượt tải, em biến nó thành lỗi chắc chắn bằng test hai thread trên DB thật trước khi sửa, sau khi sửa chạy lặp hàng trăm lần không lỗi.
-3. **Tự xây hệ sự kiện:** Notification Hub với Kafka, idempotency bằng upsert, DLQ, Saga cơ bản; em cố ý kill consumer để thấy tin bị giao lại và xử lý.
+3. **Tự xây hệ sự kiện:** Notification Hub với Kafka, idempotency bằng upsert, DLQ, Saga cơ bản; [[em cố ý kill consumer để thấy tin bị giao lại và xử lý]].
 
 Thêm một điểm: em **chủ động cải tiến quy trình** – xây nền tảng AI mà cả team dùng trên dự án thật.
 @fu Nhiều người 2 năm cũng tối ưu query, em khác gì?

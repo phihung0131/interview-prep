@@ -111,7 +111,7 @@ I use **three layers of protection**.
 
 **Third, the client retries correctly:** only for errors that are safe to retry, like timeouts or 503, not for 400 errors; with **exponential backoff and jitter**, so many clients don't retry at the same moment; and with a limit on the number of retries.
 
-In my Notification Hub, consumers are idempotent with a PostgreSQL upsert, so even if Kafka delivers a message twice, the user gets **only one notification**.
+In my Notification Hub, consumers are idempotent with a PostgreSQL upsert, so even if Kafka delivers a message twice, we don't create a second notification. For HTTP providers I also send a unique ID so they can drop duplicates; SMTP has no such mechanism, so there is still a very small window for a duplicate email, and I documented that.
 
 @q 184
 @time about 90 seconds

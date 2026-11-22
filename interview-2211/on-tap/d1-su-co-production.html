@@ -95,7 +95,7 @@
 <ol><li><b>Khóa chống chạy chồng:</b> advisory lock hoặc dòng khóa có hạn; lần sau thấy lần trước còn RUNNING thì thoát.</li><li><b>Idempotent:</b> mỗi biến động tồn có <b>khóa nghiệp vụ</b> (id lệnh + dòng) với unique constraint, chạy lại không tạo biến động mới; trừ tồn bằng conditional update.</li><li>Chia chunk, đánh dấu trạng thái từng phần để chạy lại chỉ làm phần thiếu.</li></ol>
 <p><b>Sửa dữ liệu an toàn:</b> tính lại tồn đúng từ lịch sử biến động (nguồn sự thật), sinh <b>bút toán điều chỉnh</b> (không UPDATE đè trực tiếp), chạy trên bản sao trước, có người duyệt, lưu lại bằng chứng, và đối soát với kiểm kê thực tế nếu cần.</p>
 <p><b>Ngăn tái diễn:</b> job đối soát tồn hằng ngày, alert khi tồn âm hoặc lệch.</p></div>
-<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Ở WMS em đã gặp chính xác chuyện này chưa?</summary><div class="a"><p>Kể theo trang “Case kiện Retired” (tồn kho âm do race condition) hoặc câu 5 ở trang WMS (batch chạy lại). Đừng nhận đã gặp nếu chưa.</p></div></details></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Ở WMS em đã gặp chính xác chuyện này chưa?</summary><div class="a"><p>Kể theo trang “Case kiện Retired” (tồn kho âm do race condition) hoặc câu 11 ở <a href="tra-loi-phong-van-wms.html#q5">trang WMS</a> (batch chạy lại). Đừng nhận đã gặp nếu chưa.</p></div></details></div>
 </article>
 <article class="qa" id="q141" data-q="q141">
 <div class="qa-h"><span class="qa-n">141</span><h3>Disk đầy trên node lúc 3 giờ sáng.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>

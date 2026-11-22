@@ -79,11 +79,11 @@ CI của em ở dự án **Kestrel** chạy trên GitHub Actions cho mỗi pull 
 
 1. **Lint và format:** linter cho backend và frontend, fail nếu sai quy ước.
 2. **Type check.**
-3. **Test backend** với một PostgreSQL thật chạy dạng service container (có pgvector), để test truy vấn thật chứ không mock.
+3. **Test backend** [[với một PostgreSQL thật chạy dạng service container (có pgvector), để test truy vấn thật chứ không mock]].
 4. **Test frontend.**
-5. **Build Docker image** để chắc image build được.
+5. [[**Build Docker image** để chắc image build được.]]
 
-Em cache dependency theo hash của file lock để mỗi lần chạy nhanh hơn, và đặt nhánh chính là protected: PR phải xanh mới merge được.
+[[Em cache dependency theo hash của file lock để mỗi lần chạy nhanh hơn, và đặt nhánh chính là protected: PR phải xanh mới merge được.]]
 
 Về CD: [[em chưa làm pipeline triển khai tự động hoàn chỉnh; hiện em deploy bằng Docker Compose trên một máy chủ, chạy lệnh pull image và up lại]]. Nếu làm tiếp em sẽ: build image gắn tag theo commit, đẩy lên registry, deploy tự động lên staging, còn production thì cần bấm duyệt; có migration DB chạy trước và có cách rollback về tag cũ.
 

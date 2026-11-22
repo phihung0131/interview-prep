@@ -144,7 +144,7 @@ Tránh `COUNT(*)` mỗi lần tải trang. Dùng ước lượng từ `pg_class.
 - Hoặc **2 query**: lấy danh sách, rồi `WHERE parent_id IN (…)` / `= ANY(:ids)` một lần, ghép trong bộ nhớ.
 - Với JPA: `JOIN FETCH`, `@EntityGraph`, `@BatchSize`. Với MyBatis: `resultMap` có `collection` và một câu JOIN, tránh `select` lồng nhau cho từng dòng.
 
-Ở WMS, batch tạo lệnh nhặt từng gọi tra tồn kho cho **từng dòng đơn** trong vòng lặp; em đổi sang lấy tồn theo lô cho cả chunk bằng một câu `= ANY(:sku_ids)`.
+Ở WMS, [[batch tạo lệnh nhặt từng gọi tra tồn kho cho **từng dòng đơn** trong vòng lặp; em đổi sang lấy tồn theo lô cho cả chunk bằng một câu `= ANY(:sku_ids)`]]. Với MyBatis, N+1 hay đến từ `resultMap` dùng nested select.
 @honest Nếu ví dụ N+1 ở WMS không đúng với bạn, thay bằng ví dụ trong trang “Case SQL: index & JOIN”.
 
 @q 70
@@ -178,9 +178,9 @@ Nguyên tắc: **mỗi bước tương thích ngược**, bản code cũ và m�
 6. **Thôi ghi cột cũ**, theo dõi một thời gian.
 7. **Contract:** xóa cột cũ ở bản phát hành sau.
 
-Index cho cột mới tạo bằng `CREATE INDEX CONCURRENTLY`. Thêm ràng buộc NOT NULL hoặc FK thì dùng `NOT VALID` trước rồi `VALIDATE CONSTRAINT` sau, để không khóa bảng khi kiểm tra 500 triệu dòng.
+Index cho cột mới tạo bằng `CREATE INDEX CONCURRENTLY`. Thêm FK hoặc CHECK thì dùng `NOT VALID` trước rồi `VALIDATE CONSTRAINT` sau, để không khóa bảng khi kiểm tra 500 triệu dòng. Muốn NOT NULL: thêm `CHECK (col IS NOT NULL) NOT VALID`, validate, rồi `SET NOT NULL` (PG 12+ dựa vào CHECK đã validate nên không quét lại bảng).
 
-Em chưa làm migration cỡ 500 triệu dòng; ở WMS em làm thêm index trên bảng vài chục triệu dòng bằng CONCURRENTLY ngoài giờ cao điểm, cùng nguyên tắc.
+Em chưa làm migration cỡ 500 triệu dòng; ở WMS em thêm partial index trên bảng kiện khoảng 10 triệu dòng bằng CONCURRENTLY ngoài giờ cao điểm, cùng nguyên tắc.
 @fu Sao không `ALTER TABLE … TYPE` trực tiếp?
 Đổi kiểu thường phải ghi lại cả bảng và giữ khóa ACCESS EXCLUSIVE suốt thời gian đó, mọi đọc ghi bị chặn hàng giờ.
 @fu Bảng quá lớn thì có cách khác không?
@@ -235,7 +235,7 @@ Pool cạn thường không phải do pool nhỏ mà do **giữ connection quá 
 - Phi chuẩn hóa đường đọc nóng; một nguồn sự thật + đối soát
 ### Migration không downtime
 - Thêm cột null → ghi kép → backfill theo lô → đối soát → đổi đọc → xóa cũ
-- CONCURRENTLY; NOT VALID rồi VALIDATE; lock_timeout ngắn
+- CONCURRENTLY; NOT VALID rồi VALIDATE (NOT NULL qua CHECK); lock_timeout ngắn
 ### Pool
 - core DB × 2 + đĩa; nhân số instance; PgBouncer
 - connectionTimeout ngắn; theo dõi pending

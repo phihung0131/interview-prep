@@ -86,7 +86,7 @@
 <p><b>Phát hiện:</b> bật log SQL ở môi trường dev/test, thấy cùng một câu lặp lại hàng loạt với tham số khác nhau; trong APM trace thấy hàng trăm span DB nhỏ trong một request; <code>pg_stat_statements</code> thấy một câu đơn giản có số lần gọi khổng lồ.</p>
 <p><b>Sửa:</b></p>
 <ul><li>Gộp thành <b>JOIN</b> nếu cần dữ liệu cùng lúc.</li><li>Hoặc <b>2 query</b>: lấy danh sách, rồi <code>WHERE parent_id IN (…)</code> / <code>= ANY(:ids)</code> một lần, ghép trong bộ nhớ.</li><li>Với JPA: <code>JOIN FETCH</code>, <code>@EntityGraph</code>, <code>@BatchSize</code>. Với MyBatis: <code>resultMap</code> có <code>collection</code> và một câu JOIN, tránh <code>select</code> lồng nhau cho từng dòng.</li></ul>
-<p>Ở WMS, batch tạo lệnh nhặt từng gọi tra tồn kho cho <b>từng dòng đơn</b> trong vòng lặp; em đổi sang lấy tồn theo lô cho cả chunk bằng một câu <code>= ANY(:sku_ids)</code>.</p></div>
+<p>Ở WMS, <mark>batch tạo lệnh nhặt từng gọi tra tồn kho cho <b>từng dòng đơn</b> trong vòng lặp; em đổi sang lấy tồn theo lô cho cả chunk bằng một câu <code>= ANY(:sku_ids)</code></mark>. Với MyBatis, N+1 hay đến từ <code>resultMap</code> dùng nested select.</p></div>
 <div class="honest">Nếu ví dụ N+1 ở WMS không đúng với bạn, thay bằng ví dụ trong trang “Case SQL: index &amp; JOIN”.</div>
 </article>
 <article class="qa" id="q70" data-q="q70">
@@ -107,8 +107,8 @@
 <button class="btn sm reveal" type="button">Hiện đáp án</button>
 <div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Nguyên tắc: <b>mỗi bước tương thích ngược</b>, bản code cũ và mới chạy song song được, và lùi lại được. Ví dụ đổi cột <code>phone</code> dạng text sang bảng hoặc định dạng mới:</p>
 <ol><li><b>Expand:</b> thêm cột mới <b>cho phép null, không default tốn kém</b> (PostgreSQL 11+ thêm cột có default hằng số cũng tức thì). Không khóa bảng lâu. Đặt <code>lock_timeout</code> ngắn cho câu DDL để không chặn hàng đợi.</li><li><b>Ghi kép:</b> deploy code ghi cả cột cũ và mới; đọc vẫn từ cột cũ.</li><li><b>Backfill theo lô:</b> job chuyển dữ liệu cũ theo khóa chính, mỗi lô vài nghìn dòng, commit từng lô, có điểm dừng để chạy tiếp, nghỉ giữa các lô, theo dõi replica lag và tải DB.</li><li><b>Kiểm tra:</b> đối soát hai cột khớp.</li><li><b>Đổi đọc</b> sang cột mới, bật dần bằng feature flag.</li><li><b>Thôi ghi cột cũ</b>, theo dõi một thời gian.</li><li><b>Contract:</b> xóa cột cũ ở bản phát hành sau.</li></ol>
-<p>Index cho cột mới tạo bằng <code>CREATE INDEX CONCURRENTLY</code>. Thêm ràng buộc NOT NULL hoặc FK thì dùng <code>NOT VALID</code> trước rồi <code>VALIDATE CONSTRAINT</code> sau, để không khóa bảng khi kiểm tra 500 triệu dòng.</p>
-<p>Em chưa làm migration cỡ 500 triệu dòng; ở WMS em làm thêm index trên bảng vài chục triệu dòng bằng CONCURRENTLY ngoài giờ cao điểm, cùng nguyên tắc.</p></div>
+<p>Index cho cột mới tạo bằng <code>CREATE INDEX CONCURRENTLY</code>. Thêm FK hoặc CHECK thì dùng <code>NOT VALID</code> trước rồi <code>VALIDATE CONSTRAINT</code> sau, để không khóa bảng khi kiểm tra 500 triệu dòng. Muốn NOT NULL: thêm <code>CHECK (col IS NOT NULL) NOT VALID</code>, validate, rồi <code>SET NOT NULL</code> (PG 12+ dựa vào CHECK đã validate nên không quét lại bảng).</p>
+<p>Em chưa làm migration cỡ 500 triệu dòng; ở WMS em thêm partial index trên bảng kiện khoảng 10 triệu dòng bằng CONCURRENTLY ngoài giờ cao điểm, cùng nguyên tắc.</p></div>
 <div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Sao không <code>ALTER TABLE … TYPE</code> trực tiếp?</summary><div class="a"><p>Đổi kiểu thường phải ghi lại cả bảng và giữ khóa ACCESS EXCLUSIVE suốt thời gian đó, mọi đọc ghi bị chặn hàng giờ.</p></div></details><details class="fu"><summary>Bảng quá lớn thì có cách khác không?</summary><div class="a"><p>Tạo bảng mới, đồng bộ bằng trigger hoặc logical replication/CDC, backfill, rồi đổi tên trong một giao dịch ngắn. Công cụ như pg_repack, hoặc gh-ost/pt-osc bên MySQL làm theo hướng này.</p></div></details></div>
 </article>
 <article class="qa" id="q72" data-q="q72">
@@ -130,7 +130,7 @@
 <ul><li>UPDATE = bản mới + dead tuple</li><li>VACUUM: dọn, visibility map, chống wraparound</li><li>Bloat do giao dịch mở lâu; <code>idle_in_transaction_session_timeout</code></li></ul></div><div><h4>Khóa</h4>
 <ul><li>FOR UPDATE: tranh chấp cao</li><li>SKIP LOCKED: hàng đợi worker</li><li>Version: tranh chấp thấp, đọc ghi cách xa</li><li>Conditional update: quy tắc trong WHERE</li></ul></div><div><h4>Phân trang, N+1, thiết kế</h4>
 <ul><li>Keyset <code>(created_at,id) &lt;</code> + index; không nhảy trang</li><li>N+1 → JOIN hoặc <code>= ANY(:ids)</code></li><li>Phi chuẩn hóa đường đọc nóng; một nguồn sự thật + đối soát</li></ul></div><div><h4>Migration không downtime</h4>
-<ul><li>Thêm cột null → ghi kép → backfill theo lô → đối soát → đổi đọc → xóa cũ</li><li>CONCURRENTLY; NOT VALID rồi VALIDATE; lock_timeout ngắn</li></ul></div><div><h4>Pool</h4>
+<ul><li>Thêm cột null → ghi kép → backfill theo lô → đối soát → đổi đọc → xóa cũ</li><li>CONCURRENTLY; NOT VALID rồi VALIDATE (NOT NULL qua CHECK); lock_timeout ngắn</li></ul></div><div><h4>Pool</h4>
 <ul><li>core DB × 2 + đĩa; nhân số instance; PgBouncer</li><li>connectionTimeout ngắn; theo dõi pending</li></ul></div></div></section>
 </main>
 </body></html>

@@ -41,19 +41,13 @@
     bar.setAttribute('role', 'navigation');
     bar.setAttribute('aria-label', 'Điều hướng bộ ôn tập');
     var prev = idx > 0 ? PAGES[idx - 1] : null, next = idx >= 0 && idx < PAGES.length - 1 ? PAGES[idx + 1] : null;
-    var menu = '', lastG = '';
-    PAGES.forEach(function (p) {
-      if (p.group !== lastG) { menu += '<h6>' + esc(GROUPS[p.group] || p.group) + '</h6>'; lastG = p.group; }
-      var prog = p.qids && p.qids.length ? '<small>' + countDone(p.qids) + '/' + p.qids.length + '</small>' : '';
-      menu += '<a href="' + esc(p.file) + '"' + (p === cur ? ' class="on"' : '') + '><code>' + esc(p.code) + '</code><span>' + esc(p.title) + '</span>' + prog + '</a>';
-    });
     bar.innerHTML =
       '<div class="sb-in">' +
       '<a class="sb-home" href="index.html" title="Về trang mục lục"><i></i>Ôn phỏng vấn</a>' +
       '<div class="sb-crumb">' + (cur ? '<b>' + esc(cur.code) + '</b><span>' + esc(cur.title) + '</span>' : '') + '</div>' +
       '<a class="sb-btn" href="' + (prev ? esc(prev.file) : '#') + '"' + (prev ? ' title="' + esc(prev.title) + '"' : ' aria-disabled="true"') + '>‹ <span class="sb-lbl">Trước</span></a>' +
       '<a class="sb-btn" href="' + (next ? esc(next.file) : '#') + '"' + (next ? ' title="' + esc(next.title) + '"' : ' aria-disabled="true"') + '><span class="sb-lbl">Sau</span> ›</a>' +
-      '<details class="sb-menu"><summary class="sb-btn">☰ <span class="sb-lbl">Mục lục</span></summary><div class="sb-pop">' + menu + '</div></details>' +
+      '<button class="sb-btn" type="button" id="sb-toc" title="Mở/đóng mục lục">☰ <span class="sb-lbl">Mục lục</span></button>' +
       '<button class="sb-btn" type="button" id="sb-theme" title="Đổi giao diện sáng/tối">◐ <span class="sb-lbl">Sáng/Tối</span></button>' +
       '</div>';
     document.body.insertBefore(bar, document.body.firstChild);
@@ -61,10 +55,7 @@
       var t = isDark() ? 'light' : 'dark';
       root.setAttribute('data-theme', t); lsSet(KEY_THEME, t);
     });
-    document.addEventListener('click', function (e) {
-      var m = bar.querySelector('.sb-menu');
-      if (m.open && !m.contains(e.target)) m.open = false;
-    });
+    bar.querySelector('#sb-toc').addEventListener('click', toggleToc);
 
     if (cur) {
       var pg = document.createElement('div');
@@ -76,6 +67,82 @@
         (next ? '<a class="next" href="' + esc(next.file) + '"><small>Trang sau · ' + esc(next.code) + ' ›</small><span>' + esc(next.title) + '</span></a>' : '');
       document.body.appendChild(pg);
     }
+  }
+
+
+  /* ----- Mục lục ghim (sidebar) ----- */
+  var KEY_PIN = 'ontap-pin', KEY_GRP = 'ontap-grp';
+  var WIDE = window.matchMedia ? matchMedia('(min-width: 1180px)') : { matches: false, addListener: function () {} };
+  /* Các trang gộp vào một mục "A2 · WMS" (trừ Sổ tay nghiệp vụ A2·NV) */
+  function inWmsGroup(p) { return p.code.indexOf('A2') === 0 && p.code !== 'A2·NV'; }
+  var toc, scrim;
+
+  function item(p) {
+    var prog = p.qids && p.qids.length ? '<small>' + countDone(p.qids) + '/' + p.qids.length + '</small>' : '';
+    return '<a href="' + esc(p.file) + '"' + (p === cur ? ' class="on" aria-current="page"' : '') + '><code>' + esc(p.code) + '</code><span>' + esc(p.title) + '</span>' + prog + '</a>';
+  }
+
+  function buildToc() {
+    var html = '', lastG = '', wmsDone = false;
+    var wms = PAGES.filter(inWmsGroup);
+    var wmsOpen = wms.indexOf(cur) >= 0 || lsGet(KEY_GRP) === '1';
+    PAGES.forEach(function (p) {
+      if (p.group !== lastG) { html += '<div class="toc-h">' + esc(GROUPS[p.group] || p.group) + '</div>'; lastG = p.group; }
+      if (inWmsGroup(p)) {
+        if (wmsDone) return;
+        wmsDone = true;
+        var q = []; wms.forEach(function (w) { q = q.concat(w.qids || []); });
+        html += '<div class="toc-grp' + (wmsOpen ? ' open' : '') + '">' +
+          '<button type="button" class="toc-grp-b" aria-expanded="' + wmsOpen + '"><code>A2</code><span>WMS · ' + wms.length + ' trang</span>' +
+          (q.length ? '<small>' + countDone(q) + '/' + q.length + '</small>' : '') + '<i aria-hidden="true">▸</i></button>' +
+          '<div class="toc-sub">' + wms.map(item).join('') + '</div></div>';
+        return;
+      }
+      html += item(p);
+    });
+    toc = document.createElement('div');
+    toc.className = 'toc';
+    toc.setAttribute('role', 'navigation');
+    toc.setAttribute('aria-label', 'Mục lục');
+    toc.innerHTML =
+      '<div class="toc-top"><a href="index.html" class="toc-home"><i></i>Mục lục</a>' +
+      '<button type="button" class="toc-pin" title="Ghim mục lục bên trái">Ghim</button>' +
+      '<button type="button" class="toc-x" title="Đóng" aria-label="Đóng mục lục">✕</button></div>' +
+      '<div class="toc-list">' + html + '</div>';
+    scrim = document.createElement('div');
+    scrim.className = 'toc-scrim';
+    var fab = document.createElement('button');
+    fab.type = 'button'; fab.className = 'toc-fab'; fab.setAttribute('aria-label', 'Mở mục lục'); fab.textContent = '☰';
+    document.body.appendChild(scrim); document.body.appendChild(toc); document.body.appendChild(fab);
+
+    toc.querySelector('.toc-grp-b') && toc.querySelector('.toc-grp-b').addEventListener('click', function () {
+      var g = this.parentNode, o = !g.classList.contains('open');
+      g.classList.toggle('open', o); this.setAttribute('aria-expanded', o); lsSet(KEY_GRP, o ? '1' : '');
+    });
+    toc.querySelector('.toc-pin').addEventListener('click', function () {
+      var pinned = root.classList.contains('toc-pin');
+      lsSet(KEY_PIN, pinned ? '0' : '1'); applyPin();
+    });
+    toc.querySelector('.toc-x').addEventListener('click', closeToc);
+    scrim.addEventListener('click', closeToc);
+    fab.addEventListener('click', toggleToc);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeToc(); });
+    (WIDE.addEventListener ? WIDE.addEventListener.bind(WIDE, 'change') : WIDE.addListener.bind(WIDE))(applyPin);
+    applyPin();
+    var on = toc.querySelector('a.on');
+    if (on) { var l = toc.querySelector('.toc-list'); l.scrollTop = on.offsetTop - l.clientHeight / 3; }
+  }
+  function applyPin() {
+    var pin = WIDE.matches && lsGet(KEY_PIN) !== '0';
+    root.classList.toggle('toc-pin', pin);
+    if (toc) { var b = toc.querySelector('.toc-pin'); b.textContent = pin ? 'Bỏ ghim' : 'Ghim'; b.style.display = WIDE.matches ? '' : 'none'; }
+    if (pin) closeToc();
+  }
+  function openToc() { root.classList.add('toc-open'); }
+  function closeToc() { root.classList.remove('toc-open'); }
+  function toggleToc() {
+    if (root.classList.contains('toc-pin')) { lsSet(KEY_PIN, '0'); applyPin(); return; }
+    if (root.classList.contains('toc-open')) closeToc(); else openToc();
   }
 
   /* ----- Chế độ ôn tập trên trang câu trả lời ----- */
@@ -153,6 +220,7 @@
   function start() {
     applyTheme();
     buildBar();
+    buildToc();
     initStudy();
     initIndex();
     if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t && t.scrollIntoView) setTimeout(function () { t.scrollIntoView(); }, 30); }

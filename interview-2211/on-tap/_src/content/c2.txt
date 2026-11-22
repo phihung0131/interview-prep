@@ -94,7 +94,7 @@ Em trả lời: “**Em chưa thể nói có hay không trước khi đo**, như
 5. **Chế độ suy giảm** cho phần vượt quá: rate limit, tắt tính năng phụ (gợi ý, số đếm chính xác), trả cache cũ, hàng đợi cho việc không gấp. Tốt hơn sập toàn bộ.
 6. **Thử lỗi:** tắt một node, làm chậm dependency, xem hệ thống có tự phục hồi.
 
-Ở mức em đã làm: [[em chưa load test hệ thống production; ở Kestrel em dự đoán điểm nghẽn đầu tiên là gọi LLM và crawl (xem câu 32)]].
+Ở mức em đã làm: em chưa load test hệ thống production. Ở Notification Hub em đo trên laptop 4 nhân: khoảng 10 rps thì p95 67 ms, bão hòa ở khoảng 40–60 rps. Hai bài học từ việc đo: **tắt log DEBUG ghi đồng bộ** làm số request nhận được tăng từ 647 lên 2.097, gấp hơn ba lần mà chưa đổi kiến trúc; còn giảm partition từ 12 xuống 4 gần như không đổi, tức nút thắt không nằm ở Kafka. Đó đúng là tinh thần “đo rồi mới sửa”. Ở Kestrel thì điểm nghẽn đầu tiên dự kiến là gọi LLM và crawl (xem câu 32).
 @fu Autoscale có giải quyết được không?
 Chỉ cho tầng không trạng thái và chỉ nếu nghẽn ở đó. DB, Redis, hạn mức bên ngoài không tự nhân lên; scale tầng ứng dụng còn có thể làm DB sập nhanh hơn (thêm connection).
 

@@ -95,6 +95,8 @@ Có, WMS dùng Redis nhưng **không làm nguồn sự thật cho tồn kho**. [
 
 **Nhất quán:** chấp nhận cache tham chiếu lệch tối đa bằng TTL; nếu cần đổi gấp thì có thao tác xóa cache thủ công cho vận hành.
 @honest Phần tô vàng là giả định về cách dự án dùng Redis. Hãy kiểm tra lại với code thật của dự án và chỉ nói những gì bạn đã thấy.
+@fu Đã có Redis rồi, sao bài khay 30 ký không dùng Redis lock?
+Vì dữ liệu cần đúng (trọng lượng khay) nằm ở PostgreSQL. Redis lock thêm một điểm hỏng vào **đường đúng/sai**: khóa hết hạn giữa chừng hoặc Redis failover là hai trạm lại cùng ghi. Conditional update đặt quy tắc ngay trong câu `UPDATE`, nên DB tự đảm bảo, không cần khóa bên ngoài. Redis em để cho việc chấp nhận sai lệch nhỏ như cache.
 @fu Mỗi kho một DB, Redis có chung không?
 Nói theo thực tế dự án. Nếu dùng chung một cụm thì key phải có tiền tố mã kho để không lẫn dữ liệu giữa các kho.
 

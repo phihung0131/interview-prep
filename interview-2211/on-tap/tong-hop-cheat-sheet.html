@@ -47,7 +47,7 @@
 <ul><li>UPDATE = bản mới + dead tuple</li><li>VACUUM: dọn, visibility map, chống wraparound</li><li>Bloat do giao dịch mở lâu; <code>idle_in_transaction_session_timeout</code></li></ul></div><div><h4>Khóa</h4>
 <ul><li>FOR UPDATE: tranh chấp cao</li><li>SKIP LOCKED: hàng đợi worker</li><li>Version: tranh chấp thấp, đọc ghi cách xa</li><li>Conditional update: quy tắc trong WHERE</li></ul></div><div><h4>Phân trang, N+1, thiết kế</h4>
 <ul><li>Keyset <code>(created_at,id) &lt;</code> + index; không nhảy trang</li><li>N+1 → JOIN hoặc <code>= ANY(:ids)</code></li><li>Phi chuẩn hóa đường đọc nóng; một nguồn sự thật + đối soát</li></ul></div><div><h4>Migration không downtime</h4>
-<ul><li>Thêm cột null → ghi kép → backfill theo lô → đối soát → đổi đọc → xóa cũ</li><li>CONCURRENTLY; NOT VALID rồi VALIDATE; lock_timeout ngắn</li></ul></div><div><h4>Pool</h4>
+<ul><li>Thêm cột null → ghi kép → backfill theo lô → đối soát → đổi đọc → xóa cũ</li><li>CONCURRENTLY; NOT VALID rồi VALIDATE (NOT NULL qua CHECK); lock_timeout ngắn</li></ul></div><div><h4>Pool</h4>
 <ul><li>core DB × 2 + đĩa; nhân số instance; PgBouncer</li><li>connectionTimeout ngắn; theo dõi pending</li></ul></div></div></section>
 <section class="cheat" id="cheat-b4"><div class="cheat-h"><h2>Cheat sheet B4 · Redis &amp; cache</h2><span><a href="b4-redis-cache-nosql.html#cheat" style="color:inherit">B4 · mở trang →</a></span></div><div class="cheat-b"><div><h4>Kiểu dữ liệu</h4>
 <ul><li>String: cache, INCR, SET NX PX</li><li>Hash: object; ZSet: xếp hạng, cửa sổ trượt</li><li>Set: unique; HyperLogLog: đếm duy nhất 12 KB; Bitmap: điểm danh</li></ul></div><div><h4>Đơn luồng</h4>

@@ -108,15 +108,16 @@ Với parallelStream thì sai (ArrayList không an toàn đa luồng). Dùng `co
 @q 51
 @time khoảng 75 giây
 @ans
-Em kể ba pattern em dùng thật:
+Em kể ba pattern gắn với dự án của em:
 
-- **Strategy:** ở WMS, mỗi loại khay hoặc loại hàng có **quy tắc kiểm tra** khác nhau khi đổ khay. Thay vì một chuỗi if-else dài, mỗi quy tắc là một class cài cùng interface, Spring inject cả danh sách vào và chọn theo loại. Thêm loại mới chỉ thêm class, không sửa code cũ, và test từng quy tắc riêng.
-- **Factory / Adapter:** ở Kestrel, lớp LLM nhiều nhà cung cấp (Anthropic, OpenAI, Gemini, DeepSeek). Mỗi nhà cung cấp có một adapter cài cùng interface “gửi prompt, nhận output theo schema”, factory chọn adapter theo cấu hình, có fallback sang nhà cung cấp khác.
+- **Strategy:** [[ở WMS, mỗi loại khay hoặc loại hàng có **quy tắc kiểm tra** khác nhau khi đổ khay]]. Thay vì một chuỗi if-else dài, mỗi quy tắc là một class cài cùng interface, Spring inject cả danh sách vào và chọn theo loại. Thêm loại mới chỉ thêm class, không sửa code cũ, và test từng quy tắc riêng.
+- **Factory / Adapter:** ở Kestrel, lớp LLM nhiều nhà cung cấp (Anthropic, OpenAI, Gemini, DeepSeek). Mỗi nhà cung cấp có một adapter cài cùng interface “gửi prompt, nhận output theo schema”, factory chọn adapter theo cấu hình hoặc theo lựa chọn của người dùng; output được validate theo schema và tự retry khi sai. Em nói rõ: chưa có tự chuyển sang nhà cung cấp khác khi một bên sập.
 - **Builder:** dựng object nhiều trường tùy chọn như request hoặc DTO test, để code test dễ đọc.
 
 Ngoài ra **Observer** ở dạng sự kiện: Notification Hub phát event qua Kafka để các service khác tự phản ứng, bên phát không cần biết ai nghe.
 
 Nguyên tắc của em: chỉ dùng pattern khi **đã có ít nhất hai biến thể thật**. Một chỗ chỉ có một cách làm thì interface với factory chỉ là thêm tầng khó đọc.
+@honest Phần tô vàng là ví dụ minh họa. Chỉ kể pattern bạn thật sự thấy trong code WMS/Kestrel; nếu chưa có thì nói “ở dự án cá nhân em dùng…”.
 @fu Strategy khác State thế nào?
 Strategy do bên ngoài chọn thuật toán. State thì object tự đổi hành vi khi trạng thái nội bộ đổi, ví dụ đơn hàng ở trạng thái khác nhau cho phép thao tác khác nhau.
 @fu Singleton trong Spring khác Singleton pattern thế nào?
@@ -137,7 +138,7 @@ Hệ quả quan trọng: bean singleton **không được giữ trạng thái th
 1. Field có thể `final`, object bất biến và luôn đầy đủ dependency sau khi tạo.
 2. Test dễ: `new Service(mockRepo)` không cần Spring.
 3. Thấy ngay class có quá nhiều dependency (constructor 8 tham số là dấu hiệu class làm quá nhiều việc).
-4. Phát hiện vòng phụ thuộc ngay lúc khởi động thay vì lúc chạy.
+4. Vòng phụ thuộc (A cần B, B cần A) báo lỗi ngay khi khởi động, thay vì bị che đi như khi dùng field injection.
 @fu Inject bean prototype vào bean singleton thì sao?
 Chỉ inject một lần lúc tạo singleton, nên prototype thực tế cũng thành một instance. Muốn lấy mới mỗi lần thì dùng `ObjectProvider` hoặc lookup method.
 @fu Hai bean cùng kiểu thì Spring chọn thế nào?

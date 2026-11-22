@@ -86,7 +86,7 @@
 <p><b>First, an idempotency key.</b> The client sends a unique key with each operation, for example in an <code>Idempotency-Key</code> header. When it retries, it sends <b>the same key</b>.</p>
 <p><b>Second, a unique constraint in the database.</b> The server stores the key with a unique constraint and saves the result. If the same key comes again, the server <b>returns the saved result instead of doing the work again</b>. I don't rely on “check first, then insert”, because two requests can pass the check at the same time.</p>
 <p><b>Third, the client retries correctly:</b> only for errors that are safe to retry, like timeouts or 503, not for 400 errors; with <b>exponential backoff and jitter</b>, so many clients don't retry at the same moment; and with a limit on the number of retries.</p>
-<p>In my Notification Hub, consumers are idempotent with a PostgreSQL upsert, so even if Kafka delivers a message twice, the user gets <b>only one notification</b>.</p></div>
+<p>In my Notification Hub, consumers are idempotent with a PostgreSQL upsert, so even if Kafka delivers a message twice, we don't create a second notification. For HTTP providers I also send a unique ID so they can drop duplicates; SMTP has no such mechanism, so there is still a very small window for a duplicate email, and I documented that.</p></div>
 </article>
 <article class="qa" id="q184" data-q="q184">
 <div class="qa-h"><span class="qa-n">184</span><h3>Walk me through how you would find why an API became slow.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>

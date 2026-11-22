@@ -66,7 +66,7 @@ Nhìn p99 của dependency khi khỏe và ngân sách của cả request. Ví d�
 - **Consumer group:** các consumer cùng group **chia nhau partition**, mỗi partition chỉ một consumer trong group đọc. Nhiều group khác nhau thì mỗi group đọc đủ toàn bộ (fan-out).
 - **Offset và commit:** consumer ghi lại đã xử lý tới đâu. Commit sau khi xử lý xong thì là at-least-once; commit trước thì có thể mất.
 
-**Thứ tự chỉ đảm bảo trong một partition.** Muốn các sự kiện của cùng một thực thể đúng thứ tự thì gửi **cùng key** (ví dụ `user_id`), producer băm key để chọn partition. Ở Notification Hub em dùng key là người nhận để thông báo cho một người không bị đảo thứ tự.
+**Thứ tự chỉ đảm bảo trong một partition.** Muốn các sự kiện của cùng một thực thể đúng thứ tự thì gửi **cùng key** (ví dụ `user_id`), producer băm key để chọn partition. Ở Notification Hub em dùng key là **khách hàng (tenant)**, topic 12 partition, nên thông báo của cùng một khách giữ đúng thứ tự; đổi lại khách rất lớn sẽ dồn vào một partition.
 
 **Số consumer hữu ích ≤ số partition.** Consumer thứ 13 trong group với 12 partition sẽ ngồi không. Vì vậy chọn số partition dư cho tương lai, vì tăng partition sau sẽ làm đổi ánh xạ key → partition, phá thứ tự của key đó trong giai đoạn chuyển.
 
@@ -138,7 +138,7 @@ Xóa hoặc partition theo thời gian các dòng đã gửi sau vài ngày. V�
 
 **2PC:** coordinator hỏi mọi bên “sẵn sàng?”, tất cả đồng ý mới commit. Đảm bảo nguyên tử thật, nhưng **chặn** khi coordinator chết, giữ khóa lâu, nhiều hệ thống (Kafka, API bên ngoài) không hỗ trợ. Chỉ dùng trong phạm vi hẹp, ví dụ hai DB cùng loại trong nội bộ, khi bắt buộc nguyên tử tức thì.
 
-Ở Notification Hub em làm **Saga cơ bản**: [[giữ quota của tenant → gửi → nếu gửi thất bại vĩnh viễn thì hoàn quota]], dạng choreography qua Kafka. Em nói rõ là cơ bản: chưa có bộ điều phối và chưa xử lý mọi trường hợp bù trừ lỗi.
+Ở Notification Hub em làm **Saga cơ bản**, gần mẫu “giữ chỗ rồi xác nhận hoặc hủy”: service nhận yêu cầu **giữ một đơn vị hạn mức** (Lua trên Redis, chỗ giữ tự hết hạn sau 15 phút) → gửi → gửi thành công thì service khách hàng **chốt** (ghi DB trước, Redis sau), gửi thất bại thì sự kiện kết quả kích hoạt **trả lại chỗ**. Dạng choreography qua sự kiện kết quả trên Kafka. Em nói rõ là cơ bản: không có bộ điều phối, không có bảng trạng thái saga; bù trừ lỗi thì chỉ log cảnh báo và dựa vào hạn 15 phút.
 @fu Trong lúc saga đang chạy, người khác thấy trạng thái dở dang thì sao?
 Đúng, Saga thiếu tính cô lập. Dùng trạng thái trung gian rõ ràng (PENDING) để người khác biết, và thiết kế để đọc dở dang không gây hại (semantic lock).
 
@@ -174,11 +174,11 @@ Tách shard đó, hoặc với một key quá nóng (người nổi tiếng) th�
 
 **Đặt ở đâu:**
 - **Gateway:** chặn sớm theo IP và API key, bảo vệ toàn hệ thống, chống lạm dụng.
-- **Service:** giới hạn theo nghiệp vụ (mỗi tenant 1.000 thông báo/phút, bảo vệ nhà cung cấp SMS). Notification Hub em đặt ở service cho quota tenant.
+- **Service:** giới hạn theo nghiệp vụ (mỗi tenant 1.000 thông báo/phút, bảo vệ nhà cung cấp SMS). Notification Hub của em có cả hai: token bucket ở **gateway** theo khách hàng, và **hạn mức gửi** giữ chỗ bằng Lua ở service quản lý khách hàng.
 
 Trả **429 + `Retry-After`**. Redis chết: fail-open cho giới hạn chống spam (kèm giới hạn cục bộ), fail-closed cho giới hạn bảo vệ chi phí.
 @fu Notification Hub em dùng thuật toán nào, điểm yếu?
-Xem chi tiết ở trang A6 (câu 38). Tóm tắt: [[cửa sổ trượt bằng ZSet + Lua]]; điểm yếu là tốn bộ nhớ theo số request, và mọi kiểm tra đều đi Redis.
+Xem chi tiết ở trang A6 (câu 38). Tóm tắt: **token bucket** ở gateway, mỗi khóa chỉ lưu hai số (số token, lần nạp cuối), cập nhật atomic trên Redis; em chọn vì cho phép dồn đợt có kiểm soát và tốn ít bộ nhớ. Điểm yếu: cho phép burst tới dung lượng xô, mọi kiểm tra đều đi Redis, và khi Redis lỗi thì em chọn cho qua (fail-open).
 
 @q 99
 @time khoảng 75 giây
