@@ -342,6 +342,29 @@
     mark(null); var c = document.querySelector('.tts-cur'); if (c) c.classList.remove('tts-cur');
     root.classList.remove('tts-on'); T.parts = []; syncBar();
   }
+  // Đọc một mục trên trang gốc: từ thẻ h2 tới trước thẻ h2 kế tiếp.
+  function sectionParts(h, heads) {
+    var k = heads.indexOf(h) + 1;
+    while (k < heads.length && h.tagName === 'H2' && heads[k].tagName !== 'H2') k++;
+    var nx = heads[k];
+    return collect(document.body).filter(function (p) {
+      var e = p.el;
+      if (e !== h && !(h.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+      return !nx || !!(nx.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_PRECEDING);
+    });
+  }
+  function addSectionButtons() {
+    if (document.body.classList.contains('g-page')) return;
+    var heads = [].slice.call(document.querySelectorAll('h2,h3')).filter(function (h) {
+      return !h.closest(SKIP) && !h.closest('summary') && !h.closest('template') && h.getClientRects().length;
+    });
+    heads.forEach(function (h) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'sec-say' + (h.tagName === 'H3' ? ' sm' : ''); b.title = 'Nghe mục này'; b.setAttribute('aria-label', 'Nghe mục này'); b.textContent = '🔊';
+      b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); ttsPlay(sectionParts(h, heads), 0); });
+      h.appendChild(b);
+    });
+  }
   function ttsStart(scope, fromViewport) {
     var parts = collect(scope);
     if (!parts.length) return;
@@ -349,6 +372,10 @@
     if (fromViewport) {
       for (var k = 0; k < parts.length; k++) { if (parts[k].el.getBoundingClientRect().bottom > 70) { start = k; break; } }
     }
+    ttsPlay(parts, start);
+  }
+  function ttsPlay(parts, start) {
+    if (!parts.length) return;
     T.parts = parts;
     buildTtsBar(); root.classList.add('tts-on');
     if (!T.voice && speechSynthesis.getVoices().length) warn('Thiếu giọng tiếng Việt', 'Máy chưa cài giọng tiếng Việt. Dùng Edge (giọng HoaiMy/NamMinh), Safari hoặc điện thoại Android/iPhone.');
@@ -369,6 +396,7 @@
         ttsStart(document.querySelector('main') || document.body, true);
       });
     }
+    if (TTS_OK && cur) addSectionButtons();
     window.addEventListener('pagehide', function () { if (TTS_OK) speechSynthesis.cancel(); });
   }
 
