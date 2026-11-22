@@ -219,9 +219,17 @@
     vs.sort(function (a, b) { return score(b) - score(a); });
     return vs[0];
   }
+  function pickEn() {
+    var vs = speechSynthesis.getVoices().filter(function (v) { return /^en[-_]/i.test(v.lang); });
+    if (!vs.length) return null;
+    function score(v) { return (/natural|online|neural/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 2 : 0) + (/^en[-_]US/i.test(v.lang) ? 2 : 0) + (/samantha|aria|jenny|guy/i.test(v.name) ? 1 : 0); }
+    vs.sort(function (a, b) { return score(b) - score(a); });
+    return vs[0];
+  }
+  T.mix = lsGet('ontap-mix') !== '0';
   if (TTS_OK) {
-    T.voice = pickVoice();
-    if (speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', function () { T.voice = pickVoice(); });
+    T.voice = pickVoice(); T.en = pickEn();
+    if (speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', function () { T.voice = pickVoice(); T.en = pickEn(); });
   }
 
   // Văn bản của một khối kèm bản đồ vị trí: mỗi ký tự đọc lên trỏ về đúng text node trên trang,
@@ -231,7 +239,10 @@
     function walk(n) {
       if (n.nodeType === 3) { nodes.push({ node: n, start: s.length }); s += n.nodeValue; return; }
       if (n.nodeType !== 1 || (n !== el && n.matches(BLOCK + ',' + SKIP))) return;
+      var gap = n !== el && getComputedStyle(n).display !== 'inline';
+      if (gap) s += ' ';
       for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+      if (gap) s += ' ';
     }
     if (el.tagName === 'TR') {
       [].forEach.call(el.children, function (td) { if (s && td.textContent.trim()) s += '. '; walk(td); });
@@ -265,12 +276,13 @@
   }
   // Tách câu, giữ vị trí bắt đầu (off) trong chuỗi đã làm sạch.
   function splitText(t) {
-    var out = [], re = /[^.!?;:]+[.!?;:]*\s*/g, mt;
+    var out = [], re = /[\s\S]+?(?:[.!?;:]+(?=\s|$)|$)/g, mt;
     function push(b, off) {
       var l = b.length - b.replace(/^\s+/, '').length; b = b.trim(); off += l;
       if (b) out.push({ text: b, off: off });
     }
     while ((mt = re.exec(t))) {
+      if (!mt[0]) { re.lastIndex++; continue; }
       var b = mt[0], off = mt.index;
       var lead = b.length - b.replace(/^\s+/, '').length; b = b.slice(lead); off += lead;
       while (b.trim().length > 220) {
@@ -331,6 +343,7 @@
       '<button type="button" data-a="play" title="Tạm dừng / tiếp tục">⏸</button>' +
       '<button type="button" data-a="next" title="Đoạn sau">⏭</button>' +
       '<button type="button" data-a="rate" title="Tốc độ đọc">1×</button>' +
+      '<button type="button" data-a="mix" title="Đọc thuật ngữ tiếng Anh bằng giọng Anh">EN</button>' +
       '<span class="tts-msg" aria-live="polite"></span>' +
       '<button type="button" data-a="stop" title="Tắt đọc">✕</button>';
     b.addEventListener('click', function (e) {
@@ -340,6 +353,11 @@
       else if (act === 'next') jump(1);
       else if (act === 'prev') jump(-1);
       else if (act === 'stop') ttsStop();
+      else if (act === 'mix') {
+        T.mix = !T.mix; lsSet('ontap-mix', T.mix ? '1' : '0');
+        warn(T.mix ? 'Thuật ngữ Anh: giọng Anh' : 'Đọc hết bằng giọng Việt', '');
+        syncBar(); if (T.playing) speakAt(T.i);
+      }
       else if (act === 'rate') {
         var k = RATES.indexOf(T.rate); T.rate = RATES[(k + 1) % RATES.length]; lsSet('ontap-rate', String(T.rate));
         syncBar(); if (T.playing) speakAt(T.i);
@@ -356,6 +374,7 @@
   function syncBar() {
     if (!T.bar) return;
     T.bar.querySelector('[data-a="play"]').textContent = T.playing ? '⏸' : '▶';
+    var mx = T.bar.querySelector('[data-a="mix"]'); mx.classList.toggle('off', !T.mix); mx.hidden = !T.en;
     T.bar.querySelector('[data-a="rate"]').textContent = String(T.rate).replace('.', ',') + '×';
     var m = T.bar.querySelector('.tts-msg');
     if (!m.dataset.warn) m.textContent = T.parts.length ? (T.i + 1) + '/' + T.parts.length : '';
@@ -368,20 +387,78 @@
     var r = el.getBoundingClientRect();
     if (r.top < 90 || r.bottom > innerHeight - 90) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
-  function speakAt(i) {
+  /* Tách câu thành đoạn Việt / Anh để thuật ngữ tiếng Anh được đọc bằng giọng Anh. */
+  // Âm tiết tiếng Việt viết không dấu; từ ASCII không khớp mẫu này gần như chắc là tiếng Anh (cache, index, Kafka...).
+  var VI_SYL = /^(ngh|ng|gh|gi|kh|nh|ph|qu|th|tr|ch|[bcdghklmnprstvx])?(uye|uya|ie|ye|uo|ua|ia|oa|oe|uy|ue|[aeiouy])(ch|ng|nh|[cmnpt]|[iyou])?$/;
+  // Từ tiếng Anh ngắn trông giống âm tiết Việt không dấu.
+  var EN_WORDS = { key: 1, set: 1, get: 1, put: 1, map: 1, the: 1, of: 1, is: 1, it: 1, by: 1, up: 1, hit: 1, top: 1, tag: 1, ack: 1, max: 1, min: 1, sub: 1, pub: 1, out: 1, off: 1, new: 1, hot: 1, cold: 1, hash: 1, id: 1, ok: 1 };
+  function wordLang(core, inCode) {
+    if (!core || /^[\d.,%]+$/.test(core)) return '';
+    if (/[^\x00-\x7F]/.test(core)) return 'vi';
+    if (inCode) return 'en';
+    if (/\d/.test(core) && /[a-z]/i.test(core)) return 'en';
+    if (/^[A-Z]{2,}s?$/.test(core) || /[a-z][A-Z]/.test(core)) return 'en';
+    if (EN_WORDS[core.toLowerCase()]) return 'en';
+    var bits = core.toLowerCase().split(/[-._/+#']+/).filter(Boolean);
+    for (var k = 0; k < bits.length; k++) if (!VI_SYL.test(bits[k])) return 'en';
+    return 'vi';
+  }
+  function segment(p) {
+    var t = p.text, toks = [], re = /\S+|\s+/g, m;
+    while ((m = re.exec(t))) {
+      var w = m[0], ws = /^\s/.test(w), lang = '';
+      if (!ws) {
+        var core = w.replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, '');
+        var inCode = false;
+        if (p.nodes && p.nodes.length) {
+          var ri = p.map[p.off + m.index + Math.max(0, w.indexOf(core.charAt(0)))];
+          var dp = ri != null && domPos(p.nodes, ri, false);
+          inCode = !!(dp && dp.node.parentElement && dp.node.parentElement.closest('code,kbd'));
+        }
+        lang = wordLang(core, inCode);
+      }
+      toks.push({ s: w, at: m.index, lang: lang });
+    }
+    // Từ không dấu kẹp giữa hai từ tiếng Anh thì cũng là tiếng Anh ("Redis set key").
+    var words = toks.filter(function (x) { return x.lang; });
+    for (var k = 1; k < words.length - 1; k++) {
+      var w0 = words[k];
+      if (w0.lang === 'vi' && !/[^\x00-\x7F]/.test(w0.s) && words[k - 1].lang === 'en' && words[k + 1].lang === 'en') w0.lang = 'en';
+    }
+    var en = words.filter(function (x) { return x.lang === 'en'; }).length;
+    if (!en) return [{ text: t, off: 0, lang: 'vi' }];
+    if (en >= words.length * 0.6) return [{ text: t, off: 0, lang: 'en' }];
+    var segs = [], cur = null, first = (words[0] || {}).lang || 'vi';
+    toks.forEach(function (x) {
+      var l = x.lang || (cur ? cur.lang : first);
+      if (!cur || cur.lang !== l) { cur = { lang: l, off: x.at, end: x.at }; segs.push(cur); }
+      cur.end = x.at + x.s.length;
+    });
+    return segs.map(function (s) {
+      var raw = t.slice(s.off, s.end), lead = raw.length - raw.replace(/^\s+/, '').length;
+      return { text: raw.trim(), off: s.off + lead, lang: s.lang };
+    }).filter(function (s) { return /[\p{L}\d]/u.test(s.text); });
+  }
+
+  function speakAt(i, si) {
     var tok = ++T.token, busy = speechSynthesis.speaking || speechSynthesis.pending;
     speechSynthesis.cancel();
     if (i < 0) i = 0;
     if (i >= T.parts.length) { ttsStop(); return; }
     T.i = i; T.playing = true;
     var p = T.parts[i];
-    mark(p.el);
-    hl('tts-sent', rangeOf(p, 0, p.text.length)); hl('tts-word', null);
-    var u = new SpeechSynthesisUtterance(p.text);
-    u.onboundary = function (e) { if (tok === T.token && e.name !== 'sentence') hlWord(p, e.charIndex, e.charLength); };
-    u.lang = 'vi-VN'; u.rate = T.rate;
-    if (T.voice) u.voice = T.voice;
-    u.onend = function () { if (tok === T.token && T.playing) speakAt(i + 1); };
+    if (!si) mark(p.el);
+    if (!si) { hl('tts-sent', rangeOf(p, 0, p.text.length)); hl('tts-word', null); }
+    if (!p.segs) p.segs = segment(p);
+    var segs = (T.mix && T.en && T.voice) ? p.segs : [{ text: p.text, off: 0, lang: 'vi' }];
+    si = si || 0;
+    var sg = segs[si] || segs[0];
+    var u = new SpeechSynthesisUtterance(sg.text);
+    u.onboundary = function (e) { if (tok === T.token && e.name !== 'sentence') hlWord(p, sg.off + e.charIndex, e.charLength); };
+    u.rate = T.rate;
+    if (sg.lang === 'en') { u.lang = T.en.lang; u.voice = T.en; }
+    else { u.lang = 'vi-VN'; if (T.voice) u.voice = T.voice; }
+    u.onend = function () { if (tok === T.token && T.playing) { if (si + 1 < segs.length) speakAt(i, si + 1); else speakAt(i + 1); } };
     u.onerror = function (e) {
       if (tok !== T.token || e.error === 'interrupted' || e.error === 'canceled') return;
       ttsPause(); warn('Không đọc được (' + e.error + ')', 'Trình duyệt báo lỗi khi đọc. Thử Edge, Safari hoặc Chrome trên điện thoại.');
