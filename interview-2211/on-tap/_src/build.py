@@ -218,7 +218,7 @@ def render_page(pg, qmap, subinfo):
     parts.append('<main class="g-main wrap">')
     parts.append('<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div>'
                  '<button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button>'
-                 '<button class="btn sm" id="st-all" type="button">Mở hết follow-up</button>'
+                 '<button class="btn sm" id="st-all" type="button">Mở hết</button>'
                  '<button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>')
     if pg.get('intro'):
         parts.append('<div class="intro-box">%s</div>' % md(pg['intro']))

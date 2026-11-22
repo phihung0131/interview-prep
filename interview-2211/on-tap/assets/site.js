@@ -48,6 +48,8 @@
       '<a class="sb-btn" href="' + (prev ? esc(prev.file) : '#') + '"' + (prev ? ' title="' + esc(prev.title) + '"' : ' aria-disabled="true"') + '>‹ <span class="sb-lbl">Trước</span></a>' +
       '<a class="sb-btn" href="' + (next ? esc(next.file) : '#') + '"' + (next ? ' title="' + esc(next.title) + '"' : ' aria-disabled="true"') + '><span class="sb-lbl">Sau</span> ›</a>' +
       '<button class="sb-btn" type="button" id="sb-toc" title="Mở/đóng mục lục">☰ <span class="sb-lbl">Mục lục</span></button>' +
+      '<button class="sb-btn" type="button" id="sb-open" hidden title="Mở/thu gọn mọi phần ẩn trong trang">⇕ <span class="sb-lbl">Mở hết</span></button>' +
+      '<button class="sb-btn" type="button" id="sb-tts" hidden title="Đọc to từ đoạn đang xem">🔊 <span class="sb-lbl">Nghe</span></button>' +
       '<button class="sb-btn" type="button" id="sb-theme" title="Đổi giao diện sáng/tối">◐ <span class="sb-lbl">Sáng/Tối</span></button>' +
       '</div>';
     document.body.insertBefore(bar, document.body.firstChild);
@@ -159,6 +161,13 @@
     cards.forEach(function (c) {
       var cb = c.querySelector('.qa-chk input');
       if (cb) cb.addEventListener('change', function () { if (cb.checked) done[c.dataset.q] = 1; else delete done[c.dataset.q]; saveDone(); refresh(); });
+      var h = c.querySelector('.qa-h'), chk = c.querySelector('.qa-chk');
+      if (h && TTS_OK) {
+        var sb = document.createElement('button');
+        sb.type = 'button'; sb.className = 'qa-say'; sb.title = 'Nghe câu này'; sb.setAttribute('aria-label', 'Nghe câu này'); sb.textContent = '🔊';
+        h.insertBefore(sb, chk);
+        sb.addEventListener('click', function () { c.classList.add('shown'); ttsStart(c, null); });
+      }
       var rv = c.querySelector('.reveal');
       if (rv) rv.addEventListener('click', function () { c.classList.add('shown'); });
     });
@@ -172,16 +181,195 @@
       lsSet('ontap-quiz', on ? '1' : '');
     });
     if (lsGet('ontap-quiz') === '1' && quiz) quiz.click();
-    if (all) all.addEventListener('click', function () {
-      var ds = document.querySelectorAll('details.fu'), open = !all.classList.contains('on');
-      ds.forEach(function (d) { d.open = open; });
-      all.classList.toggle('on', open);
-      all.textContent = open ? 'Thu gọn follow-up' : 'Mở hết follow-up';
-    });
+    if (all) all.addEventListener('click', function () { setAllOpen(!root.classList.contains('all-open')); });
     if (reset) reset.addEventListener('click', function () {
       cards.forEach(function (c) { delete done[c.dataset.q]; }); saveDone(); refresh();
     });
     refresh();
+  }
+
+  /* ----- Mở hết: mọi <details> + đáp án đang ẩn (chế độ tự kiểm tra) ----- */
+  function pageDetails() {
+    return [].slice.call(document.querySelectorAll('details')).filter(function (d) { return !d.closest('.sb,.toc,.tts-bar'); });
+  }
+  function setAllOpen(open) {
+    pageDetails().forEach(function (d) { d.open = open; });
+    document.querySelectorAll('.qa[data-q]').forEach(function (c) {
+      if (open) c.classList.add('shown');
+      else if (document.body.classList.contains('quiz')) c.classList.remove('shown');
+    });
+    root.classList.toggle('all-open', open);
+    var b = document.getElementById('sb-open'), st = document.getElementById('st-all');
+    if (b) b.querySelector('.sb-lbl').textContent = open ? 'Thu gọn' : 'Mở hết';
+    if (st) { st.classList.toggle('on', open); st.textContent = open ? 'Thu gọn hết' : 'Mở hết'; }
+  }
+
+  /* ----- Nghe đọc (Web Speech API, giọng tiếng Việt của máy) ----- */
+  var TTS_OK = !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
+  var RATES = [0.8, 1, 1.2, 1.4, 1.7];
+  var T = { parts: [], i: 0, token: 0, playing: false, bar: null, voice: null, rate: parseFloat(lsGet('ontap-rate')) || 1 };
+  var BLOCK = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,summary,tr,dt,dd,figcaption,.honest,.mini,.trap';
+  var SKIP = '.sb,.toc,.toc-fab,.toc-scrim,.tts-bar,.pager,.tabs,.study-bar,nav,script,style,pre,svg,button,.qa-chk,[aria-hidden="true"]';
+
+  function pickVoice() {
+    if (!TTS_OK) return null;
+    var vs = speechSynthesis.getVoices().filter(function (v) { return /^vi/i.test(v.lang); });
+    if (!vs.length) return null;
+    function score(v) { return (/natural|online|neural/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1); }
+    vs.sort(function (a, b) { return score(b) - score(a); });
+    return vs[0];
+  }
+  if (TTS_OK) {
+    T.voice = pickVoice();
+    if (speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', function () { T.voice = pickVoice(); });
+  }
+
+  function cleanText(t) {
+    return t.replace(/\s+/g, ' ')
+      .replace(/[→⇒➜]/g, ', ').replace(/[←]/g, ', ').replace(/·/g, ', ')
+      .replace(/≈|~(?=\s*\d)/g, 'khoảng ').replace(/≤/g, ' tối đa ').replace(/≥/g, ' ít nhất ')
+      .replace(/[✓✔]/g, '').replace(/[✗✘]/g, '').replace(/\s+([,.;:!?])/g, '$1').trim();
+  }
+  function ownText(el) {
+    var c = el.cloneNode(true);
+    [].slice.call(c.querySelectorAll(BLOCK + ',' + SKIP)).forEach(function (x) { x.remove(); });
+    if (el.tagName === 'TR') return [].map.call(el.children, function (td) { return td.textContent.trim(); }).filter(Boolean).join('. ');
+    return c.textContent;
+  }
+  function splitText(t) {
+    var out = [], bits = t.match(/[^.!?;:]+[.!?;:]*\s*/g) || [t];
+    bits.forEach(function (b) {
+      b = b.trim(); if (!b) return;
+      while (b.length > 220) {
+        var k = b.lastIndexOf(', ', 220); if (k < 60) k = b.lastIndexOf(' ', 220); if (k < 60) k = 220;
+        out.push(b.slice(0, k + 1)); b = b.slice(k + 1).trim();
+      }
+      if (b) out.push(b);
+    });
+    return out;
+  }
+  function collect(scope) {
+    var parts = [];
+    [].slice.call(scope.querySelectorAll(BLOCK)).forEach(function (el) {
+      if (el.closest(SKIP)) return;
+      if (el.tagName !== 'TR' && el.closest('tr')) return;
+      if (!el.getClientRects().length) return;
+      var t = cleanText(ownText(el));
+      if (!/[\p{L}\d]/u.test(t)) return;
+      splitText(t).forEach(function (s) { parts.push({ el: el, text: s }); });
+    });
+    return parts;
+  }
+
+  function buildTtsBar() {
+    if (T.bar) return T.bar;
+    var b = document.createElement('div');
+    b.className = 'tts-bar'; b.setAttribute('role', 'region'); b.setAttribute('aria-label', 'Trình đọc');
+    b.innerHTML = '<button type="button" data-a="prev" title="Đoạn trước">⏮</button>' +
+      '<button type="button" data-a="play" title="Tạm dừng / tiếp tục">⏸</button>' +
+      '<button type="button" data-a="next" title="Đoạn sau">⏭</button>' +
+      '<button type="button" data-a="rate" title="Tốc độ đọc">1×</button>' +
+      '<span class="tts-msg" aria-live="polite"></span>' +
+      '<button type="button" data-a="stop" title="Tắt đọc">✕</button>';
+    b.addEventListener('click', function (e) {
+      var a = e.target.closest('button'); if (!a) return;
+      var act = a.dataset.a;
+      if (act === 'play') { if (T.playing) ttsPause(); else speakAt(T.i); }
+      else if (act === 'next') jump(1);
+      else if (act === 'prev') jump(-1);
+      else if (act === 'stop') ttsStop();
+      else if (act === 'rate') {
+        var k = RATES.indexOf(T.rate); T.rate = RATES[(k + 1) % RATES.length]; lsSet('ontap-rate', String(T.rate));
+        syncBar(); if (T.playing) speakAt(T.i);
+      }
+    });
+    document.body.appendChild(b);
+    T.bar = b; return b;
+  }
+  function warn(short, full) {
+    var m = T.bar.querySelector('.tts-msg');
+    m.dataset.warn = '1'; m.textContent = short; m.title = full;
+    clearTimeout(T.wt); T.wt = setTimeout(function () { delete m.dataset.warn; m.title = ''; syncBar(); }, 7000);
+  }
+  function syncBar() {
+    if (!T.bar) return;
+    T.bar.querySelector('[data-a="play"]').textContent = T.playing ? '⏸' : '▶';
+    T.bar.querySelector('[data-a="rate"]').textContent = String(T.rate).replace('.', ',') + '×';
+    var m = T.bar.querySelector('.tts-msg');
+    if (!m.dataset.warn) m.textContent = T.parts.length ? (T.i + 1) + '/' + T.parts.length : '';
+    var sb = document.getElementById('sb-tts'); if (sb) sb.classList.toggle('on', root.classList.contains('tts-on'));
+  }
+  function mark(el) {
+    var old = document.querySelector('.tts-cur'); if (old && old !== el) old.classList.remove('tts-cur');
+    if (!el) return;
+    el.classList.add('tts-cur');
+    var r = el.getBoundingClientRect();
+    if (r.top < 90 || r.bottom > innerHeight - 90) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function speakAt(i) {
+    var tok = ++T.token, busy = speechSynthesis.speaking || speechSynthesis.pending;
+    speechSynthesis.cancel();
+    if (i < 0) i = 0;
+    if (i >= T.parts.length) { ttsStop(); return; }
+    T.i = i; T.playing = true;
+    var p = T.parts[i];
+    mark(p.el);
+    var u = new SpeechSynthesisUtterance(p.text);
+    u.lang = 'vi-VN'; u.rate = T.rate;
+    if (T.voice) u.voice = T.voice;
+    u.onend = function () { if (tok === T.token && T.playing) speakAt(i + 1); };
+    u.onerror = function (e) {
+      if (tok !== T.token || e.error === 'interrupted' || e.error === 'canceled') return;
+      ttsPause(); warn('Không đọc được (' + e.error + ')', 'Trình duyệt báo lỗi khi đọc. Thử Edge, Safari hoặc Chrome trên điện thoại.');
+    };
+    // iOS chỉ cho đọc câu đầu nếu gọi ngay trong cú bấm; Chrome hay nuốt câu nói ngay sau cancel nên chờ chút.
+    if (busy) setTimeout(function () { if (tok === T.token) speechSynthesis.speak(u); }, 60);
+    else speechSynthesis.speak(u);
+    syncBar();
+  }
+  function jump(d) {
+    var i = T.i, el = T.parts[i] && T.parts[i].el;
+    if (d > 0) { while (i < T.parts.length && T.parts[i].el === el) i++; }
+    else {
+      while (i > 0 && T.parts[i - 1].el === el) i--;
+      if (i > 0) { var pe = T.parts[i - 1].el; i--; while (i > 0 && T.parts[i - 1].el === pe) i--; }
+    }
+    speakAt(i);
+  }
+  function ttsPause() { T.token++; T.playing = false; speechSynthesis.cancel(); syncBar(); }
+  function ttsStop() {
+    T.token++; T.playing = false; speechSynthesis.cancel();
+    mark(null); var c = document.querySelector('.tts-cur'); if (c) c.classList.remove('tts-cur');
+    root.classList.remove('tts-on'); T.parts = []; syncBar();
+  }
+  function ttsStart(scope, fromViewport) {
+    var parts = collect(scope);
+    if (!parts.length) return;
+    var start = 0;
+    if (fromViewport) {
+      for (var k = 0; k < parts.length; k++) { if (parts[k].el.getBoundingClientRect().bottom > 70) { start = k; break; } }
+    }
+    T.parts = parts;
+    buildTtsBar(); root.classList.add('tts-on');
+    if (!T.voice && speechSynthesis.getVoices().length) warn('Thiếu giọng tiếng Việt', 'Máy chưa cài giọng tiếng Việt. Dùng Edge (giọng HoaiMy/NamMinh), Safari hoặc điện thoại Android/iPhone.');
+    speakAt(start);
+  }
+
+  function initTools() {
+    var ob = document.getElementById('sb-open');
+    if (ob && (pageDetails().length || document.querySelector('.qa[data-q]'))) {
+      ob.hidden = false;
+      ob.addEventListener('click', function () { setAllOpen(!root.classList.contains('all-open')); });
+    }
+    var tb = document.getElementById('sb-tts');
+    if (tb && TTS_OK && cur) {
+      tb.hidden = false;
+      tb.addEventListener('click', function () {
+        if (root.classList.contains('tts-on')) { ttsStop(); return; }
+        ttsStart(document.querySelector('main') || document.body, true);
+      });
+    }
+    window.addEventListener('pagehide', function () { if (TTS_OK) speechSynthesis.cancel(); });
   }
 
   /* ----- Index: tiến độ + tìm kiếm ----- */
@@ -222,6 +410,7 @@
     buildBar();
     buildToc();
     initStudy();
+    initTools();
     initIndex();
     if (location.hash) { var t = document.getElementById(location.hash.slice(1)); if (t && t.scrollIntoView) setTimeout(function () { t.scrollIntoView(); }, 30); }
   }

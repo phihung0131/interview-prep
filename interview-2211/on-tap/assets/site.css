@@ -345,3 +345,24 @@ html.toc-pin .toc-x{display:none}
   font:600 20px/1 var(--f-body)!important;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3)!important;padding:0!important;margin:0!important}
 html.toc-pin .toc-fab,html.toc-open .toc-fab{display:none}
 @media print{.toc,.toc-fab,.toc-scrim{display:none!important}html.toc-pin{padding-left:0}}
+
+/* ---- Mở hết + Nghe đọc ---- */
+.sb-btn[hidden]{display:none!important}
+.sb-btn.on{background:color-mix(in srgb,var(--bg) 22%,transparent)!important}
+html.all-open .sb #sb-open{background:color-mix(in srgb,var(--bg) 22%,transparent)!important}
+.g-page .qa-say{flex:none;width:36px;height:34px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);font-size:16px;cursor:pointer;padding:0}
+.g-page .qa-say:hover{border-color:var(--accent)}
+.tts-cur{background:color-mix(in srgb,var(--accent) 16%,transparent)!important;outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px;border-radius:3px;scroll-margin:120px}
+.tts-bar{position:fixed;z-index:70;left:50%;transform:translateX(-50%);bottom:16px;display:none;align-items:center;gap:4px;
+  background:#15202B;color:#E7ECF1;border-radius:999px;padding:6px 8px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:500 14px/1 system-ui,sans-serif;max-width:calc(100vw - 32px)}
+html.tts-on .tts-bar{display:flex}
+.tts-bar button{all:unset;cursor:pointer;min-width:40px;height:40px;display:grid;place-items:center;border-radius:999px;font-size:17px;color:inherit;box-sizing:border-box;padding:0 6px}
+.tts-bar button:hover,.tts-bar button:focus-visible{background:rgba(231,236,241,.14)}
+.tts-bar [data-a="rate"]{font:700 13px/1 ui-monospace,monospace;min-width:46px}
+.tts-msg{font-size:12px;color:#9AA8B5;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:260px}
+@media (max-width:620px){
+  .tts-bar{left:16px;right:76px;transform:none;justify-content:space-between;max-width:none}
+  .tts-msg{flex:1;max-width:none;padding:0 2px}
+  .tts-bar button{min-width:38px}
+}
+@media print{.tts-bar,.qa-say{display:none!important}}
