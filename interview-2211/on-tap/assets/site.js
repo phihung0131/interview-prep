@@ -224,28 +224,61 @@
     if (speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', function () { T.voice = pickVoice(); });
   }
 
-  function cleanText(t) {
-    return t.replace(/\s+/g, ' ')
-      .replace(/[→⇒➜]/g, ', ').replace(/[←]/g, ', ').replace(/·/g, ', ')
-      .replace(/≈|~(?=\s*\d)/g, 'khoảng ').replace(/≤/g, ' tối đa ').replace(/≥/g, ' ít nhất ')
-      .replace(/[✓✔]/g, '').replace(/[✗✘]/g, '').replace(/\s+([,.;:!?])/g, '$1').trim();
+  // Văn bản của một khối kèm bản đồ vị trí: mỗi ký tự đọc lên trỏ về đúng text node trên trang,
+  // để tô được câu và chữ đang đọc.
+  function rawText(el) {
+    var nodes = [], s = '';
+    function walk(n) {
+      if (n.nodeType === 3) { nodes.push({ node: n, start: s.length }); s += n.nodeValue; return; }
+      if (n.nodeType !== 1 || (n !== el && n.matches(BLOCK + ',' + SKIP))) return;
+      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+    }
+    if (el.tagName === 'TR') {
+      [].forEach.call(el.children, function (td) { if (s && td.textContent.trim()) s += '. '; walk(td); });
+    } else walk(el);
+    return { s: s, nodes: nodes };
   }
-  function ownText(el) {
-    var c = el.cloneNode(true);
-    [].slice.call(c.querySelectorAll(BLOCK + ',' + SKIP)).forEach(function (x) { x.remove(); });
-    if (el.tagName === 'TR') return [].map.call(el.children, function (td) { return td.textContent.trim(); }).filter(Boolean).join('. ');
-    return c.textContent;
-  }
-  function splitText(t) {
-    var out = [], bits = t.match(/[^.!?;:]+[.!?;:]*\s*/g) || [t];
-    bits.forEach(function (b) {
-      b = b.trim(); if (!b) return;
-      while (b.length > 220) {
-        var k = b.lastIndexOf(', ', 220); if (k < 60) k = b.lastIndexOf(' ', 220); if (k < 60) k = 220;
-        out.push(b.slice(0, k + 1)); b = b.slice(k + 1).trim();
-      }
-      if (b) out.push(b);
+  function sub(o, re, by) {
+    var s = '', m = [], last = 0;
+    o.s.replace(re, function () {
+      var a = arguments, mt = a[0], idx = a[a.length - 2];
+      var r = typeof by === 'function' ? by.apply(null, a) : by;
+      s += o.s.slice(last, idx) + r; m = m.concat(o.m.slice(last, idx));
+      for (var j = 0; j < r.length; j++) m.push(o.m[idx] != null ? o.m[idx] : o.m[o.m.length - 1]);
+      last = idx + mt.length; return mt;
     });
+    s += o.s.slice(last); m = m.concat(o.m.slice(last));
+    return { s: s, m: m };
+  }
+  function cleanMapped(raw) {
+    var o = { s: raw, m: [] };
+    for (var i = 0; i < raw.length; i++) o.m.push(i);
+    o = sub(o, /\s+/g, ' ');
+    o = sub(o, /[→⇒➜←·]/g, ', ');
+    o = sub(o, /≈|~(?=\s*\d)/g, 'khoảng ');
+    o = sub(o, /≤/g, ' tối đa ');
+    o = sub(o, /≥/g, ' ít nhất ');
+    o = sub(o, /[✓✔✗✘]/g, '');
+    o = sub(o, /\s+([,.;:!?])/g, function (x, p) { return p; });
+    o = sub(o, / {2,}/g, ' ');
+    return o;
+  }
+  // Tách câu, giữ vị trí bắt đầu (off) trong chuỗi đã làm sạch.
+  function splitText(t) {
+    var out = [], re = /[^.!?;:]+[.!?;:]*\s*/g, mt;
+    function push(b, off) {
+      var l = b.length - b.replace(/^\s+/, '').length; b = b.trim(); off += l;
+      if (b) out.push({ text: b, off: off });
+    }
+    while ((mt = re.exec(t))) {
+      var b = mt[0], off = mt.index;
+      var lead = b.length - b.replace(/^\s+/, '').length; b = b.slice(lead); off += lead;
+      while (b.trim().length > 220) {
+        var k = b.lastIndexOf(', ', 220); if (k < 60) k = b.lastIndexOf(' ', 220); if (k < 60) k = 220;
+        push(b.slice(0, k + 1), off); off += k + 1; b = b.slice(k + 1);
+      }
+      push(b, off);
+    }
     return out;
   }
   function collect(scope) {
@@ -254,11 +287,40 @@
       if (el.closest(SKIP)) return;
       if (el.tagName !== 'TR' && el.closest('tr')) return;
       if (!el.getClientRects().length) return;
-      var t = cleanText(ownText(el));
-      if (!/[\p{L}\d]/u.test(t)) return;
-      splitText(t).forEach(function (s) { parts.push({ el: el, text: s }); });
+      var raw = rawText(el), o = cleanMapped(raw.s);
+      if (!/[\p{L}\d]/u.test(o.s)) return;
+      splitText(o.s).forEach(function (p) { parts.push({ el: el, text: p.text, off: p.off, map: o.m, nodes: raw.nodes }); });
     });
     return parts;
+  }
+
+  /* Tô câu + chữ đang đọc bằng CSS Custom Highlight API (không sửa DOM). */
+  var HL = !!(window.CSS && CSS.highlights && window.Highlight);
+  function domPos(nodes, i, end) {
+    for (var k = 0; k < nodes.length; k++) {
+      var n = nodes[k], len = n.node.nodeValue.length;
+      if (i < n.start + len || (end && i === n.start + len)) return { node: n.node, off: Math.max(0, i - n.start) };
+      if (i < n.start) return { node: n.node, off: 0 };
+    }
+    var l = nodes[nodes.length - 1]; return l ? { node: l.node, off: l.node.nodeValue.length } : null;
+  }
+  function rangeOf(p, a, b) {
+    if (!p.nodes || !p.nodes.length || b <= a) return null;
+    var ra = p.map[p.off + a], rb = p.map[p.off + b - 1];
+    if (ra == null || rb == null) return null;
+    var s = domPos(p.nodes, ra, false), e = domPos(p.nodes, rb + 1, true);
+    if (!s || !e) return null;
+    try { var r = document.createRange(); r.setStart(s.node, s.off); r.setEnd(e.node, e.off); return r; } catch (x) { return null; }
+  }
+  function hl(name, r) {
+    if (!HL) return;
+    if (r) CSS.highlights.set(name, new Highlight(r)); else CSS.highlights.delete(name);
+  }
+  function hlWord(p, ci, cl) {
+    var t = p.text;
+    if (!cl) { var m = /^[^\s]+/.exec(t.slice(ci)); cl = m ? m[0].length : 0; }
+    while (cl > 0 && /[,.;:!?)"”]/.test(t.charAt(ci + cl - 1))) cl--;
+    hl('tts-word', rangeOf(p, ci, ci + cl));
   }
 
   function buildTtsBar() {
@@ -314,7 +376,9 @@
     T.i = i; T.playing = true;
     var p = T.parts[i];
     mark(p.el);
+    hl('tts-sent', rangeOf(p, 0, p.text.length)); hl('tts-word', null);
     var u = new SpeechSynthesisUtterance(p.text);
+    u.onboundary = function (e) { if (tok === T.token && e.name !== 'sentence') hlWord(p, e.charIndex, e.charLength); };
     u.lang = 'vi-VN'; u.rate = T.rate;
     if (T.voice) u.voice = T.voice;
     u.onend = function () { if (tok === T.token && T.playing) speakAt(i + 1); };
@@ -339,6 +403,7 @@
   function ttsPause() { T.token++; T.playing = false; speechSynthesis.cancel(); syncBar(); }
   function ttsStop() {
     T.token++; T.playing = false; speechSynthesis.cancel();
+    hl('tts-sent', null); hl('tts-word', null);
     mark(null); var c = document.querySelector('.tts-cur'); if (c) c.classList.remove('tts-cur');
     root.classList.remove('tts-on'); T.parts = []; syncBar();
   }

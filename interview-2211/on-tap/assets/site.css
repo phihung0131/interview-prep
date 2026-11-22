@@ -370,3 +370,7 @@ html.tts-on .tts-bar{display:flex}
 .sec-say:hover,.sec-say:focus-visible{opacity:1}
 @media print{.sec-say{display:none!important}}
 .sec-say.sm{width:28px;height:26px;font-size:13px;margin-left:8px}
+/* câu + chữ đang đọc */
+::highlight(tts-sent){background-color:color-mix(in srgb,var(--accent) 24%,transparent)}
+::highlight(tts-word){background-color:#FFC233;color:#15202B}
+@supports selector(::highlight(a)){.tts-cur{background:transparent!important}}
