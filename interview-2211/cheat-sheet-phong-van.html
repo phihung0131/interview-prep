@@ -1,0 +1,303 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Cheat sheet phỏng vấn WMS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--bg:#f6f3ec;--card:#fffdf8;--fg:#1d1b17;--mut:#6b655a;--line:#e3ddcf;--acc:#c2410c;--acc2:#0f766e;--accbg:#fde8d8;--tealbg:#d9f1ec;--warn:#9f1239;--warnbg:#fde4ea;--num:#1e3a8a;--numbg:#e3eafc;--code:#f0ebe0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15130f;--card:#1f1c17;--fg:#efe9dd;--mut:#a59d8e;--line:#363128;--acc:#fb923c;--acc2:#5eead4;--accbg:#3b2314;--tealbg:#123430;--warn:#fda4af;--warnbg:#3a1820;--num:#a5b4fc;--numbg:#1f2547;--code:#29251e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15130f;--card:#1f1c17;--fg:#efe9dd;--mut:#a59d8e;--line:#363128;--acc:#fb923c;--acc2:#5eead4;--accbg:#3b2314;--tealbg:#123430;--warn:#fda4af;--warnbg:#3a1820;--num:#a5b4fc;--numbg:#1f2547;--code:#29251e;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 "Be Vietnam Pro",system-ui,"Segoe UI",Arial,sans-serif;margin:0}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px}
+h1{font-size:26px;margin:0 0 4px;text-wrap:balance;letter-spacing:-.01em}
+.sub{color:var(--mut);margin:0 0 14px}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+nav a{font-size:13px;font-weight:600;text-decoration:none;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 10px;white-space:nowrap}
+nav a.c{border-color:var(--acc2);color:var(--acc2)}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:20px}
+.rules div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13.5px}
+.rules b{color:var(--acc)}
+.sec{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:26px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px;scroll-margin-top:60px}
+.card.case{border-left:5px solid var(--acc2)}
+.hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.no{font-weight:800;color:#fff;background:var(--acc);border-radius:8px;padding:1px 8px;font-size:14px}
+.case .no{background:var(--acc2)}
+.hd h2{font-size:18px;margin:0;flex:1;min-width:0;text-wrap:balance}
+.t{font-size:12px;color:var(--mut);white-space:nowrap}
+.open{background:var(--accbg);border-radius:10px;padding:9px 12px;font-weight:600;margin:0 0 10px}
+.case .open{background:var(--tealbg)}
+.open::before{content:"Mở: ";color:var(--acc);font-weight:800}
+.case .open::before{color:var(--acc2)}
+ol.f{list-style:none;margin:0;padding:0;counter-reset:s}
+ol.f li{counter-increment:s;display:grid;grid-template-columns:28px 128px 1fr;gap:8px;padding:6px 0;border-top:1px dashed var(--line);align-items:start}
+ol.f li:first-child{border-top:0}
+ol.f li::before{content:counter(s);font-weight:800;color:var(--mut);font-size:13px;text-align:center;padding-top:1px}
+ol.f .k{font-weight:700;font-size:13.5px;color:var(--acc)}
+.case ol.f .k{color:var(--acc2)}
+ol.f .s{min-width:0}
+.n{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:.9em;background:var(--numbg);color:var(--num);border-radius:5px;padding:0 5px;white-space:nowrap}
+code{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:.86em;background:var(--code);border-radius:5px;padding:0 4px}
+pre{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--code);border-radius:8px;padding:8px 10px;overflow-x:auto;margin:6px 0 0;line-height:1.45}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.box{border-radius:10px;padding:8px 12px;font-size:13.5px;min-width:0}
+.box h3{font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 4px}
+.more{background:var(--bg);border:1px solid var(--line)}
+.more h3{color:var(--mut)}
+.more p{margin:3px 0}
+.more i{font-style:normal;font-weight:700}
+.trap{background:var(--warnbg)}
+.trap h3{color:var(--warn)}
+.close{margin-top:10px;font-size:13.5px;border-top:1px solid var(--line);padding-top:8px}
+.close b{color:var(--acc2)}
+.tl{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}
+.tl span{font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:3px 8px;background:var(--bg)}
+.tl span b{font-family:"JetBrains Mono",ui-monospace,monospace}
+footer{color:var(--mut);font-size:12.5px;margin-top:24px}
+@media (max-width:640px){
+ nav{flex-wrap:nowrap;overflow-x:auto}
+ ol.f li{grid-template-columns:22px 1fr}
+ ol.f .k{grid-column:2}
+ ol.f .s{grid-column:2;margin-top:-6px}
+ .row{grid-template-columns:1fr}
+ h1{font-size:22px}
+}
+@media print{nav{position:static}.card{break-inside:avoid}}
+</style>
+
+<div class="wrap">
+<h1>Cheat sheet phỏng vấn WMS</h1>
+<p class="sub">8 câu hỏi, 2 case tối ưu, 1 case kiện Retired. Đọc cột trái để nhớ ý, đọc cột phải để nói thành câu.</p>
+
+<nav>
+<a href="#q1">1 Giới thiệu</a><a href="#q2">2 Lỗi đồng thời</a><a href="#q3">3 Cơ chế sửa</a><a href="#q4">4 Tối ưu</a><a href="#q5">5 Chạy lại</a><a href="#q6">6 Batch + API</a><a href="#q7">7 Coverage</a><a href="#q8">8 Lỗi prod</a>
+<a class="c" href="#c1">A Index</a><a class="c" href="#c2">B CTE</a><a class="c" href="#c3">C Retired</a>
+</nav>
+
+<div class="rules">
+<div><b>Công thức chung:</b> vấn đề → đo → nguyên nhân → cách sửa và lý do → con số → bài học.</div>
+<div><b>Bị khựng:</b> nói lại từ khóa ở cột trái, câu sẽ tự ra. Không cần thuộc từng chữ.</div>
+<div><b>Con số:</b> luôn kèm chữ “khoảng” và “tính trên một kho”.</div>
+<div><b>Kết câu:</b> “Nếu anh/chị muốn em đi sâu phần nào thì em nói tiếp ạ.”</div>
+</div>
+
+<div class="sec">8 câu hỏi</div>
+
+<!-- Q1 -->
+<div class="card" id="q1">
+<div class="hd"><span class="no">1</span><h2>Giới thiệu hệ thống WMS</h2><span class="t">~60 giây</span></div>
+<p class="open">Em làm WMS, hệ thống quản lý kho cho một hãng thời trang bán lẻ, khoảng 15 kho ở nhiều nước, mỗi kho một hạ tầng và cơ sở dữ liệu riêng.</p>
+<ol class="f">
+<li><span class="k">Quy mô</span><span class="s">Mỗi kho khoảng <span class="n">vài trăm đơn</span> cửa hàng một ngày, mỗi đơn vài trăm dòng, nhận <span class="n">50 nghìn – vài trăm nghìn</span> sản phẩm, cao điểm gấp <span class="n">2–3</span> lần.</span></li>
+<li><span class="k">Người dùng</span><span class="s">Có ba nhóm: nhân viên kho dùng máy quét, giám sát và kiểm kê, và các hệ thống ngoài như ERP, hệ thống đơn hàng, robot, cổng RFID.</span></li>
+<li><span class="k">Luồng nhận</span><span class="s">Batch nạp ASN mỗi <span class="n">15 phút</span>, cổng RFID đọc thùng, nhân viên kiểm đếm, đổ hàng sang khay, robot cất lên kệ, tồn thành khả dụng.</span></li>
+<li><span class="k">Luồng xuất</span><span class="s">Batch nạp đơn cửa hàng, phân bổ tồn, batch tạo lệnh nhặt tối đa <span class="n">150 ký</span> mỗi lượt, nhặt, đóng thùng, gom theo tuyến xe.</span></li>
+<li><span class="k">Phần của em</span><span class="s">Em trực tiếp làm hai con: <b>API ghi kết quả đổ khay</b> và <b>batch tạo lệnh nhặt</b>. Em implement, viết unit test, review PR và điều tra sự cố trên hai con này.</span></li>
+</ol>
+<div class="close"><b>Câu nối:</b> “Hai chỗ này cũng là nơi nhiều thứ chạy đồng thời nhất, nên các ví dụ sau em xin kể từ đó.”</div>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3><p><i>Số chính xác?</i> Đây là số ước lượng, tính trên một kho. Kho online thì đơn nhỏ và nhiều hơn, vài nghìn đến vài chục nghìn đơn.</p></div>
+<div class="box trap"><h3>Tránh</h3>Nói “em làm rải rác mọi khâu”, lẫn việc của team với việc của mình, không có con số.</div>
+</div>
+</div>
+
+<!-- Q2 -->
+<div class="card" id="q2">
+<div class="hd"><span class="no">2</span><h2>Một lỗi concurrency cụ thể</h2><span class="t">~60 giây</span></div>
+<p class="open">Lỗi em kể nằm ở API ghi kết quả đổ khay: khay robot chỉ chịu tối đa 30 ký, mà hai trạm ghi cùng lúc làm khay bị quá tải.</p>
+<ol class="f">
+<li><span class="k">Hai thao tác</span><span class="s">Hai trạm cùng đổ vào <b>một khay</b> cách nhau vài trăm mili giây.</span></li>
+<li><span class="k">Code cũ</span><span class="s">Code làm ba bước rời nhau: đọc cân nặng, kiểm có vượt 30 ký không, rồi ghi.</span></li>
+<li><span class="k">Ví dụ số</span><span class="s">Khay đang <span class="n">22 ký</span>, mỗi trạm thêm <span class="n">6 ký</span>. Cả hai đọc thấy 22, cùng thấy 28 là ổn, cùng ghi, nên khay thành <span class="n">34 ký</span>.</span></li>
+<li><span class="k">Tên lỗi</span><span class="s">Đây là lỗi <b>check-then-act</b>: bước kiểm và bước ghi không nằm trong một thao tác nguyên tử.</span></li>
+<li><span class="k">Phát hiện</span><span class="s">Lỗi không lộ ngay vì xác suất thấp. Nó lộ ra khi trạm robot từ chối khay quá tải và đối soát cuối ngày thấy khay vượt ngưỡng.</span></li>
+<li><span class="k">Tái hiện</span><span class="s">Em viết test tích hợp trên PostgreSQL thật, cho hai thread chờ ở <code>CountDownLatch</code> rồi thả cùng lúc, lặp vài trăm lần. Em chèn thêm độ trễ giữa đọc và ghi để lỗi gần như chắc chắn xảy ra.</span></li>
+</ol>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3><p><i>Sao unit test không thấy?</i> Vì unit test mock cơ sở dữ liệu, không có hai kết nối thật tranh nhau.</p></div>
+<div class="box trap"><h3>Tránh</h3>Nói chung chung kiểu “lỗi đồng bộ dữ liệu”. Phải nói được 22 + 6 + 6 = 34.</div>
+</div>
+</div>
+
+<!-- Q3 -->
+<div class="card" id="q3">
+<div class="hd"><span class="no">3</span><h2>Cơ chế sửa và vì sao chọn nó</h2><span class="t">~60 giây</span></div>
+<p class="open">Em sửa bằng conditional UPDATE: gộp bước kiểm và bước ghi vào một câu lệnh, rồi kiểm số dòng được cập nhật.</p>
+<pre>UPDATE tote SET weight_g = weight_g + :w
+ WHERE tote_id = :id AND weight_g + :w &lt;= 30000;
+-- 1 dòng: thành công | 0 dòng: trả TOTE_OVERLOAD (409)</pre>
+<ol class="f">
+<li><span class="k">Vì sao đúng</span><span class="s">Câu lệnh đến sau chờ khóa dòng, rồi PostgreSQL <b>kiểm lại điều kiện với giá trị mới</b>, nên khay không bao giờ vượt 30 ký.</span></li>
+<li><span class="k">Không chọn FOR UPDATE</span><span class="s">Cách này đúng nhưng giữ khóa suốt đoạn xử lý. Conditional update chỉ giữ khóa vài mili giây.</span></li>
+<li><span class="k">Không chọn version</span><span class="s">Optimistic lock phải đọc trước, thua thì thử lại. Ở đây điều kiện nằm ngay trong câu lệnh nên không cần.</span></li>
+<li><span class="k">Không chọn cách khác</span><span class="s"><code>synchronized</code> không chạy được khi có nhiều instance. Redis lock thêm hạ tầng. SERIALIZABLE thì đắt và phải xử lý thử lại khắp nơi.</span></li>
+<li><span class="k">Fail fast</span><span class="s"><code>lock_timeout</code> <span class="n">2 giây</span>, quá thì lỗi <span class="n">55P03</span>, API trả TOTE_BUSY và trạm thử lại một lần.</span></li>
+<li><span class="k">Ai quyết</span><span class="s">Em đề xuất, chốt cùng tech lead. Cách này nhất quán với các API khác của team.</span></li>
+</ol>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3><p><i>Sao không REPEATABLE READ?</i> Vì nó ném lỗi serialization khi hai bên sửa cùng một dòng, nên phải thêm cơ chế thử lại. Conditional update ở READ COMMITTED đạt cùng kết quả mà đơn giản hơn.</p></div>
+<div class="box trap"><h3>Tránh</h3>Nói “em dùng synchronized”, hoặc nói “có timeout” mà không nêu giá trị và lỗi trả về.</div>
+</div>
+</div>
+
+<!-- Q4 -->
+<div class="card" id="q4">
+<div class="hd"><span class="no">4</span><h2>Tối ưu một query chậm</h2><span class="t">~75 giây · chi tiết ở case A</span></div>
+<p class="open">Em kể API quét thùng ở bến nhận hàng: mỗi lần quét chờ 1–2 giây, giờ cao điểm máy quét báo hết thời gian.</p>
+<ol class="f">
+<li><span class="k">Trước</span><span class="s">Bảng kiện ASN của một kho khoảng <span class="n">10 triệu dòng</span>, mỗi lần tra mất <span class="n">1–2 giây</span> ở cơ sở dữ liệu, cả API <span class="n">3–4 giây</span> lúc cao điểm.</span></li>
+<li><span class="k">EXPLAIN</span><span class="s">Kế hoạch thực thi cho thấy <b>Seq Scan</b> cả bảng, đọc khoảng 10 triệu dòng rồi bỏ gần hết chỉ để lấy một thùng.</span></li>
+<li><span class="k">Index</span><span class="s">Em tạo partial index trên <code>carton_code</code>, chỉ chứa dòng có <code>status = 'EXPECTED'</code>.</span></li>
+<li><span class="k">Vì sao cột đó</span><span class="s">Mã thùng gần như duy nhất nên lọc rất mạnh. Trạng thái chỉ có vài giá trị, nên em đưa nó vào điều kiện của index thay vì làm cột. Index chỉ còn vài phần trăm bảng.</span></li>
+<li><span class="k">Thứ tự cột</span><span class="s">Quy tắc chung: cột so sánh bằng đứng trước, cột khoảng đứng sau, và index chỉ dùng được từ cột đầu.</span></li>
+<li><span class="k">Tác động ghi</span><span class="s">Ghi chậm thêm khoảng <span class="n">vài %</span>, em đo trên staging bằng cách chèn 100 nghìn dòng. Thùng nhận xong thì rời khỏi index nên index không phình.</span></li>
+<li><span class="k">Sau</span><span class="s">Truy vấn chuyển sang <b>Index Scan</b>, dưới <span class="n">1 ms</span> ở cơ sở dữ liệu, cả API còn vài chục mili giây.</span></li>
+</ol>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3><p><i>Đổi thứ tự (status, code)?</i> Vẫn dùng được nhưng kém hơn, và truy vấn chỉ lọc theo mã thùng sẽ không dùng được index.</p><p><i>Khi nào không thêm index?</i> Khi bảng nhỏ, cột lọc kém, hoặc bảng ghi nhiều mà đọc ít.</p></div>
+<div class="box trap"><h3>Tránh</h3>Chỉ nói “em thêm index” mà không có số trước và sau, không nói thứ tự cột và tác động lên ghi.</div>
+</div>
+</div>
+
+<!-- Q5 -->
+<div class="card" id="q5">
+<div class="hd"><span class="no">5</span><h2>Batch chạy lại có nhân đôi dữ liệu không?</h2><span class="t">~50 giây</span></div>
+<p class="open">Không nhân đôi, vì em thiết kế batch để chạy lại vẫn an toàn. Ví dụ là batch nạp ASN chạy 15 phút một lần.</p>
+<ol class="f">
+<li><span class="k">Khóa ở DB</span><span class="s">Idempotency key nằm ở cơ sở dữ liệu: <b>unique</b> trên (số ASN, mã thùng), ghi bằng <code>ON CONFLICT DO NOTHING</code>.</span></li>
+<li><span class="k">Nhật ký file</span><span class="s">Có bảng nhật ký chạy, unique trên (tên file, checksum), với trạng thái RUNNING, DONE, FAILED. File đã DONE thì bỏ qua.</span></li>
+<li><span class="k">Chạy chồng</span><span class="s">Lớp một là khóa chống chạy trùng có hạn: lần trước còn RUNNING thì lần sau thoát ngay. Lớp hai là unique constraint vẫn chặn dù có lọt qua.</span></li>
+<li><span class="k">Chết giữa chừng</span><span class="s">Các chunk đã commit giữ nguyên. Chạy lại chỉ chèn phần còn thiếu.</span></li>
+</ol>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3><p><i>Sao không kiểm ID tồn tại rồi chèn?</i> Vì đó lại là check-then-act, request khác chen vào được. Chỉ unique constraint là không lách được.</p></div>
+<div class="box trap"><h3>Tránh</h3>Nói “có check ID” mà không nói key lưu ở đâu và có ràng buộc ở DB không.</div>
+</div>
+</div>
+
+<!-- Q6 -->
+<div class="card" id="q6">
+<div class="hd"><span class="no">6</span><h2>Batch và API cùng ghi một bảng</h2><span class="t">~60 giây</span></div>
+<p class="open">Ví dụ là bảng việc nhặt: batch gán việc vào lượt, cùng lúc API ghi kết quả nhặt trên chính các việc đó. Em xử lý bốn chỗ.</p>
+<ol class="f">
+<li><span class="k">Check-then-act</span><span class="s">Em viết <code>UPDATE … WHERE status='ASSIGNED'</code> rồi kiểm số dòng. Bằng 0 nghĩa là việc đã bị bên kia xử lý, trả lỗi rõ ràng.</span></li>
+<li><span class="k">Thứ tự khóa</span><span class="s">Hai bên luôn khóa cùng thứ tự: đơn, rồi việc nhặt theo <code>task_id</code> tăng dần, rồi tồn kho. Cùng chiều thì không tạo vòng chờ.</span></li>
+<li><span class="k">Transaction nhỏ</span><span class="s">Batch chia chunk khoảng <span class="n">500 dòng</span>, mỗi chunk commit ngay. Lấy việc bằng <code>FOR UPDATE SKIP LOCKED</code>, dòng nào đang bị khóa thì để vòng sau.</span></li>
+<li><span class="k">Deadlock, timeout</span><span class="s">PostgreSQL phát hiện deadlock sau <span class="n">1 giây</span> (lỗi 40P01), bên bị hủy thử lại tối đa <span class="n">3 lần</span>. API đặt <code>lock_timeout</code> <span class="n">2–3 giây</span> để không treo.</span></li>
+</ol>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3><p><i>Sao 500 mà không 50.000?</i> Chunk lớn thì giữ khóa lâu và rollback tốn, chunk nhỏ thì tốn chi phí commit. Thường chọn 500–2.000 dòng, quyết bằng đo.</p></div>
+<div class="box trap"><h3>Tránh</h3>Để cả batch chạy trong một transaction dài, hoặc không nhận ra khoảng hở giữa kiểm và ghi.</div>
+</div>
+</div>
+
+<!-- Q7 -->
+<div class="card" id="q7">
+<div class="hd"><span class="no">7</span><h2>Cổng coverage 90%</h2><span class="t">~45 giây</span></div>
+<p class="open">Em xem 90% coverage là sàn tối thiểu, không phải bằng chứng code đúng. Coverage đo dòng nào được chạy, không đo kết quả có đúng không.</p>
+<ol class="f">
+<li><span class="k">Thiếu gì</span><span class="s">Nó bỏ sót ba thứ: test đồng thời, test tích hợp với DB thật, và test với dữ liệu lớn.</span></li>
+<li><span class="k">Bug thật</span><span class="s">Ví dụ là case kiện Retired: đoạn update đã được phủ test, nhưng test mock update luôn thành công nên không ai thử trường hợp <b>update trả 0 dòng</b>. Lỗi lọt lên production.</span></li>
+<li><span class="k">Bổ sung</span><span class="s">Em thêm test cho trường hợp 0 dòng, test tích hợp bằng Testcontainers với PostgreSQL thật, test hai thread, và đề xuất mutation testing.</span></li>
+</ol>
+<div class="close"><b>Chốt:</b> “Cổng coverage vẫn có ích để bắt code không có test, nhưng chất lượng nằm ở assert và tình huống test chọn.”</div>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3><p><i>Mutation testing?</i> Công cụ cố tình sửa code, ví dụ đổi dấu so sánh. Nếu test vẫn qua thì test yếu.</p></div>
+<div class="box trap"><h3>Tránh</h3>Bảo vệ coverage như thể nó đảm bảo chất lượng.</div>
+</div>
+</div>
+
+<!-- Q8 -->
+<div class="card" id="q8">
+<div class="hd"><span class="no">8</span><h2>Lỗi production gần nhất</h2><span class="t">Kể case C bên dưới</span></div>
+<p class="open">Lỗi gần nhất em điều tra là batch tồn kho ban đêm sập vì gặp tồn âm. Nguyên nhân là kiện đã Retired mà vẫn bị scrap hai lần.</p>
+<ol class="f">
+<li><span class="k">Triệu chứng</span><span class="s">Batch đêm crash, log báo một mã kiện có tồn âm. Bên vận hành khẳng định thao tác đúng quy trình.</span></li>
+<li><span class="k">Log tìm gì</span><span class="s">Em lấy mã kiện đó, tìm log API scrap và thấy kiện đã Retired mà vẫn có <b>hai lần scrap “thành công”</b>.</span></li>
+<li><span class="k">Đến root cause</span><span class="s">Em xếp log máy quét và log batch Retired lên cùng trục thời gian. Update dùng mốc cũ nên không sửa dòng nào, mà code không kiểm số dòng.</span></li>
+<li><span class="k">Bản sửa</span><span class="s">0 dòng thì dừng và báo lỗi. Trừ kho chung transaction với đổi trạng thái. Chặn kiện Retired ngay từ đầu.</span></li>
+<li><span class="k">Ngăn tái diễn</span><span class="s">Thêm test trường hợp 0 dòng, test hai thread, và cảnh báo khi có tồn âm.</span></li>
+<li><span class="k">Ai làm gì</span><span class="s">Em điều tra và đề xuất hướng sửa, cùng team triển khai và review, bên vận hành xác nhận quy trình.</span></li>
+</ol>
+<div class="row">
+<div class="box trap"><h3>Tránh</h3>Chỉ kể bản sửa mà không kể đường lần từ log đến nguyên nhân.</div>
+</div>
+</div>
+
+<div class="sec">3 case kể chuyện (dưới 90 giây)</div>
+
+<!-- Case A -->
+<div class="card case" id="c1">
+<div class="hd"><span class="no">A</span><h2>Index cho API quét thùng</h2><span class="t">~75 giây</span></div>
+<p class="open">Em từng xử lý màn hình quét ở bến nhận hàng: nhân viên quét mỗi thùng phải chờ vài giây, giờ cao điểm máy quét báo hết thời gian.</p>
+<ol class="f">
+<li><span class="k">Vấn đề</span><span class="s">Bến dỡ hàng bị chậm, xe xếp hàng chờ.</span></li>
+<li><span class="k">Đo</span><span class="s">Bảng kiện khoảng <span class="n">10 triệu dòng</span>. Em chạy <code>EXPLAIN ANALYZE</code> đúng câu truy vấn và thấy nó đọc cả bảng để tìm một thùng.</span></li>
+<li><span class="k">Ví dụ đời thường</span><span class="s">Giống tìm một từ trong cuốn sách không có mục lục, phải lật từng trang. Index chính là mục lục.</span></li>
+<li><span class="k">Cách sửa</span><span class="s">Em tạo partial index chỉ cho thùng đang chờ nhận, vì phần lớn thùng đã nhận xong. Index nhỏ, tra nhanh, ít làm chậm ghi.</span></li>
+<li><span class="k">An toàn trên prod</span><span class="s">Em tạo bằng <code>CREATE INDEX CONCURRENTLY</code> ngoài giờ cao điểm, có <code>lock_timeout</code> ngắn, nên máy quét vẫn chạy bình thường.</span></li>
+<li><span class="k">Kết quả</span><span class="s">Mỗi lần tra từ <span class="n">1–2 giây</span> xuống <span class="n">&lt;1 ms</span>, cả API còn vài chục mili giây.</span></li>
+</ol>
+<pre>SELECT ac.carton_id, a.asn_no FROM asn_carton ac
+JOIN asn a ON a.asn_id = ac.asn_id
+WHERE ac.carton_code = :code AND ac.status = 'EXPECTED';  -- status viết hằng số
+
+CREATE INDEX CONCURRENTLY idx_asn_carton_expected
+  ON asn_carton (carton_code) WHERE status = 'EXPECTED';</pre>
+<div class="close"><b>Bài học:</b> “Index không miễn phí, nên em chỉ thêm đúng chỗ cần và luôn đo trước, sau.”</div>
+<div class="row">
+<div class="box more"><h3>Câu đào sâu</h3>
+<p><i>Sao status phải là hằng số?</i> Planner chỉ chọn partial index khi chứng minh được điều kiện truy vấn khớp điều kiện index. Nếu là tham số thì với kế hoạch chung nó không chứng minh được.</p>
+<p><i>Rủi ro của CONCURRENTLY?</i> Lệnh chạy lâu hơn và không chạy trong transaction được. Bị hủy giữa chừng thì để lại index hỏng, phải kiểm <code>indisvalid</code>, drop rồi tạo lại.</p></div>
+<div class="box more"><h3>Sau khi tạo</h3><p>Em kiểm index hợp lệ, chạy <code>ANALYZE</code>, xác nhận bằng EXPLAIN. Nếu cần lùi thì <code>DROP INDEX CONCURRENTLY</code>.</p></div>
+</div>
+</div>
+
+<!-- Case B -->
+<div class="card case" id="c2">
+<div class="hd"><span class="no">B</span><h2>Job phân bổ cuối ngày, viết lại bằng CTE</h2><span class="t">~75 giây</span></div>
+<p class="open">Case em tự hào là job phân bổ đơn cuối ngày: nó chạy ngày càng lâu, có nguy cơ trễ giờ cắt đơn cho xe tải.</p>
+<ol class="f">
+<li><span class="k">Vấn đề</span><span class="s">Job trễ thì xe đến mà hàng chưa sẵn sàng.</span></li>
+<li><span class="k">Đọc xu hướng</span><span class="s">Thời gian chạy tăng đều theo số đơn từng tuần, không nhảy đột ngột. Vì vậy em đoán là vấn đề khi dữ liệu lớn dần, không phải lỗi logic.</span></li>
+<li><span class="k">Đo</span><span class="s">Em bật log đo thời gian từng bước và thấy phần lớn thời gian nằm ở bước tra khu vực kho, bị gọi lặp lại cho từng đơn.</span></li>
+<li><span class="k">Nguyên nhân</span><span class="s">Bước đó là truy vấn con lồng bên trong, nên với mỗi đơn cơ sở dữ liệu lại tính lại từ đầu, dù kết quả gần như không đổi.</span></li>
+<li><span class="k">Hai phương án</span><span class="s">Một là cache ở ứng dụng, nhưng phải lo làm mới khi dữ liệu đổi. Hai là viết lại bằng <b>CTE</b>, tính một lần rồi nối vào. Em chọn CTE vì sửa đúng gốc và không đổi nghiệp vụ.</span></li>
+<li><span class="k">Kết quả</span><span class="s">Thời gian không còn tăng theo số đơn, job luôn xong trước giờ cắt đơn kể cả mùa cao điểm.</span></li>
+</ol>
+<div class="close"><b>Câu ngắn 20 giây:</b> “Job phân bổ cuối ngày chạy ngày càng lâu. Em đo từng bước, thấy truy vấn con tra khu vực kho chạy lặp cho từng đơn. Em viết lại bằng CTE để tính một lần, nên job không còn chậm theo số đơn và xong đúng giờ.”</div>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3>
+<p><i>Sao không chỉ thêm index?</i> Index làm mỗi lần tra nhanh hơn nhưng vẫn tra một lần cho mỗi đơn. CTE giảm hẳn số lần tra.</p>
+<p><i>CTE có chắc chạy một lần?</i> Từ PostgreSQL 12, CTE có thể bị gộp vào câu chính. Muốn chắc thì dùng <code>MATERIALIZED</code> và xác nhận bằng EXPLAIN.</p></div>
+<div class="box trap"><h3>Tránh</h3>Bịa con số trước và sau. Nếu không nhớ, nói “giảm rõ rệt, không còn tăng theo số đơn”.</div>
+</div>
+</div>
+
+<!-- Case C -->
+<div class="card case" id="c3">
+<div class="hd"><span class="no">C</span><h2>Kiện Retired vẫn bị scrap (race condition)</h2><span class="t">~85 giây</span></div>
+<p class="open">Một sáng batch tồn kho ban đêm sập vì gặp số tồn âm. Em lần ra đó là một race condition giữa máy quét và một batch.</p>
+<div class="tl"><span><b>11:58</b> máy quét đọc kiện, nhớ mốc</span><span><b>11:59</b> batch đổi kiện sang Retired</span><span>Scrap gửi mốc 11:58 → <b>0 dòng</b></span><span>Code vẫn trừ kho → quét lại → <b>trừ lần 2</b></span><span>Tồn âm → <b>batch đêm sập</b></span></div>
+<ol class="f">
+<li><span class="k">Bối cảnh</span><span class="s">Kiện Retired là mã kiện cũ đã được thay bằng mã mới, không ai được thao tác nữa.</span></li>
+<li><span class="k">Lần log</span><span class="s">Em lấy mã kiện lỗi, thấy kiện đã Retired mà có <b>hai lần scrap thành công</b>. Em xếp log máy quét và log batch lên cùng trục thời gian.</span></li>
+<li><span class="k">Cơ chế</span><span class="s">Lệnh scrap là optimistic lock: chỉ update khi mốc cập nhật còn khớp. Batch đã đổi mốc nên update <b>không sửa được dòng nào</b>.</span></li>
+<li><span class="k">Root cause</span><span class="s">Code không kiểm số dòng được cập nhật. Nó coi như đã xong và vẫn trừ kho. Trạng thái chưa đổi nên nhân viên quét lại được và trừ lần hai.</span></li>
+<li><span class="k">Bản sửa</span><span class="s">0 dòng thì dừng và báo lỗi. Trừ kho chung transaction với đổi trạng thái. Kiểm trạng thái kiện trước khi cho scrap.</span></li>
+<li><span class="k">Ngăn tái diễn</span><span class="s">Thêm test trường hợp 0 dòng, test tích hợp hai thread, và cảnh báo khi có tồn âm.</span></li>
+</ol>
+<div class="close"><b>Câu chốt:</b> “Khóa optimistic không sai. Cái sai là chỗ gọi nó không phản ứng khi bị từ chối. Từ đó em luôn kiểm số dòng sau mỗi update có điều kiện.”</div>
+<div class="row">
+<div class="box more"><h3>Nếu hỏi thêm</h3>
+<p><i>Sao biết đúng là race?</i> Hai mốc chênh nhau chưa đến 2 phút, cùng đụng một bản ghi. Em đối chiếu đúng giá trị mốc ở từng bước để xác nhận.</p>
+<p><i>Sao không phát hiện sớm?</i> Xác suất thấp, chỉ xảy ra khi hai việc trùng giờ.</p>
+<p><i>Biết đã hết hẳn?</i> Có test tái hiện cố định, có cảnh báo tồn âm, và theo dõi số lần update trả 0 dòng.</p></div>
+<div class="box trap"><h3>Tránh</h3>Giải thích quá sâu về nghiệp vụ Retired. Người phỏng vấn không biết nghiệp vụ, chỉ cần hiểu “kiện đã ngừng dùng mà vẫn bị trừ kho hai lần”.</div>
+</div>
+</div>
+
+<footer>Số liệu là ước lượng và tính trên một kho. Nếu có số thật từ production, thay vào các ô số màu xanh.</footer>
+</div>
+</body></html>

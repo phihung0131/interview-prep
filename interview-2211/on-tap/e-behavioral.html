@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>E · Behavioral</title><meta name="description" content="12 câu STAR: dự án tự hào, gây lỗi, bất đồng, yêu cầu mơ hồ, coverage vs deadline, cải tiến quy trình, học nhanh, phản hồi, hướng dẫn, thiếu thông tin, thất bại, áp lực."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">E · Behavioral</p><h1>E · Behavioral</h1><p class="lede">Mỗi câu là một câu chuyện <b>STAR</b> khoảng 90 giây: <b>Situation</b> (bối cảnh 1–2 câu) · <b>Task</b> (việc của em) · <b>Action</b> (em làm gì, dùng “em”) · <b>Result</b> (kết quả có số + bài học). Các chi tiết <b>tô vàng</b> là giả định để câu chuyện trọn vẹn: thay bằng chuyện thật của bạn trước khi đi phỏng vấn.</p><div class="mast-meta"><span>12 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q151">151</a><a href="#q152">152</a><a href="#q153">153</a><a href="#q154">154</a><a href="#q155">155</a><a href="#q156">156</a><a href="#q157">157</a><a href="#q158">158</a><a href="#q159">159</a><a href="#q160">160</a><a href="#q161">161</a><a href="#q162">162</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<div class="intro-box"><p><b>5 câu chuyện gốc dùng lại cho nhiều câu hỏi:</b> (1) Khay 30 ký – lỗi concurrency ở API đổ khay · (2) Quét thùng chậm – thêm partial index · (3) Nền tảng AI nội bộ – cải tiến quy trình · (4) Notification Hub – tự học và thiết kế · (5) Một lỗi/bài học của chính em. Mỗi câu dưới đây ghi rõ dùng chuyện nào.</p></div>
+<article class="qa" id="q151" data-q="q151">
+<div class="qa-h"><span class="qa-n">151</span><h3>Kể về dự án bạn tự hào nhất. Vai trò thật của bạn là gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> dùng “tôi/em” cho phần của mình, kết quả đo được, điều bạn sẽ làm khác.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p><i>(Chuyện 3 – nền tảng AI nội bộ)</i></p>
+<p><b>S:</b> Ở dự án WMS, team em phụ thuộc vào một vendor thiết kế bên ngoài. Mỗi khi spec chưa rõ, bọn em phải hỏi và chờ, có lúc <mark>hai, ba ngày</mark>; thêm nữa là các lỗi đơn giản và code lệch nghiệp vụ hay bị bắt muộn ở vòng review.</p>
+<p><b>T:</b> Em <mark>đề xuất và là một trong những người xây chính</mark> nền tảng AI nội bộ để giảm thời gian bị chặn và lỗi lặt vặt.</p>
+<p><b>A:</b> Em dùng Claude Code SDK nối với Jira, Confluence và GitHub để tự động hóa pipeline: đọc yêu cầu và chỉ ra chỗ mơ hồ, sinh test scenario, sinh code và unit test theo quy ước của team, tạo PR, và <b>AI review theo design trước khi người review</b>. Em xây thêm knowledge base từ Confluence để hỏi đáp nghiệp vụ và điều tra bug. Em làm thử với <mark>một module nhỏ</mark> trước, đo, rồi mới mở rộng cho cả team.</p>
+<p><b>R:</b> Cả team dùng trên dự án thật; theo ước tính của team, thời gian phát triển giảm khoảng <b>một nửa</b>, thời gian chờ vendor và lỗi đơn giản giảm rõ. Điều em sẽ làm khác: <b>đo bài bản từ đầu</b> (thời gian từ ticket tới PR, số comment review) thay vì ước tính sau.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Phần nào là của riêng em?</summary><div class="a"><p>Nói đúng ranh giới như câu 18 (trang A3): phần em xây, phần dùng công cụ có sẵn, phần của đồng đội.</p></div></details></div>
+<div class="trap">Dùng “chúng em” cho mọi thứ, người nghe không biết em làm gì.</div>
+</article>
+<article class="qa" id="q152" data-q="q152">
+<div class="qa-h"><span class="qa-n">152</span><h3>Một lần bạn gây ra lỗi trên staging/production: chuyện gì, xử lý ra sao, rút ra gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> nhận trách nhiệm, không đổ lỗi, biện pháp ngăn lặp lại.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p><i>(Chuyện 5 – lỗi của em)</i></p>
+<p><b>S:</b> <mark>Ở WMS, em viết một thay đổi cho batch tạo lệnh nhặt, đổi cách lọc các việc đang chờ.</mark></p>
+<p><b>T:</b> Thay đổi qua review và unit test, deploy lên staging.</p>
+<p><b>A → lỗi:</b> <mark>Trên staging, tester báo một số đơn không được tạo lệnh nhặt. Em kiểm tra log và thấy điều kiện lọc mới của em bỏ sót các dòng có trạng thái cũ còn tồn trong dữ liệu thật – dữ liệu test của em không có trường hợp đó.</mark> Em <b>báo ngay</b> với tech lead và tester rằng lỗi do thay đổi của em, revert trong buổi đó để không chặn người khác, rồi sửa: thêm trường hợp đó vào điều kiện, thêm <b>test với dữ liệu lấy mẫu từ staging</b> và test cho từng giá trị trạng thái.</p>
+<p><b>R:</b> Lỗi không lên production. Bài học của em: unit test xanh và coverage cao không có nghĩa là đúng với <b>dữ liệu thật</b>; từ đó, với thay đổi đụng tới điều kiện lọc, em luôn chạy thử truy vấn trên bản sao dữ liệu staging và liệt kê đủ các giá trị trạng thái có trong bảng trước khi viết điều kiện.</p></div>
+<div class="honest">Hãy dùng một lỗi thật của bạn. Lỗi trên staging là đủ, không cần lỗi production lớn. Điểm được chấm là: nhận trách nhiệm, xử lý nhanh, rút ra thay đổi cụ thể.</div>
+<div class="trap">Kể lỗi “do người khác” hoặc lỗi không có hậu quả gì.</div>
+</article>
+<article class="qa" id="q153" data-q="q153">
+<div class="qa-h"><span class="qa-n">153</span><h3>Một lần bất đồng với đồng nghiệp/vendor/tech lead về giải pháp. Kết quả thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> dùng dữ liệu thuyết phục, lắng nghe, cam kết với quyết định cuối.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p><i>(Chuyện 1 – khay 30 ký)</i></p>
+<p><b>S:</b> Khi sửa lỗi khay vượt 30 ký ở API đổ khay, <mark>một đồng nghiệp đề xuất dùng Redis lock bao quanh cả đoạn xử lý</mark>.</p>
+<p><b>T:</b> Em cần chọn cơ chế sửa và thống nhất với team.</p>
+<p><b>A:</b> Em không bác ngay mà <b>liệt kê các phương án lên bàn</b> với tiêu chí: đúng khi nhiều instance, thời gian giữ khóa, thêm hạ tầng, độ khó test. Redis lock đúng nhưng thêm một điểm hỏng, phải xử lý hết hạn khóa, trong khi dữ liệu đã ở PostgreSQL. Em đề xuất <b>conditional update</b> và viết <b>test đồng thời</b> chạy được cho cả hai cách để so. Em cũng lắng nghe lý do của bạn ấy: bạn lo một câu UPDATE không đủ cho quy tắc phức tạp sau này; em đồng ý ghi lại rằng khi quy tắc vượt khỏi một câu WHERE thì chuyển sang <code>SELECT FOR UPDATE</code>.</p>
+<p><b>R:</b> Tech lead chọn conditional update; test đồng thời chạy lặp không còn lỗi. Bài học: tranh luận bằng <b>tiêu chí và dữ liệu</b>, nói rõ điều kiện đổi quyết định, và nếu team chọn khác thì em vẫn cam kết làm tốt.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Nếu tech lead chọn cách của đồng nghiệp?</summary><div class="a"><p>Em làm theo, và đề xuất thêm phần em lo (timeout khóa, test đồng thời) để giảm rủi ro. Disagree and commit.</p></div></details></div>
+</article>
+<article class="qa" id="q154" data-q="q154">
+<div class="qa-h"><span class="qa-n">154</span><h3>Yêu cầu mơ hồ hoặc vendor thiết kế trả lời chậm: bạn làm gì để không bị chặn?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> tạo danh sách câu hỏi, giả định có ghi nhận, và dự án nền tảng AI giảm thời gian chờ.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>S:</b> Ở WMS, spec do vendor thiết kế bên ngoài viết, hay có chỗ mơ hồ và phản hồi chậm <mark>2–3 ngày</mark>.</p>
+<p><b>A:</b> Em không ngồi chờ:</p>
+<ol><li>Đọc spec và gom <b>danh sách câu hỏi</b> một lần, mỗi câu kèm <b>phương án em đề xuất</b> để vendor chỉ cần chọn, thay vì hỏi mở.</li><li>Với chỗ chưa được trả lời, em <b>chọn giả định hợp lý</b>, <b>ghi rõ giả định trong ticket và trong code</b> (cấu hình hoặc một chỗ dễ đổi), rồi làm tiếp phần chắc chắn.</li><li>Làm trước những phần không phụ thuộc chỗ mơ hồ: khung API, test, migration.</li><li>Đây cũng là động lực cho nền tảng AI: AI đọc spec và Confluence để <b>chỉ ra chỗ mơ hồ sớm</b> và tìm câu trả lời trong tài liệu cũ trước khi phải hỏi vendor.</li></ol>
+<p><b>R:</b> Thời gian bị chặn giảm, và khi vendor trả lời, phần lớn giả định của em đúng; chỗ sai thì sửa nhanh vì đã khoanh vùng sẵn.</p></div>
+</article>
+<article class="qa" id="q155" data-q="q155">
+<div class="qa-h"><span class="qa-n">155</span><h3>Deadline gấp nhưng cổng coverage 90% là bắt buộc: bạn ưu tiên thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> không hạ chất lượng, trao đổi phạm vi, test đúng chỗ quan trọng trước.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>S:</b> Ở WMS, cổng coverage 90% là bắt buộc để merge và release. <mark>Có lần tính năng gấp, còn hai ngày mà coverage của phần mới mới khoảng 70%.</mark></p>
+<p><b>A:</b> Em <b>không hạ chất lượng</b> và không viết test rỗng chỉ để tăng số. Em:</p>
+<ol><li><b>Ưu tiên test chỗ quan trọng trước</b>: nhánh nghiệp vụ chính, điều kiện biên (khay đúng 30 ký, số lượng 0), nhánh lỗi, chỗ đồng thời.</li><li>Tách code khó test (gọi ngoài) ra sau interface để mock gọn, viết test nhanh hơn.</li><li><b>Báo sớm</b> cho tech lead tình hình bằng số, đề xuất <b>cắt một phần phạm vi</b> không cần trong lần release này (ví dụ một màn hình báo cáo phụ) để giữ chất lượng phần chính.</li></ol>
+<p><b>R:</b> Phần chính release đúng hạn với coverage đạt và test có giá trị; phần cắt ra vào sprint sau. Em hiểu coverage là <b>điều kiện cần, không đủ</b>: điều em quan tâm là test có bắt được lỗi thật không.</p></div>
+</article>
+<article class="qa" id="q156" data-q="q156">
+<div class="qa-h"><span class="qa-n">156</span><h3>Khi bạn chủ động cải tiến quy trình (nền tảng AI): vì sao làm, thuyết phục team ra sao, đo kết quả bằng gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> điểm đau, thử nghiệm nhỏ, số liệu, bài học.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p><i>(Chuyện 3 – nền tảng AI, góc độ cải tiến quy trình)</i></p>
+<p><b>Vì sao làm:</b> em thấy hai điểm đau lặp lại hằng tuần: chờ vendor làm rõ spec và lỗi đơn giản lọt tới review. Cả hai tốn thời gian của cả team, không chỉ của em.</p>
+<p><b>Thuyết phục team:</b></p>
+<ol><li><b>Bắt đầu nhỏ:</b> làm thử trên <mark>một ticket/một module</mark> của chính em, không đòi cả team đổi cách làm.</li><li><b>Cho xem kết quả cụ thể:</b> PR sinh ra, lỗi AI review bắt được, thời gian tiết kiệm.</li><li><b>Giảm rủi ro:</b> người vẫn review cuối cùng; AI chỉ là bước trước; dữ liệu nhạy cảm có kiểm soát quyền.</li><li>Lắng nghe phản hồi của đồng nghiệp để chỉnh quy ước và prompt cho hợp cách team làm.</li></ol>
+<p><b>Đo:</b> theo ước tính của team, thời gian phát triển giảm khoảng một nửa; số lần phải hỏi vendor và số lỗi đơn giản ở review giảm.</p>
+<p><b>Bài học:</b> cải tiến quy trình thành công khi <b>giải quyết đau thật của người khác</b> và <b>làm cho việc dùng thử thật dễ</b>; và nên đo chặt từ đầu để có số đáng tin.</p></div>
+</article>
+<article class="qa" id="q157" data-q="q157">
+<div class="qa-h"><span class="qa-n">157</span><h3>Một lần bạn phải học nhanh công nghệ mới trong thời gian ngắn.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> cách học (đọc tài liệu gốc, làm mẫu nhỏ), kết quả thật.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><i>(Chuyện 4 – Kafka cho Notification Hub, hoặc MyBatis khi vào WMS)</i></p>
+<p><b>S:</b> Khi bắt đầu Notification Hub, em chưa từng dùng Kafka và gRPC thật.</p>
+<p><b>A:</b> Cách học của em:</p>
+<ol><li><b>Đọc tài liệu gốc</b> trước (Kafka docs về partition, consumer group, delivery semantics), không bắt đầu bằng video tóm tắt.</li><li><b>Làm mẫu nhỏ</b> để kiểm chứng từng khái niệm: một producer, một consumer group hai instance, cố ý kill consumer để thấy rebalance và tin bị giao lại.</li><li><b>Gặp lỗi thật rồi mới hiểu sâu:</b> thấy thông báo trùng khi consumer restart → hiểu at-least-once → làm idempotency bằng upsert PostgreSQL.</li><li>Ghi chú lại thành tài liệu ngắn để nhớ và giải thích lại được.</li></ol>
+<p><b>R:</b> Trong <mark>khoảng 3 tháng</mark> em hoàn thành hệ thống có Kafka, DLQ, Saga cơ bản, gRPC, và giải thích được trade-off của từng lựa chọn (như các câu ở trang A6).</p>
+<p>Với vị trí này, em sẽ học hệ thống của Zalo cùng cách: đọc tài liệu và code, làm việc nhỏ trước, hỏi đúng người.</p></div>
+</article>
+<article class="qa" id="q158" data-q="q158">
+<div class="qa-h"><span class="qa-n">158</span><h3>Phản hồi khó nhất bạn từng nhận và bạn đã thay đổi gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> phản hồi thật, hành động thay đổi cụ thể, không sáo rỗng.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Phản hồi:</b> <mark>Tech lead nhận xét PR của em quá lớn và mô tả quá ít: reviewer mất nhiều thời gian hiểu em đổi gì và vì sao, và một lần lỗi lọt qua vì PR quá dài.</mark></p>
+<p><b>Cảm nhận lúc đầu:</b> em hơi chột dạ vì nghĩ code của em ổn. Nhưng em nhìn lại thì thấy đúng: em tối ưu cho việc em viết nhanh, không cho người khác review nhanh.</p>
+<p><b>Thay đổi cụ thể:</b></p>
+<ul><li>Chia PR theo bước có ý nghĩa (migration riêng, refactor riêng, tính năng riêng), mục tiêu <b>dưới ~400 dòng</b>.</li><li>Mô tả PR theo mẫu: <b>vì sao, đổi gì, test thế nào, rủi ro</b>, kèm ảnh hoặc log nếu cần.</li><li>Tự review PR của mình trước khi gửi.</li></ul>
+<p><b>Kết quả:</b> PR của em được duyệt nhanh hơn, ít vòng sửa hơn. Em cũng bắt đầu dùng chính mẫu này khi review cho người khác.</p></div>
+<div class="honest">Thay bằng phản hồi thật bạn từng nhận. Phản hồi về giao tiếp, ước lượng, hay review đều tốt; tránh “em quá cầu toàn”.</div>
+</article>
+<article class="qa" id="q159" data-q="q159">
+<div class="qa-h"><span class="qa-n">159</span><h3>Kể một lần bạn giúp đồng nghiệp hoặc hướng dẫn người mới.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> cách giúp, kết quả cho họ và team.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>S:</b> <mark>Một bạn mới vào team WMS, chưa quen nghiệp vụ kho và cách team viết batch.</mark></p>
+<p><b>A:</b></p>
+<ol><li>Em giải thích <b>luồng nghiệp vụ bằng ví dụ thật</b> (một thùng hàng đi từ lúc nhà máy báo giao tới lúc nằm trên kệ), vẽ ra giấy, thay vì đưa tài liệu dài.</li><li>Chọn cho bạn một <b>việc nhỏ có test sẵn</b> để làm quen codebase.</li><li><b>Review PR kỹ và giải thích lý do</b> (vì sao conditional update, vì sao chunk), không sửa hộ.</li><li>Ghi lại những câu bạn hỏi thành trang hướng dẫn trên Confluence, sau này người mới khác dùng lại; phần này cũng đưa vào knowledge base AI.</li></ol>
+<p><b>R:</b> <mark>Sau khoảng hai tuần, bạn tự làm được ticket batch đầu tiên</mark>; trang hướng dẫn giảm số câu hỏi lặp lại cho cả team. Em cũng hiểu nghiệp vụ sâu hơn vì phải giải thích cho người khác.</p></div>
+</article>
+<article class="qa" id="q160" data-q="q160">
+<div class="qa-h"><span class="qa-n">160</span><h3>Một lần bạn phải ra quyết định khi thiếu thông tin.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> giả định, cách giảm rủi ro, kiểm tra lại.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><i>(Chuyện 2 – quét thùng chậm)</i></p>
+<p><b>S:</b> API quét thùng ở bến nhận chậm vào giờ cao điểm. Em muốn thêm index, nhưng <b>không có số liệu production chính xác</b> về tần suất ghi và không được thử trực tiếp trên production.</p>
+<p><b>A:</b></p>
+<ol><li><b>Ghi rõ giả định:</b> bảng khoảng 10 triệu dòng, thùng đang chờ nhận chỉ vài phần trăm, batch nạp ASN 15 phút một lần nên ghi không dày.</li><li><b>Giảm rủi ro bằng thử nghiệm:</b> dựng bản sao staging cỡ thật, đo EXPLAIN trước/sau, đo tác động lên ghi bằng script chèn 100 nghìn dòng.</li><li><b>Chọn phương án lùi được:</b> partial index tạo bằng <code>CREATE INDEX CONCURRENTLY</code>, có kế hoạch <code>DROP INDEX CONCURRENTLY</code> nếu xấu.</li><li><b>Kiểm tra lại sau khi lên production:</b> p95 của API quét và của API ghi trong vài ngày.</li></ol>
+<p><b>R:</b> Truy vấn từ khoảng 1–2 giây xuống dưới 1 ms ở DB, ghi chậm thêm vài phần trăm như dự đoán. Bài học: thiếu thông tin thì <b>làm quyết định có thể đảo ngược, đo, rồi điều chỉnh</b>.</p></div>
+</article>
+<article class="qa" id="q161" data-q="q161">
+<div class="qa-h"><span class="qa-n">161</span><h3>Một lần bạn đã thất bại hoặc không đạt mục tiêu.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> trung thực, phân tích nguyên nhân, thay đổi sau đó.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>S:</b> <mark>Ở Kestrel, em đặt mục tiêu ra bản có billing cho người dùng trả phí trong một tháng, nhưng trễ gần gấp đôi.</mark></p>
+<p><b>Nguyên nhân (phân tích thật):</b></p>
+<ul><li>Em <b>đánh giá thấp phần không phải code chính</b>: tích hợp cổng thanh toán, xử lý webhook trùng và đến muộn, các trường hợp hoàn tiền.</li><li>Em làm cùng lúc quá nhiều thứ (crawl, đánh giá chất lượng, billing) thay vì hoàn tất từng phần.</li><li>Không có mốc kiểm tra giữa chừng để thấy trễ sớm.</li></ul>
+<p><b>Thay đổi sau đó:</b></p>
+<ul><li>Chia việc thành phần nhỏ <b>có thể hoàn tất trong 1–2 ngày</b>, mỗi tuần xem lại.</li><li>Với phần tích hợp bên ngoài, em <b>làm bản thử nhỏ trước</b> (spike) để ước lượng.</li><li>Cộng thêm thời gian cho phần chưa rõ.</li></ul>
+<p><b>R:</b> Billing cuối cùng chạy ổn, có idempotency cho webhook. Các phần sau em ước lượng sát hơn nhiều.</p></div>
+<div class="honest">Chọn một thất bại thật, có hậu quả vừa phải, và nói được bạn đã đổi gì. Thất bại ở dự án cá nhân cũng được.</div>
+</article>
+<article class="qa" id="q162" data-q="q162">
+<div class="qa-h"><span class="qa-n">162</span><h3>Một lần bạn làm việc dưới áp lực lớn: bạn giữ chất lượng thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> ưu tiên, giao tiếp, nghỉ đúng lúc, không anh hùng cá nhân.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>S:</b> <mark>Trước một đợt release WMS, có lỗi trên staging liên quan tồn kho cần sửa gấp trong khi em còn phải hoàn tất tính năng đã cam kết.</mark></p>
+<p><b>A:</b></p>
+<ol><li><b>Ưu tiên rõ:</b> lỗi tồn kho ảnh hưởng dữ liệu → làm trước; báo tech lead để dời bớt phần tính năng không gấp.</li><li><b>Giữ chất lượng dù gấp:</b> vẫn tái hiện lỗi bằng test trước khi sửa, vẫn qua review; không sửa thẳng trên môi trường.</li><li><b>Giao tiếp:</b> cập nhật tình hình theo mốc cố định cho team và tester để không ai phải hỏi.</li><li><b>Không anh hùng cá nhân:</b> nhờ đồng nghiệp review song song và kiểm thử, thay vì một mình thức đêm.</li><li>Sau đợt đó, em nghỉ ngơi lại sức và đề xuất một việc nhỏ để lần sau đỡ gấp (<mark>thêm kiểm tra tồn kho tự động trong bộ test hồi quy</mark>).</li></ol>
+<p><b>R:</b> Lỗi được sửa và kiểm chứng trước release, tính năng chính vẫn kịp. Em nghĩ áp lực là bình thường khi có sự cố, nhưng nếu tuần nào cũng như vậy thì đó là vấn đề quy trình cần sửa.</p></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet E · Behavioral</h2><span>E</span></div><div class="cheat-b"><div><h4>Khung STAR 90 giây</h4>
+<ul><li>S: 1–2 câu bối cảnh · T: việc của em</li><li>A: 3–4 hành động, dùng “em”</li><li>R: số liệu + bài học + điều sẽ làm khác</li></ul></div><div><h4>5 chuyện gốc</h4>
+<ul><li>(1) Khay 30 ký: concurrency, conditional update, test đồng thời</li><li>(2) Quét thùng: partial index, 1–2 s → &lt;1 ms</li><li>(3) Nền tảng AI: điểm đau, thử nhỏ, ~½ thời gian (ước tính)</li><li>(4) Notification Hub: tự học Kafka, idempotency</li><li>(5) Lỗi của em: dữ liệu thật khác dữ liệu test</li></ul></div><div><h4>Câu hỏi → chuyện</h4>
+<ul><li>Tự hào, cải tiến quy trình → (3)</li><li>Lỗi do mình, thất bại → (5), Kestrel trễ</li><li>Bất đồng → (1); thiếu thông tin → (2)</li><li>Học nhanh → (4); mơ hồ → vendor + giả định ghi rõ</li></ul></div><div><h4>Tránh</h4>
+<ul><li>“Chúng em” cho mọi thứ</li><li>Không có số, không có bài học</li><li>Đổ lỗi người khác, nói xấu công ty cũ</li><li>Điểm yếu giả (“quá cầu toàn”)</li></ul></div></div></section>
+</main>
+</body></html>

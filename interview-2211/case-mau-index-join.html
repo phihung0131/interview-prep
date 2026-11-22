@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Hai case tối ưu truy vấn SQL</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap">
+<style>
+/* Layout: đầu trang là một nhãn vận đơn; thanh tab dính; mỗi luồng gồm ray bước (đánh số như cửa bến) + sân khấu hoạt họa + các khối giải thích xếp dọc */
+:root{
+  --bg:#ECEFF2; --surface:#FFFFFF; --sunken:#E1E6EB; --ink:#15202B; --muted:#566573; --line:#CDD5DC;
+  --accent:#0A6C74; --accent-ink:#FFFFFF; --accent-soft:#D8EDEF;
+  --hi:#F2A900; --hi-soft:#FFF0C7; --hi-ink:#3B2A00;
+  --ok:#1B8553; --ok-soft:#DCF2E6; --bad:#C2362B; --bad-soft:#FBE2DF;
+  --erp:#6A4FB8; --wes:#2460C4; --wiv:#1B8553; --dev:#B9510A;
+  --carton:#D2A56B; --carton-edge:#93692F; --tote:#3B82C4; --tote-edge:#1E5A94; --metal:#8B98A5; --skin:#E6B58B; --vest:#F2A900;
+  --f-display:"Barlow Condensed","Arial Narrow","Helvetica Neue",sans-serif;
+  --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --cyc:14s;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0F151B; --surface:#172029; --sunken:#111920; --ink:#E7ECF1; --muted:#9AA8B5; --line:#2C3945;
+  --accent:#45B7BF; --accent-ink:#04282B; --accent-soft:#12363A;
+  --hi:#FFC53D; --hi-soft:#3A2F10; --hi-ink:#FFE9A8;
+  --ok:#4CC38A; --ok-soft:#113525; --bad:#F0796E; --bad-soft:#41191A;
+  --erp:#A792EE; --wes:#6FA3F5; --wiv:#4CC38A; --dev:#F0934A;
+  --carton:#B98B52; --carton-edge:#E0BD8C; --tote:#4F97D8; --tote-edge:#A9D0F5; --metal:#6F7D8B; --skin:#D9A77E; --vest:#FFC53D;
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0F151B; --surface:#172029; --sunken:#111920; --ink:#E7ECF1; --muted:#9AA8B5; --line:#2C3945;
+  --accent:#45B7BF; --accent-ink:#04282B; --accent-soft:#12363A;
+  --hi:#FFC53D; --hi-soft:#3A2F10; --hi-ink:#FFE9A8;
+  --ok:#4CC38A; --ok-soft:#113525; --bad:#F0796E; --bad-soft:#41191A;
+  --erp:#A792EE; --wes:#6FA3F5; --wiv:#4CC38A; --dev:#F0934A;
+  --carton:#B98B52; --carton-edge:#E0BD8C; --tote:#4F97D8; --tote-edge:#A9D0F5; --metal:#6F7D8B; --skin:#D9A77E; --vest:#FFC53D;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.65 var(--f-body);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1120px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,h4{font-family:var(--f-display);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:.005em}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-size:.8em;letter-spacing:-.01em}
+.eyebrow{font:700 12px/1.2 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+
+/* Mast */
+.mast{background:var(--surface);border-bottom:1px solid var(--line)}
+.mast-in{display:flex;gap:28px;align-items:center;justify-content:space-between;padding-block:28px;flex-wrap:wrap}
+.mast-txt{display:flex;flex-direction:column;gap:10px;min-width:0;flex:1 1 420px}
+.mast h1{font-size:clamp(34px,6vw,58px);font-weight:700;text-transform:uppercase}
+.lede{max-width:58ch;color:var(--muted);font-size:17px}
+.ship-label{flex:0 1 300px;border:2px solid var(--ink);border-radius:4px;font:500 12px/1.5 var(--f-mono);background:var(--surface)}
+.ship-label div{padding:7px 12px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;gap:12px}
+.ship-label div:last-child{border-bottom:0}
+.ship-label b{font-weight:700}
+.bars{height:34px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px,var(--ink) 5px 9px,transparent 9px 11px,var(--ink) 11px 12px,transparent 12px 16px)}
+.tape{height:8px;background:repeating-linear-gradient(-45deg,var(--hi) 0 12px,var(--ink) 12px 24px)}
+
+/* Tabs */
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);border-bottom:1px solid var(--line)}
+.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tabs a{flex:none;padding:14px 14px 12px;font:600 17px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent}
+.tabs a:hover{color:var(--ink)}
+.tabs a.on{color:var(--ink);border-bottom-color:var(--hi)}
+
+main{padding-block:28px 72px}
+.view{display:flex;flex-direction:column;gap:36px}
+.sec{display:flex;flex-direction:column;gap:14px}
+.sec>h2{font-size:30px;font-weight:700}
+.sec>p,.prose{max-width:68ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.panel h3{font-size:21px;font-weight:600}
+.panel h4{font-size:18px;font-weight:600}
+.actor{border-top:4px solid var(--c,var(--line))}
+.actor .role{font:700 12px/1.3 var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--c)}
+.note{background:var(--hi-soft);color:var(--ink);border:1px solid var(--hi);border-radius:6px;padding:12px 16px;max-width:76ch}
+.tag{display:inline-block;font:700 10.5px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:3px;white-space:nowrap;vertical-align:middle}
+.tag.doc{background:var(--accent-soft);color:var(--accent)}
+.tag.ind{background:var(--hi-soft);color:var(--hi-ink);border:1px dashed var(--hi)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:baseline}
+.kv dt{font:700 13px var(--f-mono);color:var(--accent)}
+.kv dd{margin:0}
+
+/* Status rail */
+.states{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.states li{font:600 12.5px/1 var(--f-body);padding:7px 10px;border-radius:4px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.states li.past{background:var(--sunken)}
+.states li.now{background:var(--hi);border-color:var(--hi);color:#1B1400}
+.states li.sep{border:0;background:none;padding:0 2px;color:var(--muted)}
+
+/* Flow layout */
+.flow{display:grid;grid-template-columns:232px minmax(0,1fr);gap:24px;align-items:start}
+.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 62px);display:flex;flex-direction:column;gap:10px;min-width:0}
+.rail ol{display:flex;flex-direction:column;gap:6px}
+.rail-b{width:100%;display:flex;gap:10px;align-items:center;text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:14px;line-height:1.3}
+.rail-b .num{flex:none;width:30px;height:30px;display:grid;place-items:center;font:700 18px/1 var(--f-display);border:2px solid var(--ink);border-radius:3px}
+.rail-b.seen .num{background:var(--sunken)}
+.rail-b[aria-current="step"]{border-color:var(--ink);box-shadow:inset 4px 0 0 var(--hi)}
+.rail-b[aria-current="step"] .num{background:var(--hi);color:#1B1400;border-color:var(--hi)}
+.step{display:flex;flex-direction:column;gap:22px;min-width:0}
+.step-h{display:flex;flex-direction:column;gap:8px}
+.step-h h2{font-size:clamp(28px,4.4vw,40px);font-weight:700}
+.step-h .one{font-size:18px;max-width:64ch}
+.blk{display:flex;flex-direction:column;gap:10px;min-width:0}
+.blk>h3{font-size:22px;font-weight:600}
+.blk>p{max-width:70ch}
+.steps-ol{counter-reset:s;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.steps-ol li{counter-increment:s;display:grid;grid-template-columns:26px 1fr;gap:8px}
+.steps-ol li::before{content:counter(s);font:700 13px/1.9 var(--f-mono);color:var(--accent)}
+.nav-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:18px}
+.btn{padding:10px 16px;border-radius:5px;border:1.5px solid var(--ink);background:var(--surface);font-weight:600;font-size:15px}
+.btn:hover{background:var(--sunken)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:6px 11px;font-size:13.5px}
+
+/* Stage */
+.stage{background:var(--sunken);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.stage-scroll{overflow-x:auto}
+.stage svg{display:block;width:100%;min-width:620px;height:auto}
+.stage-bar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--line);background:var(--surface);flex-wrap:wrap}
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;padding:12px;background:var(--surface);border-top:1px solid var(--line)}
+.caps li{display:grid;grid-template-columns:22px 1fr;gap:6px;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid var(--line);border-radius:5px;animation:var(--cap) var(--cyc) linear infinite}
+.caps li b{font:700 14px/1.5 var(--f-mono);color:var(--accent)}
+@keyframes cap1{0%,24.9%{background:var(--hi-soft);border-color:var(--hi)}25%,100%{background:transparent;border-color:var(--line)}}
+@keyframes cap2{0%,24.9%{background:transparent;border-color:var(--line)}25%,49.9%{background:var(--hi-soft);border-color:var(--hi)}50%,100%{background:transparent;border-color:var(--line)}}
+@keyframes cap3{0%,49.9%{background:transparent;border-color:var(--line)}50%,74.9%{background:var(--hi-soft);border-color:var(--hi)}75%,100%{background:transparent;border-color:var(--line)}}
+@keyframes cap4{0%,74.9%{background:transparent;border-color:var(--line)}75%,100%{background:var(--hi-soft);border-color:var(--hi)}}
+
+/* SVG kit */
+.st{font:600 11px var(--f-body);fill:var(--ink);text-anchor:middle}
+.st.sm{font-weight:500;font-size:10px;fill:var(--muted)}
+.st.zn{font:700 10px var(--f-mono);fill:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.st.l{text-anchor:start}
+.k-floor{stroke:var(--metal);stroke-width:2;fill:none}
+.k-carton{fill:var(--carton);stroke:var(--carton-edge);stroke-width:1.2}
+.k-edge{stroke:var(--carton-edge);stroke-width:1.2;fill:none}
+.k-tote{fill:var(--tote);stroke:var(--tote-edge);stroke-width:1}
+.k-ink{fill:var(--ink)}
+.k-metal{fill:var(--metal)}
+.k-belt{stroke:var(--metal);stroke-width:9;stroke-linecap:round;fill:none}
+.k-cell{fill:var(--surface);stroke:var(--metal);stroke-width:1.2}
+.k-body{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.k-truck{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.k-cab{fill:var(--accent);stroke:var(--ink);stroke-width:2}
+.k-glass{fill:var(--accent-soft)}
+.k-skin{fill:var(--skin)}
+.k-vest{fill:var(--vest);stroke:var(--ink);stroke-width:1}
+.k-hi{fill:var(--hi)}
+.k-fork{fill:var(--hi);stroke:var(--ink);stroke-width:1.5}
+.k-robot{fill:var(--accent);stroke:var(--ink);stroke-width:1.2}
+.k-ok{fill:var(--ok)}
+.k-bad{fill:var(--bad)}
+.k-shirt{fill:var(--surface);stroke:var(--ink);stroke-width:1.3}
+.k-paper{fill:var(--surface);stroke:var(--ink);stroke-width:1.2}
+.k-pl{stroke:var(--muted);stroke-width:1.2}
+.k-dash{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:4 4;fill:none}
+.k-wave{fill:none;stroke:var(--accent);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:wave 1.3s ease-out infinite}
+.node rect{fill:var(--surface);stroke:var(--c);stroke-width:2}
+.node .nt{font:700 12.5px var(--f-body);fill:var(--c)}
+.n-erp{--c:var(--erp)} .n-wes{--c:var(--wes)} .n-wiv{--c:var(--wiv)} .n-dev{--c:var(--dev)}
+.bd{stroke-width:1.5}
+.b-ink .bd{fill:var(--surface);stroke:var(--ink)}
+.b-ok .bd{fill:var(--ok-soft);stroke:var(--ok)}
+.b-bad .bd{fill:var(--bad-soft);stroke:var(--bad)}
+.b-hi .bd{fill:var(--hi-soft);stroke:var(--hi)}
+.b-pkt .bd{fill:var(--accent);stroke:var(--accent)}
+.b-pkt .st{fill:var(--accent-ink)}
+.act{animation:cyc var(--cyc) linear infinite}
+.mv1,.mv2,.mv3,.mv4,.bk2{animation:var(--n) var(--cyc) ease-in-out infinite}
+.mv1{--n:mv1}.mv2{--n:mv2}.mv3{--n:mv3}.mv4{--n:mv4}.bk2{--n:bk2}
+.on2,.on3,.on4,.off2,.off3,.off4,.only1,.only2,.only3,.only4{animation:var(--n) var(--cyc) linear infinite}
+.on2{--n:on2}.on3{--n:on3}.on4{--n:on4}.off2{--n:off2}.off3{--n:off3}.off4{--n:off4}.only1{--n:only1}.only2{--n:only2}.only3{--n:only3}.only4{--n:only4}
+.blink{animation:blink 1s steps(2) infinite}
+@keyframes cyc{0%{opacity:0}3%,96%{opacity:1}100%{opacity:0}}
+@keyframes mv1{0%,4%{transform:translate(0,0)}22%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes mv2{0%,28%{transform:translate(0,0)}47%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes mv3{0%,53%{transform:translate(0,0)}72%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes mv4{0%,78%{transform:translate(0,0)}95%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes bk2{0%,27%{transform:translate(0,0)}36%,40%{transform:translate(var(--dx,0px),var(--dy,0px))}48%,100%{transform:translate(0,0)}}
+@keyframes on2{0%,26%{opacity:0}30%,100%{opacity:1}}
+@keyframes on3{0%,51%{opacity:0}55%,100%{opacity:1}}
+@keyframes on4{0%,76%{opacity:0}80%,100%{opacity:1}}
+@keyframes off2{0%,23%{opacity:1}26%,100%{opacity:0}}
+@keyframes off3{0%,48%{opacity:1}51%,100%{opacity:0}}
+@keyframes off4{0%,73%{opacity:1}76%,100%{opacity:0}}
+@keyframes only1{0%,3%{opacity:0}6%,22%{opacity:1}25%,100%{opacity:0}}
+@keyframes only2{0%,27%{opacity:0}30%,47%{opacity:1}50%,100%{opacity:0}}
+@keyframes only3{0%,52%{opacity:0}55%,72%{opacity:1}75%,100%{opacity:0}}
+@keyframes only4{0%,77%{opacity:0}80%,96%{opacity:1}100%{opacity:0}}
+@keyframes wave{0%{transform:scale(.35);opacity:.95}100%{transform:scale(1.35);opacity:0}}
+@keyframes blink{50%{opacity:.2}}
+.paused *{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){.stage *,.caps li,.k-wave{animation:none!important}}
+
+/* Map */
+.map-zone{cursor:pointer}
+.map-zone rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.map-zone:hover rect,.map-zone.on rect{fill:var(--hi-soft);stroke:var(--hi);stroke-width:2.5}
+.map-in{stroke:var(--accent);stroke-width:3;fill:none;stroke-dasharray:2 7;stroke-linecap:round}
+.map-out{stroke:var(--dev);stroke-width:3;fill:none;stroke-dasharray:2 7;stroke-linecap:round}
+.dot-in{fill:var(--accent)} .dot-out{fill:var(--dev)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:14px}
+.legend i{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+
+/* API list, exceptions */
+.api{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+.api li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.api li:last-child{border-bottom:0}
+.api .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.api code{font:700 12.5px var(--f-mono);overflow-wrap:anywhere}
+.api .nm{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.kind{font:700 10.5px/1 var(--f-mono);padding:4px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;color:var(--surface)}
+.kind.Batch{background:var(--erp)} .kind.API{background:var(--wes)} .kind.Module{background:var(--dev)}
+.exc{display:flex;flex-direction:column;gap:8px}
+.exc li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.exc .q{font-weight:600}
+.concepts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.concepts li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;font-size:15px}
+.concepts b{display:block;font:600 18px/1.25 var(--f-display);margin-bottom:2px}
+
+/* Widgets */
+.widget{background:var(--surface);border:2px solid var(--ink);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.widget>h3{font-size:22px;font-weight:600}
+.widget .hint{font-size:14.5px;color:var(--muted);max-width:68ch}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.out{border-radius:5px;padding:12px 14px;border:1px solid var(--line);background:var(--sunken);font-size:15px}
+.out.ok{background:var(--ok-soft);border-color:var(--ok)}
+.out.bad{background:var(--bad-soft);border-color:var(--bad)}
+.out.hi{background:var(--hi-soft);border-color:var(--hi)}
+.out ul{list-style:disc;padding-left:20px;margin-top:6px}
+input[type=range]{accent-color:var(--accent);flex:1 1 180px;min-width:0}
+.alloc-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,2fr);gap:6px 14px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.alloc-row .who b{display:block;font-size:15px}
+.alloc-row .who span{font-size:13px;color:var(--muted)}
+.bar{height:16px;border-radius:3px;background:var(--sunken);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .5s ease}
+.bar i.lock{background:var(--hi)}
+.alloc-row .res{font-size:13.5px;font-variant-numeric:tabular-nums}
+.short{color:var(--bad);font-weight:600}
+.ledger{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.ledger div{border:1px solid var(--line);border-radius:5px;padding:10px 12px;background:var(--sunken)}
+.ledger span{display:block;font:700 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ledger b{font:700 30px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.case{padding:12px 10px;border-radius:4px;border:1.5px solid var(--carton-edge);background:var(--carton);color:#2A1B05;font:700 12.5px/1.3 var(--f-mono);text-align:center}
+.case.loaded{opacity:.35;text-decoration:line-through}
+.case.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+.quiz .opts{display:flex;flex-direction:column;gap:6px}
+.quiz .opt{text-align:left;padding:10px 14px;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);font-size:15px}
+.quiz .opt:hover{border-color:var(--ink)}
+.quiz .opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.quiz .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+
+/* Review + glossary */
+.script{border-left:4px solid var(--hi);padding:4px 0 4px 16px;max-width:72ch}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:700 12px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+details{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 16px}
+details summary{cursor:pointer;font-weight:600}
+details p{margin-top:8px;max-width:70ch}
+.cards{display:flex;flex-direction:column;gap:8px}
+.search{width:100%;max-width:420px;padding:11px 14px;border:1.5px solid var(--ink);border-radius:5px;background:var(--surface);color:var(--ink);font:inherit}
+.gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px}
+.gloss li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 14px;font-size:15px}
+.gloss b{font:700 13.5px var(--f-mono);color:var(--accent);display:block}
+
+@media (max-width:860px){
+  .flow{grid-template-columns:minmax(0,1fr)}
+  .rail{position:static}
+  .rail ol{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .rail ol li{flex:none}
+  .rail-b{width:auto}
+  .rail-b .ttl{display:none}
+  .rail-b[aria-current="step"] .ttl{display:inline;max-width:52vw}
+}
+
+/* ---- v2: chi tiết ---- */
+.concepts .ex{display:block;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);font-size:14px;color:var(--muted)}
+.concepts .ex b{display:inline;font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 4px 0 0}
+.roles{display:flex;flex-direction:column;gap:6px}
+.roles li{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:10px;font-size:15px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.roles li:last-child{border-bottom:0}
+.roles b{font-weight:600}
+.seq{border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+.seq-scroll{overflow-x:auto}
+.seq-in{min-width:600px;padding:12px 8px 8px}
+.seq-head{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px}
+.seq-head span{text-align:center;font:700 12px/1.2 var(--f-body);padding:7px 4px;border:2px solid var(--c);color:var(--c);border-radius:5px;background:var(--surface)}
+.seq-rows{display:flex;flex-direction:column;background-image:linear-gradient(var(--line),var(--line)),linear-gradient(var(--line),var(--line)),linear-gradient(var(--line),var(--line)),linear-gradient(var(--line),var(--line));background-size:2px 100%;background-position:12.5% 0,37.5% 0,62.5% 0,87.5% 0;background-repeat:no-repeat}
+.seq-row{display:grid;grid-template-columns:repeat(8,1fr);padding:7px 0;color:var(--muted);cursor:pointer}
+.seq-msg{grid-column:var(--gc);display:flex;flex-direction:column;gap:3px;align-items:center;text-align:center;min-width:0}
+.seq-msg .tx{font-size:13.5px;line-height:1.3;font-weight:500;background:var(--surface);padding:0 4px}
+.seq-msg code{font:700 10.5px var(--f-mono);background:var(--surface);padding:0 4px;order:3}
+.seq-msg .ar{display:block;position:relative;width:100%;height:2px;background:currentColor}
+.seq-msg .ar::after{content:"";position:absolute;right:-1px;top:-5px;border:6px solid transparent;border-left-color:currentColor;border-right:0}
+.seq-row.rev .ar::after{right:auto;left:-1px;border-left:0;border-right:6px solid currentColor;border-left-color:transparent}
+.seq-row.self .seq-msg{border:1.5px dashed currentColor;border-radius:5px;padding:5px 4px;background:var(--surface)}
+.seq-row.self .ar{display:none}
+.seq-msg .dot{position:absolute;top:-5px;left:0;width:12px;height:12px;border-radius:50%;background:var(--hi);border:2px solid var(--ink);opacity:0}
+.seq-row.on{color:var(--ink)}
+.seq-row.on .tx{font-weight:700}
+.seq-row.on .ar{background:var(--accent);height:3px}
+.seq-row.on .ar::after{border-left-color:var(--accent)}
+.seq-row.on.rev .ar::after{border-right-color:var(--accent);border-left-color:transparent}
+.seq-row.on.self .seq-msg{border-style:solid;border-color:var(--hi);background:var(--hi-soft)}
+.seq-row.on.self .tx,.seq-row.on.self code{background:transparent}
+.seq-row.on .dot{opacity:1;animation:dotgo 1.6s ease-in-out infinite}
+.seq-row.on.rev .dot{animation-name:dotback}
+@keyframes dotgo{0%{left:0}80%,100%{left:calc(100% - 12px)}}
+@keyframes dotback{0%{left:calc(100% - 12px)}80%,100%{left:0}}
+@media (prefers-reduced-motion:reduce){.seq-row.on .dot{animation:none;left:50%}}
+.docm{background:var(--surface);border:1.5px solid var(--ink);border-radius:3px;box-shadow:5px 5px 0 var(--sunken);font-size:14px;min-width:0}
+.docm-h{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1.5px solid var(--ink);font:700 13px/1.3 var(--f-mono);letter-spacing:.05em;text-transform:uppercase}
+.docm-h span:last-child{color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
+.docm-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-bottom:1px solid var(--line)}
+.docm-meta div{padding:7px 14px;border-bottom:1px dashed var(--line);display:flex;flex-direction:column;min-width:0}
+.docm-meta span{font:700 10.5px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.docm-meta b{font:600 13.5px var(--f-mono);overflow-wrap:anywhere}
+.docm .tbl-wrap{border:0;border-radius:0}
+.docm table{min-width:440px;font-size:13.5px}
+.docm td{font-family:var(--f-mono);font-size:12.5px}
+.docm-f{padding:9px 14px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.led table{min-width:480px;font-variant-numeric:tabular-nums}
+.led td,.led th{text-align:right}
+.led td:first-child,.led th:first-child{text-align:left}
+.led td.chg{background:var(--hi-soft);font-weight:700}
+.led td.nt,.led th.nt{text-align:left;color:var(--muted);font-size:13.5px}
+.led tr.cur td{background:var(--accent-soft)}
+.led tr.cur td.chg{background:var(--hi-soft)}
+.mx table{min-width:900px;font-size:13.5px}
+.mx th.lane{white-space:nowrap;border-left:4px solid var(--c);color:var(--c)}
+.mx td{min-width:120px}
+.mx td.none{color:var(--muted)}
+.mx .hb{display:flex;gap:6px;align-items:center;border:0;background:none;padding:0;text-align:left;font:700 12px var(--f-body);color:var(--ink);text-transform:none;letter-spacing:0}
+.mx .hb .num{flex:none;width:22px;height:22px;display:grid;place-items:center;font:700 14px/1 var(--f-display);border:2px solid var(--ink);border-radius:3px}
+.mx .hb:hover .num{background:var(--hi);border-color:var(--hi);color:#1B1400}
+.life{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.life li{border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-size:14px;font-weight:600}
+.life li code{font:500 10.5px var(--f-mono);color:var(--muted)}
+.life li small{font:700 10.5px var(--f-mono);color:var(--accent);letter-spacing:.06em}
+.life li.sep{border:0;background:none;padding:0;justify-content:center;color:var(--muted)}
+.pin{cursor:pointer}
+.pin circle{fill:var(--hi);stroke:var(--ink);stroke-width:2}
+.pin text{font:700 13px var(--f-display);fill:#1B1400;text-anchor:middle}
+.pin:hover circle{fill:var(--surface)}
+.map-z rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.equip{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.equip li{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column}
+.equip svg{display:block;width:100%;height:auto;background:var(--sunken);border-bottom:1px solid var(--line)}
+.equip div{padding:12px 14px;font-size:14.5px}
+.equip b{display:block;font:600 19px/1.2 var(--f-display)}
+.equip i{display:block;font:500 11.5px var(--f-mono);font-style:normal;color:var(--accent);margin-bottom:4px}
+.rail-b.ov .num{border-style:dashed}
+.theme-b{flex:none;margin:auto 0 auto auto;white-space:nowrap}
+
+/* ---- v3: thẻ API chi tiết + phỏng vấn ---- */
+.apis{display:flex;flex-direction:column;gap:8px}
+.apid{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:0;overflow:hidden}
+.apid>summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;flex-direction:column;gap:4px;font-weight:400}
+.apid>summary::-webkit-details-marker{display:none}
+.apid>summary .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.apid>summary code{font:700 12.5px var(--f-mono);overflow-wrap:anywhere}
+.apid>summary .nm{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.apid>summary .more{margin-left:auto;font:700 11px var(--f-mono);color:var(--accent);white-space:nowrap}
+.apid[open]>summary{border-bottom:1px solid var(--line);background:var(--sunken)}
+.apid[open]>summary .more{visibility:hidden}
+.apid-b{padding:14px;display:flex;flex-direction:column;gap:14px}
+.apid-b p{margin:0;max-width:72ch}
+.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.who span{border:1.5px solid var(--ink);border-radius:4px;padding:5px 9px;background:var(--surface)}
+.who i{font-style:normal;color:var(--muted);font-weight:700}
+.pipe{display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1.5fr) 22px minmax(0,1fr);gap:6px;align-items:stretch}
+.pipe .pb{--bc:var(--line);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:4px;min-width:0}
+.pipe .pb>b{font:700 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.pipe .arr{display:grid;place-items:center;color:var(--muted);font-weight:700}
+.pipe .arr::before{content:"→"}
+.pipe ol{counter-reset:p;display:flex;flex-direction:column;gap:4px}
+.pipe ol li{--bc:transparent;counter-increment:p;display:grid;grid-template-columns:20px minmax(0,1fr);gap:6px;padding:5px 7px;border-radius:4px;border:1px solid transparent}
+.pipe ol li::before{content:counter(p);font:700 12px/1.7 var(--f-mono);color:var(--accent)}
+.hl{animation:var(--hl) var(--T) linear infinite;animation-delay:calc(var(--i)*2.2s)}
+@keyframes hl5{0%,19.9%{background:var(--hi-soft);border-color:var(--hi)}20%,100%{background:transparent;border-color:var(--bc)}}
+@keyframes hl6{0%,16.5%{background:var(--hi-soft);border-color:var(--hi)}16.6%,100%{background:transparent;border-color:var(--bc)}}
+@media (prefers-reduced-motion:reduce){.hl{animation:none}}
+@media (max-width:720px){.pipe{grid-template-columns:minmax(0,1fr)}.pipe .arr::before{content:"↓"}}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.facts div{border:1px solid var(--line);border-radius:5px;padding:9px 11px;font-size:14px;background:var(--sunken);min-width:0}
+.facts b{display:block;font:700 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.raw{border:0;padding:0;background:none}
+.raw summary{font:700 12px var(--f-mono);color:var(--accent)}
+.raw pre{margin:8px 0 0;padding:10px 12px;background:var(--sunken);border:1px solid var(--line);border-radius:5px;font:500 12px/1.5 var(--f-mono);overflow-x:auto;white-space:pre}
+.qa-list{display:flex;flex-direction:column;gap:8px}
+.qa summary{display:flex;gap:10px;align-items:baseline}
+.qa summary::before{content:"Hỏi";flex:none;font:700 10.5px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}
+.qa .ans{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.qa .ans p{margin:0}
+.qa .ans .row{gap:10px}
+.selfbox{border:2px dashed var(--hi);border-radius:6px;padding:14px 18px;background:var(--hi-soft);max-width:80ch}
+.selfbox ul{list-style:disc;padding-left:20px;margin-top:6px}
+.qa summary .anim{flex:none;margin-left:auto;font:700 10px/1 var(--f-mono);letter-spacing:.05em;text-transform:uppercase;padding:4px 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.qa[data-st="ok"] summary::before{content:"Đã nắm";color:var(--ok)}
+.qa[data-st="again"] summary::before{content:"Cần ôn";color:var(--bad)}
+.qa[data-st="ok"]{border-color:var(--ok)}
+.qa[data-st="again"]{border-color:var(--bad)}
+.of-steps li{display:block;padding:6px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.of-steps li:last-child{border-bottom:0}
+.of-steps b{font-weight:600}
+.of-steps{counter-reset:o}
+.of-steps li::before{counter-increment:o;content:counter(o);font:700 13px var(--f-mono);color:var(--accent);margin-right:8px}
+.of-c li{font-size:15px;padding:5px 0}
+.of-c b{font-weight:600}
+
+#case{display:flex;flex-direction:column;gap:18px}
+.tl{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;max-width:70ch}
+.tl i{display:block;background:var(--accent)}.tl i:nth-child(even){background:var(--hi)}
+.tlt{margin:0}
+.timer .ct-time{font:700 28px var(--f-mono)}
+.cseg{border-left:3px solid var(--accent);padding:4px 0 4px 14px;display:flex;flex-direction:column;gap:6px;max-width:75ch}
+.cseg-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.cseg-t{font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.cseg-p{margin:0;font-size:17px}
+.cseg .why{margin:0;color:var(--muted);font-size:14.5px}
+pre{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:12px;overflow-x:auto;font:12.5px/1.5 var(--f-mono);margin:0;white-space:pre}.cs-sec{display:flex;flex-direction:column;gap:18px;padding-top:28px;border-top:2px solid var(--line);margin-top:10px}.btn.pri{}label{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header class="mast"><div class="wrap mast-in"><div class="mast-txt"><p class="eyebrow">Case mẫu phỏng vấn · SQL</p><h1>Hai case tối ưu truy vấn</h1><p class="lede">Một case đánh index ở Luồng 1, một case JOIN nhiều bảng ở Luồng 2. Có hoạt họa, đoạn SQL trước và sau, cách nói dưới 90 giây cho người không biết nghiệp vụ kho.</p></div>
+<button class="btn sm theme-b" id="theme-b" type="button" aria-label="Đổi giao diện sáng hoặc tối">Giao diện tối</button></div><div class="tape"></div></header>
+<main class="wrap" style="padding-block:28px"><div id="app" class="sec"><div class="selfbox" style="max-width:none"><b>Đây là hai case mẫu tôi dựng theo kiến thức chung, không phải việc bạn đã làm.</b> Các con số (hàng chục triệu dòng) chỉ để minh họa. Chỉ kể “em từng làm” nếu bạn thật sự làm điều tương tự. Nếu chưa, chọn giọng “cách em tiếp cận” bên dưới. Bạn vẫn dùng được toàn bộ các bước và các câu trả lời thêm.
+  <div class="row" style="margin-top:8px"><label><input type="radio" name="md" value="hyp" checked=""> Giọng “cách em tiếp cận” (an toàn nếu chưa làm)</label><label><input type="radio" name="md" value="did"> Giọng “em từng làm” (chỉ khi có làm thật)</label></div></div>
+ <div class="sec"><h2>Case này hợp với luồng nào?</h2><div class="grid2"><div class="panel"><p class="eyebrow">Luồng 1 · Nhập kho · Case A</p><h4>Tra thùng hoặc ASN khi quét ở bến nhận</h4><p>Thao tác tức thời, bảng kiện lớn dần theo năm. Hợp với case INDEX.</p></div><div class="panel"><p class="eyebrow">Luồng 2 · Xuất B2B · Case B</p><h4>Phân bổ và tạo lượt nhặt cuối ngày</h4><p>Truy vấn nối nhiều bảng lớn, chạy theo giờ chốt xe. Hợp với case JOIN.</p></div><div class="panel"><p class="eyebrow">Luồng 5 · Sổ cái, chốt ngày · Phụ</p><h4>Tổng hợp tồn từ bảng giao dịch</h4><p>Bảng lớn nhất hệ thống. Cũng hợp cả hai, nhưng bạn chưa học sâu luồng này nên để dành.</p></div></div>
+ <p class="muted">Mẹo chọn: case tối ưu truy vấn nên gắn vào chỗ có dữ liệu lớn dần và có hậu quả kinh doanh rõ (trễ xe, quét chậm). Hai luồng bạn đang luyện đều có.</p></div>
+ <div id="cases" class="sec"><section class="cs-sec" id="case-a"><p class="eyebrow">Case A · Luồng 1 · Nhập kho</p><h2>Quét thùng ở bến nhận bị đứng vì thiếu index</h2><p>Ở bến dỡ hàng, nhân viên quét từng thùng. Mỗi lần quét, hệ thống tra thùng trong bảng kiện của ASN. Sau hai năm, bảng này có hàng chục triệu dòng (con số minh họa). Mỗi lần quét mất vài giây, giờ cao điểm máy quét còn báo hết thời gian, nhân viên quét lại, kéo theo nguy cơ ghi trùng.</p>
+  <div class="blk"><h3>1. Hoạt họa: vấn đề và cách sửa</h3><div class="stage" data-stage="cIdx" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><line x1="8" y1="206" x2="712" y2="206" class="k-floor"></line><rect x="53" y="186" width="6" height="20" rx="2" class="k-ink"></rect><rect x="61" y="186" width="6" height="20" rx="2" class="k-ink"></rect><path d="M51 188v-16a9 9 0 0 1 18 0v16z" class="k-vest"></path><circle cx="60" cy="155" r="7.5" class="k-skin"></circle><text x="60" y="226" class="st zn">Máy quét</text><rect x="250" y="16" width="260" height="120" rx="5" class="k-body"></rect><rect x="250" y="16" width="260" height="18" rx="5" class="k-ink"></rect><text x="380" y="29" class="st" style="fill:var(--surface);font-size:10px">Bảng kiện, hàng chục triệu dòng</text><rect x="280" y="46" width="200" height="7" rx="2" fill="var(--line)"></rect><rect x="280" y="57" width="200" height="7" rx="2" fill="var(--line)"></rect><rect x="280" y="68" width="200" height="7" rx="2" fill="var(--line)"></rect><rect x="280" y="79" width="200" height="7" rx="2" fill="var(--line)"></rect><rect x="280" y="90" width="200" height="7" rx="2" fill="var(--line)"></rect><rect x="280" y="101" width="200" height="7" rx="2" fill="var(--line)"></rect><rect x="280" y="112" width="200" height="7" rx="2" fill="var(--line)"></rect><rect x="280" y="123" width="200" height="7" rx="2" fill="var(--line)"></rect><g class="only2"><rect x="280" y="46" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect><rect x="280" y="57" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect><rect x="280" y="68" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect><rect x="280" y="79" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect><rect x="280" y="90" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect><rect x="280" y="101" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect><rect x="280" y="112" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect><rect x="280" y="123" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"></rect></g><g class="on3"><rect x="280" y="79" width="200" height="7" rx="2" fill="var(--ok)"></rect></g><g class="on3"><rect x="540" y="16" width="164" height="120" rx="5" class="k-body"></rect><rect x="540" y="16" width="164" height="18" rx="5" class="k-ink"></rect><text x="622" y="29" class="st" style="fill:var(--surface);font-size:10px">Index (mục lục)</text><text x="622" y="56" class="st" style="">K-0001 → dòng 17</text><text x="622" y="80" class="st" style="fill:var(--ok);font-weight:700">K-0002 → dòng 903</text><text x="622" y="104" class="st" style="">K-0003 → dòng 5</text><line x1="540" y1="83" x2="480" y2="83" class="k-dash"></line></g><g class="act"><g class="only1"><g class="b-bad"><rect x="217.15" y="148" width="265.7" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Quét thùng: màn hình đứng, máy quét chờ</text></g></g><g class="only2"><g class="b-bad"><rect x="210.85" y="148" width="278.3" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Không có index: đọc từng dòng của cả bảng</text></g></g><g class="only3"><g class="b-pkt"><rect x="229.75" y="148" width="240.5" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Thêm index: tra thẳng tới đúng dòng</text></g></g><g class="only4"><g class="b-ok"><rect x="210.85" y="148" width="278.3" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Đọc vài dòng, trả kết quả trong mili giây</text></g></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Nhân viên quét một thùng ở bến nhận hàng. Màn hình đứng chờ.</span></li><li style="--cap:cap2"><b>2</b><span>Bảng kiện có hàng chục triệu dòng và chưa có index, nên cơ sở dữ liệu đọc từng dòng để tìm đúng một thùng.</span></li><li style="--cap:cap3"><b>3</b><span>Thêm index trên mã thùng. Giống mục lục cuối sách: tra mã, biết ngay dòng cần đọc.</span></li><li style="--cap:cap4"><b>4</b><span>Chỉ đọc vài dòng, trả kết quả trong mili giây. Máy quét hết chờ.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div></div>
+  <div class="blk"><h3>2. Các bước điều tra và xử lý</h3><ol class="of-steps"><li><b>Xác định đúng chỗ chậm.</b> Bật log đo thời gian từng bước của API quét, loại trừ mạng và các bước khác. Lấy riêng câu truy vấn tra thùng.</li><li><b>Đọc kế hoạch thực thi.</b> Chạy EXPLAIN (ANALYZE, BUFFERS) với giá trị thật. Thấy Seq Scan trên cả bảng và hàng chục triệu dòng bị loại bỏ sau khi lọc.</li><li><b>Chọn loại index.</b> Index trên mã thùng, hoặc partial index chỉ gồm thùng đang chờ nhận. Phần lớn thùng đã nhận xong nên partial index nhỏ hơn rất nhiều.</li><li><b>Tạo an toàn trên hệ thống đang chạy.</b> Dùng CREATE INDEX CONCURRENTLY để không chặn việc ghi. Kiểm tra index tạo xong ở trạng thái hợp lệ.</li><li><b>Đo lại.</b> Chạy lại EXPLAIN ANALYZE và đo thời gian mỗi lần quét, trước và sau.</li></ol></div>
+  <div class="grid2"><div class="panel"><h4>Trước khi sửa</h4><pre>SELECT carton_id, asn_id, status
+FROM asn_carton
+WHERE carton_code = :code
+  AND status = 'EXPECTED';
+
+-- Kế hoạch: Seq Scan on asn_carton
+--   Rows Removed by Filter: 20.000.000</pre></div><div class="panel"><h4>Sau khi sửa</h4><pre>CREATE INDEX CONCURRENTLY idx_asn_carton_expected
+  ON asn_carton (carton_code)
+  WHERE status = 'EXPECTED';
+
+-- Kế hoạch: Index Scan using idx_asn_carton_expected
+--   Rows: 1</pre></div></div>
+  <div class="blk"><h3>3. Cách nói dưới 90 giây</h3><div class="tl" aria-hidden="true"><i style="flex:34" title="Mở bằng vấn đề"></i><i style="flex:45" title="Chẩn đoán"></i><i style="flex:22" title="Giải thích đời thường"></i><i style="flex:42" title="Chọn cách sửa"></i><i style="flex:35" title="Kết quả và bài học"></i></div><p class="tlt"><b>178 từ</b>, khoảng <b>45 giây</b> nếu nói 4 từ mỗi giây.</p>
+   <div class="widget"><h3>Con số thật của bạn (nếu có)</h3><p class="hint">Điền nếu bạn có số đo thật, ví dụ “40 giây”, “2 giây”. Số được thêm vào cuối đoạn kết quả.</p><div class="row"><label>Trước <input class="search" data-a="a" style="width:110px"></label><label>Sau <input class="search" data-b="a" style="width:110px"></label></div></div>
+   <div class="widget timer"><div class="row"><button class="btn pri" data-tb="a" type="button">Bắt đầu bấm giờ</button><b class="ct-time" data-tt="a">0:00</b></div><p class="hint" data-tr="a">Tự đọc to bản dưới đây, bấm dừng khi nói xong.</p></div>
+   <div class="cseg"><div class="cseg-h"><span class="cseg-t">0–9 giây</span><b>Mở bằng vấn đề</b></div><p class="cseg-p">Với vấn đề màn hình quét ở bến nhận hàng chậm vài giây mỗi lần, giờ cao điểm máy quét còn báo hết thời gian, em sẽ nghi ngay tới tốc độ tra cứu.</p><p class="why"><b>Người nghe cảm nhận:</b> Có hậu quả thật tại bến nhận hàng. Dễ hình dung với người ngoài ngành.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">9–20 giây</span><b>Chẩn đoán</b></div><p class="cseg-p">Dữ liệu thùng hàng tích lũy nhiều năm lên hàng chục triệu dòng, nên em sẽ lấy đúng câu truy vấn của thao tác quét, chạy EXPLAIN ANALYZE và xem cơ sở dữ liệu có đọc tuần tự toàn bộ bảng rồi mới lọc không.</p><p class="why"><b>Người nghe cảm nhận:</b> Bạn đo thay vì đoán, và biết đọc kế hoạch thực thi.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">20–25 giây</span><b>Giải thích đời thường</b></div><p class="cseg-p">Hình dung như tìm một từ trong cuốn sách không có mục lục: phải lật từng trang. Index chính là mục lục.</p><p class="why"><b>Người nghe cảm nhận:</b> Một hình ảnh giúp người không chuyên hiểu ngay.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">25–36 giây</span><b>Chọn cách sửa</b></div><p class="cseg-p">Nếu đúng vậy, em sẽ cân nhắc partial index chỉ gồm thùng đang chờ nhận vì phần lớn thùng đã nhận xong. Nó nhỏ, ít làm chậm việc ghi. Em sẽ tạo bằng CONCURRENTLY để không khóa bảng khi kho đang chạy.</p><p class="why"><b>Người nghe cảm nhận:</b> Bạn biết index có giá phải trả và biết làm an toàn trên hệ thống đang chạy.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">36–45 giây</span><b>Kết quả và bài học</b></div><p class="cseg-p">Em sẽ đo lại bằng kế hoạch thực thi và thời gian mỗi lần quét, trước và sau, để chứng minh bằng số. Và em nhớ index có giá, nên chỉ thêm đúng chỗ cần.</p><p class="why"><b>Người nghe cảm nhận:</b> Kết thúc bằng kết quả và một nguyên tắc dùng lại được.</p></div><p class="cseg-p" data-pn="a" style="max-width:75ch"></p>
+   <details class="qa"><summary><span>Bản rút gọn 30 giây, khi người phỏng vấn gấp</span></summary><div class="ans"><p>Em từng xử lý màn hình quét ở bến nhận hàng bị chậm vì bảng kiện có hàng chục triệu dòng mà thiếu index, nên mỗi lần tra phải đọc cả bảng. Em đánh partial index chỉ cho thùng đang chờ nhận, tạo bằng CONCURRENTLY để không khóa bảng, và đo bằng kế hoạch thực thi: thời gian quét giảm từ vài giây xuống mili giây.</p></div></details></div>
+  <div class="grid2"><div class="panel"><h4>Từ khó, nói đời thường</h4><ul class="of-c"><li><b>Index (chỉ mục):</b> Một cấu trúc phụ giúp tìm nhanh, như mục lục cuối sách. Đổi lại tốn dung lượng và làm chậm việc ghi.</li><li><b>Seq Scan:</b> Cơ sở dữ liệu đọc tuần tự từng dòng của cả bảng.</li><li><b>Partial index:</b> Index chỉ gồm những dòng thỏa một điều kiện, nên nhỏ và nhanh hơn.</li><li><b>EXPLAIN ANALYZE:</b> Lệnh cho biết cơ sở dữ liệu thực sự chạy câu truy vấn thế nào và mất bao lâu ở từng bước.</li><li><b>CONCURRENTLY:</b> Tạo index mà không chặn việc ghi vào bảng, phù hợp hệ thống đang chạy.</li></ul></div><div class="panel"><h4>Case này khoe được gì</h4><ul class="of-c"><li><b>Đo trước khi sửa:</b> Dùng kế hoạch thực thi làm bằng chứng.</li><li><b>Biết cái giá của index:</b> Ghi chậm hơn, tốn dung lượng, nên chọn partial index.</li><li><b>Làm an toàn trên production:</b> CONCURRENTLY và kiểm tra index hợp lệ.</li><li><b>Giải thích dễ hiểu:</b> Ví dụ mục lục sách.</li></ul></div></div>
+  <div class="blk"><h3>4. Nếu bị hỏi thêm</h3><div class="qa-list"><details class="qa"><summary><span>Sao không đánh index cho mọi cột?</span></summary><div class="ans"><p>Mỗi index làm mọi lần thêm, sửa dữ liệu phải cập nhật thêm, và tốn dung lượng. Chỉ đánh index cho cột thật sự dùng để tìm kiếm, nối hoặc sắp xếp.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Sao dùng partial index?</span></summary><div class="ans"><p>Phần lớn thùng đã ở trạng thái nhận xong và không còn được tra. Index chỉ gồm thùng đang chờ nhận nhỏ hơn rất nhiều và nhanh hơn.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Có index rồi mà câu truy vấn vẫn không dùng thì vì sao?</span></summary><div class="ans"><p>Các nguyên nhân hay gặp: bọc hàm lên cột khi lọc (ví dụ UPPER(mã)), kiểu dữ liệu không khớp, thống kê cũ, hoặc bảng quá nhỏ nên đọc tuần tự rẻ hơn. Luôn kiểm tra bằng EXPLAIN.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Thứ tự cột trong index nhiều cột quan trọng thế nào?</span></summary><div class="ans"><p>Cột lọc bằng nhau thường đặt trước, cột lọc theo khoảng đặt sau. Index chỉ phát huy khi câu truy vấn dùng các cột đầu tiên của nó.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Tạo index trên bảng đang chạy thật có rủi ro gì?</span></summary><div class="ans"><p>CREATE INDEX thường sẽ chặn ghi. CONCURRENTLY tránh việc đó nhưng chạy lâu hơn và nếu thất bại sẽ để lại index không hợp lệ, cần kiểm tra và dọn.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Sao chắc chắn chậm là do truy vấn mà không phải mạng hay chỗ khác?</span></summary><div class="ans"><p>Nhờ log đo thời gian từng bước của API. Khi một bước chiếm gần hết thời gian thì mới đi sâu vào bước đó.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details></div></div></section><section class="cs-sec" id="case-b"><p class="eyebrow">Case B · Luồng 2 · Xuất B2B</p><h2>Tạo lượt nhặt cuối ngày chậm vì JOIN nhiều bảng lớn</h2><p>Cuối ngày, hệ thống tạo lượt nhặt cho các đơn của cửa hàng, bằng một câu truy vấn nối đơn hàng, dòng đơn, tồn kho và vị trí kho. Các bảng lịch sử đã lên hàng chục triệu dòng (con số minh họa). Câu truy vấn chậm dần, có lúc mất cả phút, trong khi giờ chốt xe không đổi.</p>
+  <div class="blk"><h3>1. Hoạt họa: vấn đề và cách sửa</h3><div class="stage" data-stage="cJoin" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><g class="node n-erp"><rect x="16" y="34" width="150" height="56" rx="5"></rect><text x="91" y="60" class="st nt">Đơn hôm nay</text><text x="91" y="75" class="st sm">5.000 đơn</text></g><g class="node n-wes"><rect x="290" y="24" width="170" height="76" rx="5"></rect><text x="375" y="60" class="st nt">Dòng đơn</text><text x="375" y="75" class="st sm">50 triệu dòng</text></g><g class="node n-dev"><rect x="540" y="24" width="164" height="76" rx="5"></rect><text x="622" y="60" class="st nt">Tồn kho</text><text x="622" y="75" class="st sm">30 triệu dòng</text></g><g class="off3"><line x1="460" y1="62" x2="540" y2="62" class="k-dash"></line><g class="b-bad"><rect x="414.4" y="110" width="171.2" height="24" rx="12" class="bd"></rect><text x="500" y="126" class="st">20 triệu dòng trung gian</text></g></g><g class="only2"><g class="b-bad"><rect x="30.700000000000003" y="110" width="158.6" height="24" rx="12" class="bd"></rect><text x="110" y="126" class="st">Lọc ngày: làm sau cùng</text></g></g><g class="on3"><line x1="166" y1="62" x2="290" y2="62" class="k-dash"></line><g class="b-ok"><rect x="189.65" y="28" width="76.69999999999999" height="24" rx="12" class="bd"></rect><text x="228" y="44" class="st">qua index</text></g><line x1="460" y1="62" x2="540" y2="62" class="k-dash"></line><g class="b-ok"><rect x="461.65" y="110" width="76.69999999999999" height="24" rx="12" class="bd"></rect><text x="500" y="126" class="st">qua index</text></g></g><rect x="60" y="186" width="520" height="14" rx="4" class="k-body"></rect><text x="30" y="198" class="st" style="">Giờ</text><g class="act"><g class="only1"><rect x="60" y="186" width="520" height="14" rx="4" fill="var(--bad)"></rect><g class="b-bad"><rect x="214" y="148" width="272" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Nối hai bảng lớn trước, trước cả khi lọc</text></g></g><g class="only2"><rect x="60" y="186" width="520" height="14" rx="4" fill="var(--bad)"></rect><g class="b-bad"><rect x="214" y="148" width="272" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Hàng chục triệu dòng bị tạo ra rồi bỏ đi</text></g></g><g class="only3"><rect x="60" y="186" width="260" height="14" rx="4" fill="var(--accent)"></rect><g class="b-pkt"><rect x="214" y="148" width="272" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Lọc đơn hôm nay trước, rồi nối qua index</text></g></g><g class="only4"><rect x="60" y="186" width="110" height="14" rx="4" fill="var(--ok)"></rect><g class="b-ok"><rect x="214" y="148" width="272" height="24" rx="12" class="bd"></rect><text x="350" y="164" class="st">Chỉ đọc một phần nhỏ dữ liệu, xong nhanh</text></g></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Truy vấn nối bốn bảng. Cơ sở dữ liệu chọn nối hai bảng lớn với nhau trước.</span></li><li style="--cap:cap2"><b>2</b><span>Hàng chục triệu dòng trung gian được tạo ra, rồi mới lọc theo ngày và bỏ gần hết.</span></li><li style="--cap:cap3"><b>3</b><span>Sửa: lọc đơn hôm nay trước ra tập nhỏ, rồi nối sang các bảng lớn qua cột có index, và cập nhật thống kê.</span></li><li style="--cap:cap4"><b>4</b><span>Chỉ đọc một phần nhỏ dữ liệu. Thời gian giảm rõ và ổn định khi mùa cao điểm.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div></div>
+  <div class="blk"><h3>2. Các bước điều tra và xử lý</h3><ol class="of-steps"><li><b>Đo và khoanh vùng.</b> Log đo từng bước cho thấy thời gian nằm ở câu truy vấn tạo lượt nhặt, không phải ở phần xử lý nghiệp vụ.</li><li><b>Đọc kế hoạch thực thi.</b> Thấy hai điều: nối hai bảng lớn với nhau trước rồi mới lọc theo ngày, và số dòng dự đoán lệch xa số dòng thực tế.</li><li><b>Tìm nguyên nhân.</b> Thiếu index trên cột dùng để nối, và thống kê đã cũ sau đợt nạp dữ liệu lớn nên cơ sở dữ liệu chọn sai cách nối.</li><li><b>Sửa ba chỗ.</b> Lọc đơn của hôm nay trước thành tập nhỏ. Đánh index vào cột dùng để nối và lọc. Chạy ANALYZE để cập nhật thống kê.</li><li><b>Đo lại.</b> So sánh kế hoạch thực thi và thời gian trước, sau trên dữ liệu thật, chạy nhiều lần.</li></ol></div>
+  <div class="grid2"><div class="panel"><h4>Trước khi sửa</h4><pre>SELECT ol.*, i.location_id, l.zone
+FROM order_line ol
+JOIN inventory i ON i.sku_id = ol.sku_id
+JOIN location l  ON l.location_id = i.location_id
+JOIN customer_order o ON o.order_id = ol.order_id
+WHERE o.wave_date = CURRENT_DATE
+  AND o.status = 'RESERVED';
+
+-- Kế hoạch: nối order_line x inventory trước
+--   (hàng chục triệu dòng trung gian), lọc ngày sau cùng</pre></div><div class="panel"><h4>Sau khi sửa</h4><pre>CREATE INDEX CONCURRENTLY ON customer_order (wave_date, status);
+CREATE INDEX CONCURRENTLY ON order_line (order_id);
+CREATE INDEX CONCURRENTLY ON inventory (sku_id);
+ANALYZE order_line;
+
+WITH todays AS (
+  SELECT order_id FROM customer_order
+  WHERE wave_date = CURRENT_DATE AND status = 'RESERVED'
+)
+SELECT ol.*, i.location_id, l.zone
+FROM todays t
+JOIN order_line ol ON ol.order_id = t.order_id
+JOIN inventory i   ON i.sku_id = ol.sku_id
+JOIN location l    ON l.location_id = i.location_id;</pre></div></div>
+  <div class="blk"><h3>3. Cách nói dưới 90 giây</h3><div class="tl" aria-hidden="true"><i style="flex:41" title="Mở bằng vấn đề"></i><i style="flex:52" title="Chẩn đoán"></i><i style="flex:38" title="Điều em không làm"></i><i style="flex:29" title="Cách sửa"></i><i style="flex:23" title="Kết quả"></i></div><p class="tlt"><b>183 từ</b>, khoảng <b>46 giây</b> nếu nói 4 từ mỗi giây.</p>
+   <div class="widget"><h3>Con số thật của bạn (nếu có)</h3><p class="hint">Điền nếu bạn có số đo thật, ví dụ “40 giây”, “2 giây”. Số được thêm vào cuối đoạn kết quả.</p><div class="row"><label>Trước <input class="search" data-a="b" style="width:110px"></label><label>Sau <input class="search" data-b="b" style="width:110px"></label></div></div>
+   <div class="widget timer"><div class="row"><button class="btn pri" data-tb="b" type="button">Bắt đầu bấm giờ</button><b class="ct-time" data-tt="b">0:00</b></div><p class="hint" data-tr="b">Tự đọc to bản dưới đây, bấm dừng khi nói xong.</p></div>
+   <div class="cseg"><div class="cseg-h"><span class="cseg-t">0–10 giây</span><b>Mở bằng vấn đề</b></div><p class="cseg-p">Với bước tạo lượt nhặt cuối ngày có câu truy vấn nối nhiều bảng chậm dần, có lúc mất cả phút trong khi giờ chốt xe không đổi, em sẽ bắt đầu bằng việc đo xem thời gian nằm ở đâu.</p><p class="why"><b>Người nghe cảm nhận:</b> Vấn đề gắn với giờ xe chạy, người ngoài ngành vẫn thấy rõ.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">10–23 giây</span><b>Chẩn đoán</b></div><p class="cseg-p">Em sẽ xem kế hoạch thực thi, để ý hai thứ: cơ sở dữ liệu có nối hai bảng lớn với nhau trước khi lọc không, và số dòng dự đoán có lệch xa số dòng thực tế không, vì thống kê có thể đã cũ sau đợt nạp dữ liệu lớn.</p><p class="why"><b>Người nghe cảm nhận:</b> Bạn đọc được kế hoạch thực thi và hiểu vai trò của thống kê.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">23–33 giây</span><b>Điều em không làm</b></div><p class="cseg-p">Em sẽ không chỉ đổi thứ tự JOIN trong câu SQL, vì cơ sở dữ liệu thường tự chọn thứ tự nối. Thứ quyết định là nó có dữ liệu đúng và có đường đi nhanh hay không.</p><p class="why"><b>Người nghe cảm nhận:</b> Điểm khoe sâu nhất: bạn không tin vào mẹo, bạn hiểu bộ tối ưu hoạt động ra sao.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">33–40 giây</span><b>Cách sửa</b></div><p class="cseg-p">Em sẽ làm ba việc: lọc đơn của hôm nay trước thành tập nhỏ, đánh index vào các cột dùng để nối và lọc, và cập nhật thống kê.</p><p class="why"><b>Người nghe cảm nhận:</b> Ba việc rõ ràng, dễ nhớ, dễ kiểm chứng.</p></div><div class="cseg"><div class="cseg-h"><span class="cseg-t">40–46 giây</span><b>Kết quả</b></div><p class="cseg-p">Em sẽ đo bằng kế hoạch thực thi trước và sau trên dữ liệu thật, chạy nhiều lần, để chứng minh bằng số.</p><p class="why"><b>Người nghe cảm nhận:</b> Kết thúc bằng kết quả gắn với kinh doanh, có cách đo.</p></div><p class="cseg-p" data-pn="b" style="max-width:75ch"></p>
+   <details class="qa"><summary><span>Bản rút gọn 30 giây, khi người phỏng vấn gấp</span></summary><div class="ans"><p>Em xử lý một câu truy vấn tạo lượt nhặt cuối ngày chậm dần vì cơ sở dữ liệu nối hai bảng lớn trước rồi mới lọc theo ngày, lại dự đoán sai số dòng do thống kê cũ. Em lọc đơn hôm nay trước thành tập nhỏ, đánh index cho các cột nối và cập nhật thống kê, rồi đo bằng kế hoạch thực thi: thời gian giảm rõ và job xong trước giờ chốt xe.</p></div></details></div>
+  <div class="grid2"><div class="panel"><h4>Từ khó, nói đời thường</h4><ul class="of-c"><li><b>JOIN:</b> Nối dữ liệu của nhiều bảng theo một cột chung, ví dụ nối đơn hàng với các dòng của nó.</li><li><b>Kế hoạch thực thi:</b> Cách cơ sở dữ liệu quyết định đọc bảng nào trước, nối thế nào. Xem bằng EXPLAIN.</li><li><b>Thống kê (statistics):</b> Số liệu cơ sở dữ liệu giữ về dữ liệu, như số dòng, để ước lượng cách chạy. Cũ thì ước lượng sai.</li><li><b>Nested loop, hash join:</b> Hai cách nối. Nested loop: với mỗi dòng bên này đi tìm bên kia, hợp khi tập nhỏ và có index. Hash join: lập bảng tra rồi dò, hợp khi tập lớn.</li><li><b>ANALYZE:</b> Lệnh cập nhật thống kê để cơ sở dữ liệu chọn kế hoạch đúng hơn.</li></ul></div><div class="panel"><h4>Case này khoe được gì</h4><ul class="of-c"><li><b>Hiểu bộ tối ưu:</b> Biết thứ tự JOIN trong SQL thường không quyết định kế hoạch.</li><li><b>Đọc kế hoạch thực thi:</b> So số dòng dự đoán với thực tế.</li><li><b>Ba việc cụ thể:</b> Lọc sớm, index, thống kê.</li><li><b>Chứng minh bằng số:</b> Đo trước, sau trên dữ liệu thật.</li></ul></div></div>
+  <div class="blk"><h3>4. Nếu bị hỏi thêm</h3><div class="qa-list"><details class="qa"><summary><span>Đổi thứ tự JOIN trong SQL có đổi kế hoạch không?</span></summary><div class="ans"><p>Thường là không. Ở PostgreSQL, bộ tối ưu tự sắp lại thứ tự nối, chỉ bị giới hạn khi có quá nhiều bảng (tham số join_collapse_limit, mặc định 8). Điều quan trọng hơn là thống kê đúng, có index và lọc được sớm.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Sao thống kê cũ lại làm chậm?</span></summary><div class="ans"><p>Sau đợt nạp dữ liệu lớn, thống kê chưa kịp cập nhật nên cơ sở dữ liệu tưởng bảng nhỏ và chọn cách nối hợp với bảng nhỏ. Chạy ANALYZE sẽ sửa.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Nested loop, hash join và merge join khác nhau thế nào?</span></summary><div class="ans"><p>Nested loop: với mỗi dòng bên này đi tìm bên kia, tốt khi tập nhỏ và có index. Hash join: lập bảng tra cho một bên rồi dò, tốt cho tập lớn. Merge join: hai bên đã sắp xếp sẵn rồi ghép.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Nên đánh index ở những cột nào?</span></summary><div class="ans"><p>Cột dùng để nối (order_id, sku_id) và cột dùng để lọc (wave_date, status). Không đánh tràn lan vì mỗi index làm ghi chậm hơn.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Làm sao chắc là nhanh hơn thật?</span></summary><div class="ans"><p>So EXPLAIN (ANALYZE, BUFFERS) trước và sau trên dữ liệu có quy mô thật, chạy nhiều lần để loại ảnh hưởng của bộ nhớ đệm.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details><details class="qa"><summary><span>Sao không lưu sẵn kết quả (cache hoặc bảng tổng hợp)?</span></summary><div class="ans"><p>Cách đó nhanh nhưng phải giữ cho kịp đồng bộ khi dữ liệu đổi. Sửa truy vấn và index đơn giản hơn và không đổi nghiệp vụ, nên nên thử trước.</p><div class="row"><span class="tag ind">Chuẩn ngành</span></div></div></details></div></div></section></div></div></main>
+<script>
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const tag=s=>s==="doc"?'<span class="tag doc">Tài liệu</span>':'<span class="tag ind">Chuẩn ngành</span>';
+const tx=(x,y,s,st="")=>`<text x="${x}" y="${y}" class="st" style="${st}">${s}</text>`;
+const G=206;
+const K={
+ svg:(inner,h=240)=>`<svg viewBox="0 0 720 ${h}" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới.">${inner}</svg>`,
+ floor:(x1=8,x2=712)=>`<line x1="${x1}" y1="${G}" x2="${x2}" y2="${G}" class="k-floor"/>`,
+ t:(x,y,s,c="")=>`<text x="${x}" y="${y}" class="st ${c}">${s}</text>`,
+ zn:(x,s)=>`<text x="${x}" y="226" class="st zn">${s}</text>`,
+ badge(x,y,s,c="b-ink"){const w=s.length*6.3+20;return `<g class="${c}"><rect x="${x-w/2}" y="${y-12}" width="${w}" height="24" rx="12" class="bd"/><text x="${x}" y="${y+4}" class="st">${s}</text></g>`},
+ node(x,y,w,h,t,s,c){return `<g class="node ${c}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/><text x="${x+w/2}" y="${y+(s?h/2-2:h/2+4)}" class="st nt">${t}</text>${s?`<text x="${x+w/2}" y="${y+h/2+13}" class="st sm">${s}</text>`:""}</g>`},
+ carton:(x,g,w=24,h=20,lab="")=>`<rect x="${x}" y="${g-h}" width="${w}" height="${h}" rx="2" class="k-carton"/><line x1="${x+w/2}" y1="${g-h}" x2="${x+w/2}" y2="${g-h+6}" class="k-edge"/>${lab?`<text x="${x+w/2}" y="${g-5}" class="st" style="font-size:9px;fill:#2A1B05">${lab}</text>`:""}`,
+ pallet(x,g){let s=`<rect x="${x}" y="${g-5}" width="66" height="5" class="k-metal"/>`;for(let r=0;r<2;r++)for(let c=0;c<3;c++)s+=K.carton(x+c*22,g-5-r*18,22,18);return s},
+ tote:(x,g,w=30,h=15)=>`<path d="M${x} ${g-h}h${w}l-3 ${h}h${-(w-6)}z" class="k-tote"/><rect x="${x-2}" y="${g-h-3}" width="${w+4}" height="4" rx="1.5" class="k-tote"/>`,
+ robot:(x,g)=>`<rect x="${x}" y="${g-14}" width="38" height="10" rx="3" class="k-robot"/><circle cx="${x+8}" cy="${g-4}" r="4" class="k-ink"/><circle cx="${x+30}" cy="${g-4}" r="4" class="k-ink"/><circle cx="${x+33}" cy="${g-9}" r="1.8" class="k-hi"/>`,
+ person:(x,g)=>`<rect x="${x-7}" y="${g-20}" width="6" height="20" rx="2" class="k-ink"/><rect x="${x+1}" y="${g-20}" width="6" height="20" rx="2" class="k-ink"/><path d="M${x-9} ${g-18}v-16a9 9 0 0 1 18 0v16z" class="k-vest"/><circle cx="${x}" cy="${g-51}" r="7.5" class="k-skin"/>`,
+ truck:(x,g,lab="")=>`<rect x="${x}" y="${g-74}" width="120" height="60" rx="3" class="k-truck"/><path d="M${x+122} ${g-14}v-40h20l14 18v22z" class="k-cab"/><rect x="${x+127}" y="${g-48}" width="14" height="13" class="k-glass"/><circle cx="${x+26}" cy="${g-10}" r="10" class="k-ink"/><circle cx="${x+94}" cy="${g-10}" r="10" class="k-ink"/><circle cx="${x+140}" cy="${g-10}" r="10" class="k-ink"/>${lab?`<text x="${x+60}" y="${g-40}" class="st" style="font-family:var(--f-mono);font-size:10.5px">${lab}</text>`:""}`,
+ forklift:(x,g)=>`<rect x="${x+40}" y="${g-64}" width="4" height="60" class="k-ink"/><rect x="${x+44}" y="${g-9}" width="68" height="3" class="k-ink"/><path d="M${x} ${g-10}v-22h14l6-14h18v36z" class="k-fork"/><circle cx="${x+9}" cy="${g-8}" r="8" class="k-ink"/><circle cx="${x+32}" cy="${g-8}" r="8" class="k-ink"/><circle cx="${x+24}" cy="${g-54}" r="6.5" class="k-skin"/>`,
+ gate:(x,g,w=96,h=110)=>`<rect x="${x}" y="${g-h}" width="8" height="${h}" class="k-ink"/><rect x="${x+w-8}" y="${g-h}" width="8" height="${h}" class="k-ink"/><rect x="${x-4}" y="${g-h-8}" width="${w+8}" height="10" rx="2" class="k-ink"/><rect x="${x+8}" y="${g-h+14}" width="5" height="50" class="k-robot"/><rect x="${x+w-13}" y="${g-h+14}" width="5" height="50" class="k-robot"/>`,
+ lamp:(x,y,c)=>`<circle cx="${x}" cy="${y}" r="6" class="${c}" stroke="var(--ink)" stroke-width="1.5"/>`,
+ rack(x,g,cols,rows,cw=30,ch=24,fill=[]){let s="";for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const cx=x+c*cw,cy=g-(r+1)*ch;s+=`<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" class="k-cell"/>`;const f=fill.find(a=>a[0]===c&&a[1]===r);if(f)s+=f[2]==="c"?K.carton(cx+4,cy+ch-2,cw-8,ch-6):`<rect x="${cx+4}" y="${cy+ch-11}" width="${cw-8}" height="9" rx="1.5" class="k-tote"/>`}return s},
+ conv(x,y,w){let s=`<rect x="${x}" y="${y}" width="${w}" height="8" rx="4" class="k-metal"/>`;for(let i=x+10;i<x+w-4;i+=16)s+=`<circle cx="${i}" cy="${y+4}" r="2.4" class="k-ink"/>`;return s+`<rect x="${x+8}" y="${y+8}" width="4" height="${G-y-8}" class="k-metal"/><rect x="${x+w-12}" y="${y+8}" width="4" height="${G-y-8}" class="k-metal"/>`},
+ table:(x,g,w,h=34)=>`<rect x="${x}" y="${g-h}" width="${w}" height="6" rx="2" class="k-ink"/><rect x="${x+6}" y="${g-h+6}" width="4" height="${h-6}" class="k-metal"/><rect x="${x+w-10}" y="${g-h+6}" width="4" height="${h-6}" class="k-metal"/>`,
+ screen(x,y,w,h,t){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" class="k-body"/><rect x="${x}" y="${y}" width="${w}" height="18" rx="5" class="k-ink"/><text x="${x+w/2}" y="${y+13}" class="st" style="fill:var(--surface);font-size:10px">${t}</text>`},
+ printer:(x,g)=>`<rect x="${x}" y="${g-20}" width="40" height="20" rx="3" class="k-body"/><rect x="${x+7}" y="${g-24}" width="26" height="5" class="k-ink"/>`,
+ paper:(x,y)=>`<rect x="${x}" y="${y}" width="24" height="30" rx="1.5" class="k-paper"/><line x1="${x+4}" y1="${y+8}" x2="${x+20}" y2="${y+8}" class="k-pl"/><line x1="${x+4}" y1="${y+14}" x2="${x+20}" y2="${y+14}" class="k-pl"/><line x1="${x+4}" y1="${y+20}" x2="${x+15}" y2="${y+20}" class="k-pl"/>`,
+ shirt:(x,y,k=1)=>`<path transform="translate(${x} ${y}) scale(${k})" d="M0 5 8 0q5 5 10 0l8 5-3 6-4-2v17H7V9l-4 2z" class="k-shirt"/>`,
+ cart:(x,g)=>`<rect x="${x}" y="${g-40}" width="44" height="4" class="k-ink"/><rect x="${x}" y="${g-22}" width="44" height="4" class="k-ink"/><rect x="${x}" y="${g-44}" width="3" height="38" class="k-ink"/><rect x="${x+41}" y="${g-60}" width="3" height="54" class="k-ink"/><rect x="${x+34}" y="${g-72}" width="18" height="13" rx="2" class="k-robot"/><circle cx="${x+7}" cy="${g-4}" r="4" class="k-ink"/><circle cx="${x+38}" cy="${g-4}" r="4" class="k-ink"/>`,
+ waves:(cx,cy)=>[0,.43,.86].map(d=>`<circle cx="${cx}" cy="${cy}" r="46" class="k-wave" style="animation-delay:${d}s"/>`).join(""),
+ mv:(n,dx,dy,inner)=>`<g class="mv${n}" style="--dx:${dx}px;--dy:${dy}px">${inner}</g>`,
+ g:(c,inner)=>`<g class="${c}">${inner}</g>`,
+ dash:(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="k-dash"/>`,
+ check:(x,y)=>`<circle cx="${x}" cy="${y}" r="9" class="k-ok"/><path d="M${x-4} ${y}l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`
+};
+
+const SCENES={
+ s11:()=>K.svg(
+  K.floor()+K.node(16,16,128,42,"Nhà máy","gửi bản kê trước","n-erp")+K.node(400,16,128,42,"WES","quản đốc sàn kho","n-wes")+K.dash(150,37,394,37)+
+  `<rect x="600" y="${G-112}" width="104" height="112" class="k-body"/><rect x="600" y="${G-112}" width="104" height="20" class="k-ink"/><text x="652" y="${G-98}" class="st" style="fill:var(--surface);font-family:var(--f-mono)">DOCK 04</text>`+
+  [0,1,2,3].map(i=>`<line x1="608" y1="${G-80+i*20}" x2="696" y2="${G-80+i*20}" class="k-pl"/>`).join("")+K.person(582,G)+K.zn(90,"Đường vào kho")+K.zn(652,"Cửa nhận hàng")+
+  K.g("act",K.mv(1,180,0,K.badge(190,37,"ASN","b-pkt"))+K.mv(2,400,0,K.truck(14,G,"51D-892.41"))+
+   K.g("only3",K.badge(430,112,"Gõ biển số: tìm thấy ASN, 120 thùng"))+K.g("on4",K.badge(464,80,"Đã khóa cho anh Tuấn","b-hi")))),
+
+ s12:()=>K.svg(
+  K.floor()+K.node(16,16,128,42,"WES","chuẩn bị lệnh quét","n-wes")+K.gate(300,G)+K.lamp(348,G-126,"k-bad")+K.table(548,G,84)+K.printer(570,G-34)+K.person(668,G)+
+  K.zn(348,"Cổng RFID số 01")+K.zn(590,"Bàn in phiếu")+K.zn(668,"Trưởng ca")+
+  K.g("act",K.mv(1,150,22,K.g("off2",K.badge(196,37,"800 mã chip","b-pkt")))+
+   K.g("on2",K.lamp(348,G-126,"k-ok")+K.badge(348,150,"Sẵn sàng","b-ok"))+
+   K.mv(4,66,22,K.mv(3,0,-34,K.g("on3",K.paper(578,G-62))))+K.g("only3",K.badge(590,96,"In phiếu kiểm hàng")))),
+
+ s13:()=>K.svg(
+  K.floor()+K.gate(306,G)+K.lamp(354,G-126,"k-hi")+K.screen(544,16,160,76,"Màn hình cổng RFID")+K.t(624,50,"Theo ASN: 800 chiếc")+
+  K.zn(80,"Từ bến dỡ hàng")+K.zn(354,"Cổng RFID")+K.zn(632,"Sang trạm đổ khay")+
+  K.g("act",K.mv(4,300,0,K.mv(1,250,0,K.forklift(20,G)+K.pallet(66,G-9)))+K.g("only2",K.waves(354,150))+
+   K.g("on2",K.t(624,66,"Đọc được: 800 chiếc"))+K.g("on3",K.lamp(354,G-126,"k-ok")+`<text x="624" y="82" class="st" style="fill:var(--ok)">Khớp 100%</text>`)+
+   K.g("only4",K.badge(300,60,"Trưởng ca bấm Hoàn tất kiểm đếm","b-ok")))),
+
+ s14:()=>K.svg(
+  K.floor()+K.conv(16,G-38,164)+K.person(212,G)+K.table(188,G,92,38)+
+  K.rack(480,G,7,7,30,24,[[0,0,"t"],[1,0,"t"],[3,0,"t"],[5,1,"t"],[2,2,"t"],[6,2,"t"],[4,3,"t"],[1,4,"t"],[5,5,"t"],[3,6,"t"]])+
+  K.zn(96,"Băng chuyền")+K.zn(234,"Trạm đổ khay")+K.zn(585,"Giàn kệ robot")+
+  K.g("act",K.mv(1,166,0,K.g("off2",K.carton(30,G-38)))+K.g("only2",K.tote(244,G-38)+K.shirt(246,G-84)+K.badge(236,102,"Quét mã khay, cân 14,5 kg"))+
+   K.mv(3,150,0,K.mv(4,0,-96,K.robot(290,G)+K.g("on3",K.tote(294,G-14))))+
+   K.g("only3",K.badge(340,60,"WES chọn ô LOC-04-12-08-C"))+K.g("on4",K.badge(340,60,"Tồn khả dụng +50","b-ok")))),
+
+ s15:()=>K.svg(
+  `<path d="M16 110H596" class="k-belt"/><path d="M380 110L470 176H596" class="k-belt"/>`+
+  `<rect x="222" y="62" width="6" height="52" class="k-ink"/><rect x="262" y="62" width="6" height="52" class="k-ink"/><rect x="218" y="56" width="54" height="8" rx="2" class="k-ink"/>`+
+  `<text x="604" y="114" class="st l">Lên kệ lưu kho</text><text x="604" y="180" class="st l">Khu xuất hàng</text>`+K.t(245,48,"Máy đọc mã","sm")+K.t(346,138,"Tay gạt","sm")+
+  K.g("act",K.mv(3,110,0,K.mv(2,180,0,K.mv(1,170,0,K.carton(100,105))))+
+   K.mv(4,110,0,K.mv(3,100,66,K.mv(2,130,0,K.mv(1,180,0,`<rect x="40" y="85" width="24" height="20" rx="2" class="k-carton" style="stroke:var(--hi);stroke-width:3"/>`))))+
+   K.g("only1",K.badge(245,24,"Thùng viền vàng: cần xuất gấp","b-hi"))+K.g("only2",`<line x1="366" y1="96" x2="396" y2="122" stroke="var(--hi)" stroke-width="5" stroke-linecap="round" class="blink"/>`)+
+   K.g("on4",K.badge(470,214,"Cảm biến: đã tới khu xuất","b-ok"))),236),
+
+ s16:()=>K.svg(
+  K.floor()+K.person(312,G)+K.table(228,G,110,38)+`<rect x="372" y="${G-30}" width="46" height="30" rx="3" class="k-body" style="stroke:var(--bad);stroke-width:2"/>`+
+  K.rack(644,G,2,6,30,24,[[0,1,"t"],[1,3,"t"],[0,5,"t"]])+K.node(560,10,144,38,"Kế toán","hoàn tiền cho khách","n-erp")+
+  K.zn(60,"Gói khách trả")+K.zn(283,"Bàn kiểm hàng hoàn")+K.zn(395,"Cách ly")+K.zn(600,"Về kệ robot")+
+  K.g("act",K.mv(1,190,-38,K.g("off2",`<rect x="48" y="${G-20}" width="30" height="20" rx="4" class="k-paper"/><line x1="48" y1="${G-10}" x2="78" y2="${G-10}" class="k-pl"/>`))+
+   K.mv(3,222,8,K.g("on2",K.g("off4",K.shirt(252,G-66))))+K.g("only2",K.badge(283,112,"Còn tem, sạch: loại A","b-ok"))+
+   K.mv(4,132,0,K.robot(468,G)+K.tote(472,G-14))+K.g("on4",K.badge(560,120,"Mở bán lại +1","b-ok"))+
+   K.mv(4,170,-8,K.g("on4",K.badge(330,37,"Lệnh hoàn tiền","b-pkt"))))),
+
+ s17:()=>K.svg(
+  K.node(296,96,128,46,"WES","gom số thực nhận","n-wes")+K.node(16,16,150,42,"Nhà máy","nhận AR1","n-erp")+K.node(554,16,150,42,"Kế toán nội bộ","nhận AR2","n-wiv")+K.node(554,172,150,46,"Hải quan (CMS)","duyệt tờ khai","n-dev")+
+  K.dash(296,104,166,52)+K.dash(424,104,554,52)+K.dash(424,134,554,188)+K.rack(30,214,4,3,30,22,[[0,0,"t"],[1,0,"t"],[2,1,"t"],[3,0,"t"],[1,2,"t"]])+
+  K.g("act",K.mv(1,-150,-52,K.g("only1",K.badge(350,119,"AR1","b-pkt")))+K.mv(2,160,-52,K.g("only2",K.badge(370,119,"AR2","b-pkt")))+
+   K.mv(3,130,62,K.g("only3",K.badge(380,119,"Tờ khai","b-pkt")))+K.mv(4,-110,-11,K.g("on4",K.badge(510,171,"Luồng xanh","b-ok")))+
+   K.g("off4",K.badge(90,130,"Chờ thông quan: khóa","b-hi"))+K.g("on4",K.badge(90,130,"Được phép xuất bán","b-ok"))),232),
+
+ s21:()=>K.svg(
+  K.node(16,24,156,40,"Store Flagship","ưu tiên 1","n-erp")+K.node(16,88,156,40,"Store B","ưu tiên 2","n-erp")+K.node(16,152,156,40,"Store tỉnh","ưu tiên 3","n-erp")+
+  K.node(296,84,128,46,"WES","điều phối xuất","n-wes")+K.node(540,16,164,42,"Sổ cái WIV","giữ con số tồn","n-wiv")+K.dash(424,107,540,107)+
+  K.t(622,84,"Tồn của các mã được đặt","sm")+`<rect x="540" y="92" width="164" height="22" rx="3" fill="var(--ok)"/>`+
+  K.g("act",K.mv(1,90,63,K.g("only1",K.badge(196,44,"Đơn","b-pkt")))+K.mv(1,90,0,K.g("only1",K.badge(196,108,"Đơn","b-pkt")))+K.mv(1,90,-63,K.g("only1",K.badge(196,172,"Đơn","b-pkt")))+
+   K.g("off3",`<text x="622" y="107" class="st" style="fill:#fff">Khả dụng</text>`)+
+   K.mv(2,40,0,K.g("only2",K.badge(452,107,"Chạy thử","b-pkt")))+K.g("only2",K.badge(560,176,"Kết quả thử: đủ 27.950, thiếu 450"))+
+   K.mv(3,40,0,K.g("only3",K.badge(452,107,"Chốt","b-pkt")))+
+   K.g("on3",`<rect x="540" y="92" width="150" height="22" rx="3" fill="var(--hi)"/><text x="615" y="107" class="st" style="fill:#1B1400">Đã giữ chỗ 27.950</text>`)+
+   K.g("on4",K.badge(360,176,"Chia thành việc: thùng nguyên + nhặt lẻ","b-ok"))),216),
+
+ s22:()=>{const row=(y,t,s,ic)=>`<g class="node n-dev"><rect x="430" y="${y}" width="274" height="50" rx="5"/><text x="444" y="${y+22}" class="st nt l">${t}</text><text x="444" y="${y+38}" class="st sm l">${s}</text></g>${ic}`;
+  return K.svg(
+  K.node(16,88,136,50,"WES","tạo lệnh nhặt","n-wes")+
+  row(12,"Robot Exotec","lấy khay trên giàn",K.robot(636,52)+K.tote(640,38))+row(88,"Xe Smart Cart","nhặt lẻ ở kệ thấp",`<g transform="translate(638 -60) scale(.62)">${K.cart(0,G+110)}</g>`)+row(164,"Phiếu giấy","khu làm thủ công",K.paper(648,174))+
+  K.dash(152,105,430,37)+K.dash(152,113,430,113)+K.dash(152,121,430,189)+
+  K.g("act",K.g("only1",K.badge(190,56,"Gom món cùng dãy kệ thành 1 lượt","b-hi"))+K.g("on2",K.badge(160,176,"Lượt RUN-01: 180 việc, 24 ô, 420 m"))+
+   K.mv(2,160,-76,K.g("only2",K.badge(210,113,"Danh sách khay","b-pkt")))+K.mv(3,160,0,K.g("only3",K.badge(210,113,"Lộ trình nhặt","b-pkt")))+K.mv(4,160,76,K.g("only4",K.badge(210,113,"Lệnh in","b-pkt")))+
+   K.g("on2",K.check(692,24))+K.g("on3",K.check(692,100))+K.g("on4",K.check(692,176))),226)},
+
+ s23:()=>K.svg(
+  K.floor()+K.forklift(0,G)+K.rack(116,G,3,7,34,24,[[0,1,"c"],[1,1,"c"],[2,2,"c"],[1,3,"c"],[2,5,"c"],[0,6,"c"],[1,6,"c"]])+
+  K.rack(250,G,4,3,34,24)+[0,1,2].map(r=>[0,1,2,3].map(c=>(r===2&&c===1)?"":K.shirt(258+c*34,G-22-r*24,.72)).join("")).join("")+
+  K.person(412,G)+K.cart(430,G)+K.carton(496,G,36,28,"STORE")+K.person(552,G)+
+  K.zn(120,"Kệ cao tầng")+K.zn(340,"Kệ nhặt lẻ")+K.zn(600,"Trạm robot")+
+  K.g("act",K.mv(1,-60,113,K.carton(120,84,26,18))+K.g("only1",K.badge(120,20,"Lấy nguyên thùng","b-hi"))+
+   K.mv(2,152,4,K.shirt(292,G-70,.72))+K.g("only2",K.badge(350,100,"Quét rồi nhặt từng chiếc","b-hi"))+
+   K.mv(3,-100,0,K.robot(676,G)+K.tote(680,G-14))+K.g("only3",K.badge(606,100,"Robot mang khay tới","b-hi"))+
+   K.g("on4",K.badge(360,20,"Tiến độ nhặt: 100%","b-ok")))),
+
+ s24:()=>K.svg(
+  `<line x1="8" y1="${G}" x2="210" y2="${G}" class="k-floor"/>`+K.person(108,G)+K.table(16,G,112,38)+K.table(140,G,60,38)+K.printer(150,G-38)+K.screen(16,14,176,60,"Thùng 03 · Store Landmark 81")+
+  `<path d="M214 124H704" class="k-belt"/>`+[420,545,670].map((x,i)=>`<path d="M${x} 124V190" class="k-belt"/><text x="${x}" y="212" class="st zn">Dock 0${5+i}</text>`).join("")+
+  `<rect x="298" y="74" width="6" height="54" class="k-ink"/><rect x="340" y="74" width="6" height="54" class="k-ink"/><rect x="294" y="68" width="56" height="8" rx="2" class="k-ink"/>`+K.t(322,60,"Máy đọc nhãn","sm")+
+  K.g("act",K.g("on2",`<text x="104" y="58" class="st" style="fill:var(--ok)">40/40 món: đủ</text>`)+K.g("only1",`<text x="104" y="58" class="st">Đang kiểm: 40/40 món</text>`)+
+   K.mv(4,223,62,K.mv(3,265,-48,K.carton(40,G-38,34,28)+K.g("on2",`<rect x="46" y="${G-56}" width="22" height="12" class="k-paper"/>`)))+
+   K.g("only2",K.badge(150,100,"In nhãn, dán lên thùng","b-hi"))+K.g("on4",K.badge(545,60,"Rẽ vào máng Dock 06","b-ok"))),226),
+
+ s25:()=>K.svg(
+  K.floor()+K.node(16,12,164,42,"Sổ cái WIV","giữ con số tồn","n-wiv")+K.node(300,12,120,42,"ERP","kế toán ghi sổ","n-erp")+K.node(440,12,140,42,"Hải quan","hàng ngoại quan","n-dev")+
+  K.person(452,G)+K.zn(110,"Khu tập kết")+K.zn(500,"Cửa xuất Dock 06")+
+  K.g("act",`<g class="bk2" style="--dx:340px;--dy:0px">${K.carton(60,G,34,28,"Q3")}</g>`+
+   K.mv(4,280,0,K.truck(500,G,"XE Q1")+K.mv(1,378,-18,K.carton(124,G,34,28,"Q1")))+
+   K.g("only1",K.badge(430,112,"Tít: đúng xe","b-ok"))+K.g("only2",K.badge(400,112,"Hú còi: thùng của tuyến Q3","b-bad"))+
+   K.g("only3",K.badge(400,112,"Trưởng ca bấm Chốt xuất kho","b-hi"))+K.g("on3",K.badge(110,80,"Trừ hẳn khỏi tồn","b-hi"))+
+   K.g("on4",K.check(408,20)+K.check(568,20)))),
+};
+
+const MAP_SVG=(()=>{const z=(id,x,y,w,h,l1,l2="")=>`<g class="map-zone" data-z="${id}" tabindex="0" role="button" aria-label="${l1} ${l2}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/><text x="${x+w/2}" y="${y+h/2+(l2?-2:4)}" class="st">${l1}</text>${l2?`<text x="${x+w/2}" y="${y+h/2+12}" class="st">${l2}</text>`:""}</g>`;
+ const pin="M47 130H128L221 75H361", pout="M361 85H496V185L586 135H672";
+ return `<svg viewBox="0 0 720 300" role="img" aria-label="Sơ đồ mặt bằng kho nhìn từ trên xuống">`+
+ z("dockin",12,40,70,180,"Bến","nhập")+z("rfid",100,90,56,80,"Cổng","RFID")+z("decant",176,40,90,70,"Trạm","đổ khay")+z("highbay",176,150,90,70,"Kệ","cao tầng")+
+ z("grid",286,40,150,90,"Giàn kệ robot")+z("shelf",286,150,150,70,"Kệ nhặt lẻ")+z("pick",456,40,80,90,"Trạm nhặt","robot")+z("pack",456,150,80,70,"Bàn","đóng gói")+
+ z("sorter",556,60,60,150,"Phân","loại")+z("dockout",636,40,72,180,"Bến","xuất")+z("ret",12,236,160,48,"Bàn hàng hoàn")+
+ `<path d="${pin}" class="map-in"/><path d="${pout}" class="map-out"/>`+
+ `<circle r="7" class="dot-in sm-dot"><animateMotion dur="7s" repeatCount="indefinite" path="${pin}"/></circle><circle r="7" class="dot-out sm-dot"><animateMotion dur="7s" repeatCount="indefinite" path="${pout}"/></circle></svg>`})();
+
+const UNITS_SVG=`<svg viewBox="0 0 720 150" role="img" aria-label="Bốn cấp đóng gói: chiếc, thùng carton, pallet và khay Live Tote">`+
+ K.shirt(60,46)+`<text x="73" y="112" class="st">1 chiếc</text><text x="73" y="128" class="st sm">đơn vị nhỏ nhất</text>`+
+ `<text x="150" y="70" class="st" style="font-size:20px">→</text>`+K.carton(204,92,52,44)+`<text x="230" y="112" class="st">Thùng carton</text><text x="230" y="128" class="st sm">ví dụ 20 đến 50 chiếc</text>`+
+ `<text x="318" y="70" class="st" style="font-size:20px">→</text>`+K.pallet(372,92)+`<text x="405" y="112" class="st">Pallet</text><text x="405" y="128" class="st sm">nhiều thùng, xe nâng xúc</text>`+
+ `<line x1="500" y1="20" x2="500" y2="130" class="k-dash"/>`+K.tote(570,92,60,30)+`<text x="600" y="112" class="st">Khay Live Tote</text><text x="600" y="128" class="st sm">khay chuẩn, chỉ robot chở</text></svg>`;
+
+const bar=(w,c)=>`<rect x="60" y="186" width="${w}" height="14" rx="4" fill="var(--${c})"/>`;
+Object.assign(SCENES,{
+ cIdx:()=>{let rows="";for(let i=0;i<8;i++)rows+=`<rect x="280" y="${46+i*11}" width="200" height="7" rx="2" fill="var(--line)"/>`;
+  let lit="";for(let i=0;i<8;i++)lit+=`<rect x="280" y="${46+i*11}" width="200" height="7" rx="2" fill="var(--bad)" opacity=".75"/>`;
+  return K.svg(K.floor()+K.person(60,G)+K.zn(60,"Máy quét")+K.screen(250,16,260,120,"Bảng kiện, hàng chục triệu dòng")+rows+
+  K.g("only2",lit)+K.g("on3",`<rect x="280" y="79" width="200" height="7" rx="2" fill="var(--ok)"/>`)+
+  K.g("on3",K.screen(540,16,164,120,"Index (mục lục)")+tx(622,56,"K-0001 → dòng 17")+tx(622,80,"K-0002 → dòng 903","fill:var(--ok);font-weight:700")+tx(622,104,"K-0003 → dòng 5")+K.dash(540,83,480,83))+
+  K.g("act",
+   K.g("only1",K.badge(350,160,"Quét thùng: màn hình đứng, máy quét chờ","b-bad"))+
+   K.g("only2",K.badge(350,160,"Không có index: đọc từng dòng của cả bảng","b-bad"))+
+   K.g("only3",K.badge(350,160,"Thêm index: tra thẳng tới đúng dòng","b-pkt"))+
+   K.g("only4",K.badge(350,160,"Đọc vài dòng, trả kết quả trong mili giây","b-ok"))),240)},
+ cJoin:()=>K.svg(
+  K.node(16,34,150,56,"Đơn hôm nay","5.000 đơn","n-erp")+K.node(290,24,170,76,"Dòng đơn","50 triệu dòng","n-wes")+K.node(540,24,164,76,"Tồn kho","30 triệu dòng","n-dev")+
+  K.g("off3",K.dash(460,62,540,62)+K.badge(500,122,"20 triệu dòng trung gian","b-bad"))+
+  K.g("only2",K.badge(110,122,"Lọc ngày: làm sau cùng","b-bad"))+
+  K.g("on3",K.dash(166,62,290,62)+K.badge(228,40,"qua index","b-ok")+K.dash(460,62,540,62)+K.badge(500,122,"qua index","b-ok"))+
+  `<rect x="60" y="186" width="520" height="14" rx="4" class="k-body"/>`+tx(30,198,"Giờ")+
+  K.g("act",
+   K.g("only1",bar(520,"bad")+K.badge(350,160,"Nối hai bảng lớn trước, trước cả khi lọc","b-bad"))+
+   K.g("only2",bar(520,"bad")+K.badge(350,160,"Hàng chục triệu dòng bị tạo ra rồi bỏ đi","b-bad"))+
+   K.g("only3",bar(260,"accent")+K.badge(350,160,"Lọc đơn hôm nay trước, rồi nối qua index","b-pkt"))+
+   K.g("only4",bar(110,"ok")+K.badge(350,160,"Chỉ đọc một phần nhỏ dữ liệu, xong nhanh","b-ok"))))
+});
+var ANIMS={
+ cIdx:["Nhân viên quét một thùng ở bến nhận hàng. Màn hình đứng chờ.","Bảng kiện có hàng chục triệu dòng và chưa có index, nên cơ sở dữ liệu đọc từng dòng để tìm đúng một thùng.","Thêm index trên mã thùng. Giống mục lục cuối sách: tra mã, biết ngay dòng cần đọc.","Chỉ đọc vài dòng, trả kết quả trong mili giây. Máy quét hết chờ."],
+ cJoin:["Truy vấn nối bốn bảng. Cơ sở dữ liệu chọn nối hai bảng lớn với nhau trước.","Hàng chục triệu dòng trung gian được tạo ra, rồi mới lọc theo ngày và bỏ gần hết.","Sửa: lọc đơn hôm nay trước ra tập nhỏ, rồi nối sang các bảng lớn qua cột có index, và cập nhật thống kê.","Chỉ đọc một phần nhỏ dữ liệu. Thời gian giảm rõ và ổn định khi mùa cao điểm."]};
+const PAGE={
+ flows:[
+  ["Luồng 1 · Nhập kho","Tra thùng hoặc ASN khi quét ở bến nhận","Thao tác tức thời, bảng kiện lớn dần theo năm. Hợp với case INDEX.","Case A"],
+  ["Luồng 2 · Xuất B2B","Phân bổ và tạo lượt nhặt cuối ngày","Truy vấn nối nhiều bảng lớn, chạy theo giờ chốt xe. Hợp với case JOIN.","Case B"],
+  ["Luồng 5 · Sổ cái, chốt ngày","Tổng hợp tồn từ bảng giao dịch","Bảng lớn nhất hệ thống. Cũng hợp cả hai, nhưng bạn chưa học sâu luồng này nên để dành.","Phụ"]],
+ cases:[
+ {id:"a",flow:"Luồng 1 · Nhập kho",title:"Quét thùng ở bến nhận bị đứng vì thiếu index",anim:"cIdx",
+  story:"Ở bến dỡ hàng, nhân viên quét từng thùng. Mỗi lần quét, hệ thống tra thùng trong bảng kiện của ASN. Sau hai năm, bảng này có hàng chục triệu dòng (con số minh họa). Mỗi lần quét mất vài giây, giờ cao điểm máy quét còn báo hết thời gian, nhân viên quét lại, kéo theo nguy cơ ghi trùng.",
+  steps:[["Xác định đúng chỗ chậm","Bật log đo thời gian từng bước của API quét, loại trừ mạng và các bước khác. Lấy riêng câu truy vấn tra thùng."],["Đọc kế hoạch thực thi","Chạy EXPLAIN (ANALYZE, BUFFERS) với giá trị thật. Thấy Seq Scan trên cả bảng và hàng chục triệu dòng bị loại bỏ sau khi lọc."],["Chọn loại index","Index trên mã thùng, hoặc partial index chỉ gồm thùng đang chờ nhận. Phần lớn thùng đã nhận xong nên partial index nhỏ hơn rất nhiều."],["Tạo an toàn trên hệ thống đang chạy","Dùng CREATE INDEX CONCURRENTLY để không chặn việc ghi. Kiểm tra index tạo xong ở trạng thái hợp lệ."],["Đo lại","Chạy lại EXPLAIN ANALYZE và đo thời gian mỗi lần quét, trước và sau."]],
+  before:"SELECT carton_id, asn_id, status\nFROM asn_carton\nWHERE carton_code = :code\n  AND status = 'EXPECTED';\n\n-- Kế hoạch: Seq Scan on asn_carton\n--   Rows Removed by Filter: 20.000.000",
+  after:"CREATE INDEX CONCURRENTLY idx_asn_carton_expected\n  ON asn_carton (carton_code)\n  WHERE status = 'EXPECTED';\n\n-- Kế hoạch: Index Scan using idx_asn_carton_expected\n--   Rows: 1",
+  segs:[["Mở bằng vấn đề","Em từng xử lý một vấn đề hiệu năng ở màn hình nhận hàng: nhân viên quét từng thùng ở bến dỡ hàng mà mỗi lần quét phải chờ vài giây, giờ cao điểm máy quét còn báo hết thời gian.","Có hậu quả thật tại bến nhận hàng. Dễ hình dung với người ngoài ngành."],
+   ["Chẩn đoán","Dữ liệu thùng hàng tích lũy hai năm, lên hàng chục triệu dòng, nên em nghi tốc độ tra cứu giảm dần theo khối lượng dữ liệu. Em lấy đúng câu truy vấn của thao tác quét, chạy EXPLAIN ANALYZE và thấy cơ sở dữ liệu đọc tuần tự toàn bộ bảng rồi mới lọc, trong khi chỉ cần tìm đúng một thùng.","Bạn đo thay vì đoán, và biết đọc kế hoạch thực thi."],
+   ["Giải thích đời thường","Hình dung như tìm một từ trong cuốn sách không có mục lục: phải lật từng trang. Index chính là mục lục.","Một hình ảnh giúp người không chuyên hiểu ngay."],
+   ["Chọn cách sửa","Em chọn partial index chỉ gồm các thùng đang chờ nhận, vì phần lớn thùng đã nhận xong. Nó nhỏ gọn, tra nhanh, ít làm chậm việc ghi. Em tạo bằng CONCURRENTLY để không khóa bảng khi kho vẫn đang chạy.","Bạn biết index có giá phải trả và biết làm an toàn trên hệ thống đang chạy."],
+   ["Kết quả và bài học","Kế hoạch thực thi chuyển từ đọc tuần tự sang tra theo index, thời gian mỗi lần quét từ vài giây xuống mức mili giây. Bài học: index không miễn phí, nên em chỉ thêm đúng chỗ cần và luôn đo trước, sau.","Kết thúc bằng kết quả và một nguyên tắc dùng lại được."]],
+  hyp:["Với vấn đề màn hình quét ở bến nhận hàng chậm vài giây mỗi lần, giờ cao điểm máy quét còn báo hết thời gian, em sẽ nghi ngay tới tốc độ tra cứu.","Dữ liệu thùng hàng tích lũy nhiều năm lên hàng chục triệu dòng, nên em sẽ lấy đúng câu truy vấn của thao tác quét, chạy EXPLAIN ANALYZE và xem cơ sở dữ liệu có đọc tuần tự toàn bộ bảng rồi mới lọc không.","Hình dung như tìm một từ trong cuốn sách không có mục lục: phải lật từng trang. Index chính là mục lục.","Nếu đúng vậy, em sẽ cân nhắc partial index chỉ gồm thùng đang chờ nhận vì phần lớn thùng đã nhận xong. Nó nhỏ, ít làm chậm việc ghi. Em sẽ tạo bằng CONCURRENTLY để không khóa bảng khi kho đang chạy.","Em sẽ đo lại bằng kế hoạch thực thi và thời gian mỗi lần quét, trước và sau, để chứng minh bằng số. Và em nhớ index có giá, nên chỉ thêm đúng chỗ cần."],
+  short:"Em từng xử lý màn hình quét ở bến nhận hàng bị chậm vì bảng kiện có hàng chục triệu dòng mà thiếu index, nên mỗi lần tra phải đọc cả bảng. Em đánh partial index chỉ cho thùng đang chờ nhận, tạo bằng CONCURRENTLY để không khóa bảng, và đo bằng kế hoạch thực thi: thời gian quét giảm từ vài giây xuống mili giây.",
+  words:[["Index (chỉ mục)","Một cấu trúc phụ giúp tìm nhanh, như mục lục cuối sách. Đổi lại tốn dung lượng và làm chậm việc ghi."],["Seq Scan","Cơ sở dữ liệu đọc tuần tự từng dòng của cả bảng."],["Partial index","Index chỉ gồm những dòng thỏa một điều kiện, nên nhỏ và nhanh hơn."],["EXPLAIN ANALYZE","Lệnh cho biết cơ sở dữ liệu thực sự chạy câu truy vấn thế nào và mất bao lâu ở từng bước."],["CONCURRENTLY","Tạo index mà không chặn việc ghi vào bảng, phù hợp hệ thống đang chạy."]],
+  show:[["Đo trước khi sửa","Dùng kế hoạch thực thi làm bằng chứng."],["Biết cái giá của index","Ghi chậm hơn, tốn dung lượng, nên chọn partial index."],["Làm an toàn trên production","CONCURRENTLY và kiểm tra index hợp lệ."],["Giải thích dễ hiểu","Ví dụ mục lục sách."]],
+  follow:[["Sao không đánh index cho mọi cột?","Mỗi index làm mọi lần thêm, sửa dữ liệu phải cập nhật thêm, và tốn dung lượng. Chỉ đánh index cho cột thật sự dùng để tìm kiếm, nối hoặc sắp xếp.","ind"],["Sao dùng partial index?","Phần lớn thùng đã ở trạng thái nhận xong và không còn được tra. Index chỉ gồm thùng đang chờ nhận nhỏ hơn rất nhiều và nhanh hơn.","ind"],["Có index rồi mà câu truy vấn vẫn không dùng thì vì sao?","Các nguyên nhân hay gặp: bọc hàm lên cột khi lọc (ví dụ UPPER(mã)), kiểu dữ liệu không khớp, thống kê cũ, hoặc bảng quá nhỏ nên đọc tuần tự rẻ hơn. Luôn kiểm tra bằng EXPLAIN.","ind"],["Thứ tự cột trong index nhiều cột quan trọng thế nào?","Cột lọc bằng nhau thường đặt trước, cột lọc theo khoảng đặt sau. Index chỉ phát huy khi câu truy vấn dùng các cột đầu tiên của nó.","ind"],["Tạo index trên bảng đang chạy thật có rủi ro gì?","CREATE INDEX thường sẽ chặn ghi. CONCURRENTLY tránh việc đó nhưng chạy lâu hơn và nếu thất bại sẽ để lại index không hợp lệ, cần kiểm tra và dọn.","ind"],["Sao chắc chắn chậm là do truy vấn mà không phải mạng hay chỗ khác?","Nhờ log đo thời gian từng bước của API. Khi một bước chiếm gần hết thời gian thì mới đi sâu vào bước đó.","ind"]]},
+ {id:"b",flow:"Luồng 2 · Xuất B2B",title:"Tạo lượt nhặt cuối ngày chậm vì JOIN nhiều bảng lớn",anim:"cJoin",
+  story:"Cuối ngày, hệ thống tạo lượt nhặt cho các đơn của cửa hàng, bằng một câu truy vấn nối đơn hàng, dòng đơn, tồn kho và vị trí kho. Các bảng lịch sử đã lên hàng chục triệu dòng (con số minh họa). Câu truy vấn chậm dần, có lúc mất cả phút, trong khi giờ chốt xe không đổi.",
+  steps:[["Đo và khoanh vùng","Log đo từng bước cho thấy thời gian nằm ở câu truy vấn tạo lượt nhặt, không phải ở phần xử lý nghiệp vụ."],["Đọc kế hoạch thực thi","Thấy hai điều: nối hai bảng lớn với nhau trước rồi mới lọc theo ngày, và số dòng dự đoán lệch xa số dòng thực tế."],["Tìm nguyên nhân","Thiếu index trên cột dùng để nối, và thống kê đã cũ sau đợt nạp dữ liệu lớn nên cơ sở dữ liệu chọn sai cách nối."],["Sửa ba chỗ","Lọc đơn của hôm nay trước thành tập nhỏ. Đánh index vào cột dùng để nối và lọc. Chạy ANALYZE để cập nhật thống kê."],["Đo lại","So sánh kế hoạch thực thi và thời gian trước, sau trên dữ liệu thật, chạy nhiều lần."]],
+  before:"SELECT ol.*, i.location_id, l.zone\nFROM order_line ol\nJOIN inventory i ON i.sku_id = ol.sku_id\nJOIN location l  ON l.location_id = i.location_id\nJOIN customer_order o ON o.order_id = ol.order_id\nWHERE o.wave_date = CURRENT_DATE\n  AND o.status = 'RESERVED';\n\n-- Kế hoạch: nối order_line x inventory trước\n--   (hàng chục triệu dòng trung gian), lọc ngày sau cùng",
+  after:"CREATE INDEX CONCURRENTLY ON customer_order (wave_date, status);\nCREATE INDEX CONCURRENTLY ON order_line (order_id);\nCREATE INDEX CONCURRENTLY ON inventory (sku_id);\nANALYZE order_line;\n\nWITH todays AS (\n  SELECT order_id FROM customer_order\n  WHERE wave_date = CURRENT_DATE AND status = 'RESERVED'\n)\nSELECT ol.*, i.location_id, l.zone\nFROM todays t\nJOIN order_line ol ON ol.order_id = t.order_id\nJOIN inventory i   ON i.sku_id = ol.sku_id\nJOIN location l    ON l.location_id = i.location_id;",
+  segs:[["Mở bằng vấn đề","Một case khác em xử lý là bước tạo lượt nhặt hàng cuối ngày: câu truy vấn nối nhiều bảng chậm dần, có lúc mất cả phút, trong khi giờ chốt xe không đổi.","Vấn đề gắn với giờ xe chạy, người ngoài ngành vẫn thấy rõ."],
+   ["Chẩn đoán","Em xem kế hoạch thực thi và thấy hai điểm. Một là cơ sở dữ liệu nối hai bảng lớn với nhau trước, tạo hàng chục triệu dòng trung gian rồi mới lọc theo ngày. Hai là số dòng nó dự đoán lệch rất xa số dòng thực tế, vì thống kê đã cũ sau đợt nạp dữ liệu lớn.","Bạn đọc được kế hoạch thực thi và hiểu vai trò của thống kê."],
+   ["Điều em không làm","Em không chỉ đổi thứ tự JOIN trong câu SQL, vì cơ sở dữ liệu thường tự chọn thứ tự nối. Thứ quyết định là nó có dữ liệu đúng và có đường đi nhanh hay không.","Điểm khoe sâu nhất: bạn không tin vào mẹo, bạn hiểu bộ tối ưu hoạt động ra sao."],
+   ["Cách sửa","Em làm ba việc: lọc đơn của hôm nay trước thành một tập nhỏ, đánh index vào các cột dùng để nối và lọc, và cập nhật thống kê để nó dự đoán đúng. Nhờ vậy nó bắt đầu từ vài nghìn đơn rồi nối sang các bảng lớn qua index.","Ba việc rõ ràng, dễ nhớ, dễ kiểm chứng."],
+   ["Kết quả","Thời gian giảm rõ rệt và ổn định kể cả mùa cao điểm, job tạo lượt nhặt luôn xong trước giờ chốt xe. Em đo bằng kế hoạch thực thi trước và sau trên dữ liệu thật.","Kết thúc bằng kết quả gắn với kinh doanh, có cách đo."]],
+  hyp:["Với bước tạo lượt nhặt cuối ngày có câu truy vấn nối nhiều bảng chậm dần, có lúc mất cả phút trong khi giờ chốt xe không đổi, em sẽ bắt đầu bằng việc đo xem thời gian nằm ở đâu.","Em sẽ xem kế hoạch thực thi, để ý hai thứ: cơ sở dữ liệu có nối hai bảng lớn với nhau trước khi lọc không, và số dòng dự đoán có lệch xa số dòng thực tế không, vì thống kê có thể đã cũ sau đợt nạp dữ liệu lớn.","Em sẽ không chỉ đổi thứ tự JOIN trong câu SQL, vì cơ sở dữ liệu thường tự chọn thứ tự nối. Thứ quyết định là nó có dữ liệu đúng và có đường đi nhanh hay không.","Em sẽ làm ba việc: lọc đơn của hôm nay trước thành tập nhỏ, đánh index vào các cột dùng để nối và lọc, và cập nhật thống kê.","Em sẽ đo bằng kế hoạch thực thi trước và sau trên dữ liệu thật, chạy nhiều lần, để chứng minh bằng số."],
+  short:"Em xử lý một câu truy vấn tạo lượt nhặt cuối ngày chậm dần vì cơ sở dữ liệu nối hai bảng lớn trước rồi mới lọc theo ngày, lại dự đoán sai số dòng do thống kê cũ. Em lọc đơn hôm nay trước thành tập nhỏ, đánh index cho các cột nối và cập nhật thống kê, rồi đo bằng kế hoạch thực thi: thời gian giảm rõ và job xong trước giờ chốt xe.",
+  words:[["JOIN","Nối dữ liệu của nhiều bảng theo một cột chung, ví dụ nối đơn hàng với các dòng của nó."],["Kế hoạch thực thi","Cách cơ sở dữ liệu quyết định đọc bảng nào trước, nối thế nào. Xem bằng EXPLAIN."],["Thống kê (statistics)","Số liệu cơ sở dữ liệu giữ về dữ liệu, như số dòng, để ước lượng cách chạy. Cũ thì ước lượng sai."],["Nested loop, hash join","Hai cách nối. Nested loop: với mỗi dòng bên này đi tìm bên kia, hợp khi tập nhỏ và có index. Hash join: lập bảng tra rồi dò, hợp khi tập lớn."],["ANALYZE","Lệnh cập nhật thống kê để cơ sở dữ liệu chọn kế hoạch đúng hơn."]],
+  show:[["Hiểu bộ tối ưu","Biết thứ tự JOIN trong SQL thường không quyết định kế hoạch."],["Đọc kế hoạch thực thi","So số dòng dự đoán với thực tế."],["Ba việc cụ thể","Lọc sớm, index, thống kê."],["Chứng minh bằng số","Đo trước, sau trên dữ liệu thật."]],
+  follow:[["Đổi thứ tự JOIN trong SQL có đổi kế hoạch không?","Thường là không. Ở PostgreSQL, bộ tối ưu tự sắp lại thứ tự nối, chỉ bị giới hạn khi có quá nhiều bảng (tham số join_collapse_limit, mặc định 8). Điều quan trọng hơn là thống kê đúng, có index và lọc được sớm.","ind"],["Sao thống kê cũ lại làm chậm?","Sau đợt nạp dữ liệu lớn, thống kê chưa kịp cập nhật nên cơ sở dữ liệu tưởng bảng nhỏ và chọn cách nối hợp với bảng nhỏ. Chạy ANALYZE sẽ sửa.","ind"],["Nested loop, hash join và merge join khác nhau thế nào?","Nested loop: với mỗi dòng bên này đi tìm bên kia, tốt khi tập nhỏ và có index. Hash join: lập bảng tra cho một bên rồi dò, tốt cho tập lớn. Merge join: hai bên đã sắp xếp sẵn rồi ghép.","ind"],["Nên đánh index ở những cột nào?","Cột dùng để nối (order_id, sku_id) và cột dùng để lọc (wave_date, status). Không đánh tràn lan vì mỗi index làm ghi chậm hơn.","ind"],["Làm sao chắc là nhanh hơn thật?","So EXPLAIN (ANALYZE, BUFFERS) trước và sau trên dữ liệu có quy mô thật, chạy nhiều lần để loại ảnh hưởng của bộ nhớ đệm.","ind"],["Sao không lưu sẵn kết quả (cache hoặc bảng tổng hợp)?","Cách đó nhanh nhưng phải giữ cho kịp đồng bộ khi dữ liệu đổi. Sửa truy vấn và index đơn giản hơn và không đổi nghiệp vụ, nên nên thử trước.","ind"]]}
+ ]};
+function sqlRender(){const el=$("#app");const wc=s=>s.trim().split(/\s+/).length,R=4;
+ const mode=store.get("sql-mode","hyp");
+ el.innerHTML=`<div class="selfbox" style="max-width:none"><b>Đây là hai case mẫu tôi dựng theo kiến thức chung, không phải việc bạn đã làm.</b> Các con số (hàng chục triệu dòng) chỉ để minh họa. Chỉ kể “em từng làm” nếu bạn thật sự làm điều tương tự. Nếu chưa, chọn giọng “cách em tiếp cận” bên dưới. Bạn vẫn dùng được toàn bộ các bước và các câu trả lời thêm.
+  <div class="row" style="margin-top:8px"><label><input type="radio" name="md" value="hyp" ${mode==="hyp"?"checked":""}> Giọng “cách em tiếp cận” (an toàn nếu chưa làm)</label><label><input type="radio" name="md" value="did" ${mode==="did"?"checked":""}> Giọng “em từng làm” (chỉ khi có làm thật)</label></div></div>
+ <div class="sec"><h2>Case này hợp với luồng nào?</h2><div class="grid2">${PAGE.flows.map(f=>`<div class="panel"><p class="eyebrow">${f[0]} · ${f[3]}</p><h4>${f[1]}</h4><p>${f[2]}</p></div>`).join("")}</div>
+ <p class="muted">Mẹo chọn: case tối ưu truy vấn nên gắn vào chỗ có dữ liệu lớn dần và có hậu quả kinh doanh rõ (trễ xe, quét chậm). Hai luồng bạn đang luyện đều có.</p></div>
+ <div id="cases" class="sec"></div>`;
+ const draw=()=>{const m=store.get("sql-mode","hyp");$("#cases").innerHTML=PAGE.cases.map(c=>{const texts=m==="hyp"?c.hyp:c.segs.map(s=>s[1]);const ns=texts.map(wc),tot=ns.reduce((a,b)=>a+b,0);let acc=0;
+  const segs=c.segs.map((s,i)=>{const a=Math.round(acc/R),b=Math.round((acc+ns[i])/R);acc+=ns[i];return `<div class="cseg"><div class="cseg-h"><span class="cseg-t">${a}–${b} giây</span><b>${s[0]}</b></div><p class="cseg-p">${texts[i]}</p><p class="why"><b>Người nghe cảm nhận:</b> ${s[2]}</p></div>`}).join("");
+  const bar=ns.map((n,i)=>`<i style="flex:${n}" title="${c.segs[i][0]}"></i>`).join("");
+  return `<section class="cs-sec" id="case-${c.id}"><p class="eyebrow">Case ${c.id.toUpperCase()} · ${c.flow}</p><h2>${c.title}</h2><p>${c.story}</p>
+  <div class="blk"><h3>1. Hoạt họa: vấn đề và cách sửa</h3>${stageHTML(c.anim,ANIMS[c.anim])}</div>
+  <div class="blk"><h3>2. Các bước điều tra và xử lý</h3><ol class="of-steps">${c.steps.map(s=>`<li><b>${s[0]}.</b> ${s[1]}</li>`).join("")}</ol></div>
+  <div class="grid2"><div class="panel"><h4>Trước khi sửa</h4><pre>${c.before}</pre></div><div class="panel"><h4>Sau khi sửa</h4><pre>${c.after}</pre></div></div>
+  <div class="blk"><h3>3. Cách nói dưới 90 giây</h3><div class="tl" aria-hidden="true">${bar}</div><p class="tlt"><b>${tot} từ</b>, khoảng <b>${Math.round(tot/R)} giây</b> nếu nói ${R} từ mỗi giây.</p>
+   <div class="widget"><h3>Con số thật của bạn (nếu có)</h3><p class="hint">Điền nếu bạn có số đo thật, ví dụ “40 giây”, “2 giây”. Số được thêm vào cuối đoạn kết quả.</p><div class="row"><label>Trước <input class="search" data-a="${c.id}" style="width:110px"></label><label>Sau <input class="search" data-b="${c.id}" style="width:110px"></label></div></div>
+   <div class="widget timer"><div class="row"><button class="btn pri" data-tb="${c.id}" type="button">Bắt đầu bấm giờ</button><b class="ct-time" data-tt="${c.id}">0:00</b></div><p class="hint" data-tr="${c.id}">Tự đọc to bản dưới đây, bấm dừng khi nói xong.</p></div>
+   ${segs}<p class="cseg-p" data-pn="${c.id}" style="max-width:75ch"></p>
+   <details class="qa"><summary><span>Bản rút gọn 30 giây, khi người phỏng vấn gấp</span></summary><div class="ans"><p>${c.short}</p></div></details></div>
+  <div class="grid2"><div class="panel"><h4>Từ khó, nói đời thường</h4><ul class="of-c">${c.words.map(w=>`<li><b>${w[0]}:</b> ${w[1]}</li>`).join("")}</ul></div><div class="panel"><h4>Case này khoe được gì</h4><ul class="of-c">${c.show.map(w=>`<li><b>${w[0]}:</b> ${w[1]}</li>`).join("")}</ul></div></div>
+  <div class="blk"><h3>4. Nếu bị hỏi thêm</h3><div class="qa-list">${c.follow.map(f=>`<details class="qa"><summary><span>${f[0]}</span></summary><div class="ans"><p>${f[1]}</p><div class="row">${tag(f[2])}</div></div></details>`).join("")}</div></div></section>`}).join("");
+  bindStages($("#cases"));
+  PAGE.cases.forEach(c=>{const nums=store.get("sql-num-"+c.id,{a:"",b:""}),a=$(`[data-a="${c.id}"]`),b=$(`[data-b="${c.id}"]`),pn=$(`[data-pn="${c.id}"]`);a.value=nums.a;b.value=nums.b;
+   const up=()=>{const x=a.value.trim(),y=b.value.trim();store.set("sql-num-"+c.id,{a:x,b:y});pn.textContent=(x&&y)?`Cụ thể là từ khoảng ${x} xuống khoảng ${y}.`:""};a.oninput=b.oninput=up;up();
+   let t0=0,iv=0;const btn=$(`[data-tb="${c.id}"]`),tm=$(`[data-tt="${c.id}"]`),rs=$(`[data-tr="${c.id}"]`),fmt=s=>Math.floor(s/60)+":"+String(Math.floor(s%60)).padStart(2,"0");
+   btn.onclick=()=>{if(!iv){t0=Date.now();rs.textContent="Đang bấm giờ…";btn.textContent="Dừng";iv=setInterval(()=>{tm.textContent=fmt((Date.now()-t0)/1000)},250)}else{clearInterval(iv);iv=0;const s=(Date.now()-t0)/1000;tm.textContent=fmt(s);btn.textContent="Bấm giờ lại";rs.textContent=s<60?"Hơi nhanh. Thêm nhịp nghỉ sau phần chẩn đoán.":s<=90?"Vừa đẹp, nằm trong 90 giây.":"Quá 90 giây. Rút gọn phần chẩn đoán rồi thử lại."}}})};
+ $$('input[name=md]').forEach(r=>r.onchange=()=>{store.set("sql-mode",r.value);draw()});draw()}
+
+function stageHTML(key,caps){return `<div class="stage" data-stage="${key}"><div class="stage-scroll" data-scene>${SCENES[key]()}</div>
+ <ol class="caps">${caps.map((c,k)=>`<li style="--cap:cap${k+1}"><b>${k+1}</b><span>${c}</span></li>`).join("")}</ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause>Tạm dừng</button><button class="btn sm" data-replay>Phát lại từ đầu</button></span></div></div>`}
+function bindStages(root){$$("[data-stage]",root).forEach(st=>{if(st.dataset.bound)return;st.dataset.bound="1";const pb=$("[data-pause]",st);
+ pb.onclick=()=>{const p=st.classList.toggle("paused");pb.textContent=p?"Chạy tiếp":"Tạm dừng"};
+ $("[data-replay]",st).onclick=()=>{st.classList.remove("paused");pb.textContent="Tạm dừng";$("[data-scene]",st).innerHTML=SCENES[st.dataset.stage]();const c=$(".caps",st);c.innerHTML=c.innerHTML}})}
+(function(){const R=document.documentElement,b=$("#theme-b"),mq=window.matchMedia?matchMedia("(prefers-color-scheme: dark)"):null;
+ const isDark=()=>R.dataset.theme?R.dataset.theme==="dark":!!(mq&&mq.matches);
+ const paint=()=>{b.textContent=isDark()?"Giao diện sáng":"Giao diện tối"};
+ const saved=store.get("kho-theme",null);if(saved==="dark"||saved==="light")R.dataset.theme=saved;
+ b.onclick=()=>{const t=isDark()?"light":"dark";R.dataset.theme=t;store.set("kho-theme",t);paint()};
+ if(mq&&mq.addEventListener)mq.addEventListener("change",paint);paint()})();
+
+sqlRender();
+
+</script>
+
+
+</body></html>

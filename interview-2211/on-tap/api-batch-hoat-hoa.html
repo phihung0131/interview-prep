@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Hai con API và batch có hoạt họa</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap">
+<style>
+/* Layout: đầu trang là một nhãn vận đơn; thanh tab dính; mỗi luồng gồm ray bước (đánh số như cửa bến) + sân khấu hoạt họa + các khối giải thích xếp dọc */
+:root{
+  --bg:#ECEFF2; --surface:#FFFFFF; --sunken:#E1E6EB; --ink:#15202B; --muted:#566573; --line:#CDD5DC;
+  --accent:#0A6C74; --accent-ink:#FFFFFF; --accent-soft:#D8EDEF;
+  --hi:#F2A900; --hi-soft:#FFF0C7; --hi-ink:#3B2A00;
+  --ok:#1B8553; --ok-soft:#DCF2E6; --bad:#C2362B; --bad-soft:#FBE2DF;
+  --erp:#6A4FB8; --wes:#2460C4; --wiv:#1B8553; --dev:#B9510A;
+  --carton:#D2A56B; --carton-edge:#93692F; --tote:#3B82C4; --tote-edge:#1E5A94; --metal:#8B98A5; --skin:#E6B58B; --vest:#F2A900;
+  --f-display:"Barlow Condensed","Arial Narrow","Helvetica Neue",sans-serif;
+  --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --cyc:14s;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0F151B; --surface:#172029; --sunken:#111920; --ink:#E7ECF1; --muted:#9AA8B5; --line:#2C3945;
+  --accent:#45B7BF; --accent-ink:#04282B; --accent-soft:#12363A;
+  --hi:#FFC53D; --hi-soft:#3A2F10; --hi-ink:#FFE9A8;
+  --ok:#4CC38A; --ok-soft:#113525; --bad:#F0796E; --bad-soft:#41191A;
+  --erp:#A792EE; --wes:#6FA3F5; --wiv:#4CC38A; --dev:#F0934A;
+  --carton:#B98B52; --carton-edge:#E0BD8C; --tote:#4F97D8; --tote-edge:#A9D0F5; --metal:#6F7D8B; --skin:#D9A77E; --vest:#FFC53D;
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0F151B; --surface:#172029; --sunken:#111920; --ink:#E7ECF1; --muted:#9AA8B5; --line:#2C3945;
+  --accent:#45B7BF; --accent-ink:#04282B; --accent-soft:#12363A;
+  --hi:#FFC53D; --hi-soft:#3A2F10; --hi-ink:#FFE9A8;
+  --ok:#4CC38A; --ok-soft:#113525; --bad:#F0796E; --bad-soft:#41191A;
+  --erp:#A792EE; --wes:#6FA3F5; --wiv:#4CC38A; --dev:#F0934A;
+  --carton:#B98B52; --carton-edge:#E0BD8C; --tote:#4F97D8; --tote-edge:#A9D0F5; --metal:#6F7D8B; --skin:#D9A77E; --vest:#FFC53D;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.65 var(--f-body);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1120px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,h4{font-family:var(--f-display);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:.005em}
+p{margin:0}
+ul,ol{margin:0;padding:0;list-style:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-size:.8em;letter-spacing:-.01em}
+.eyebrow{font:700 12px/1.2 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+
+/* Mast */
+.mast{background:var(--surface);border-bottom:1px solid var(--line)}
+.mast-in{display:flex;gap:28px;align-items:center;justify-content:space-between;padding-block:28px;flex-wrap:wrap}
+.mast-txt{display:flex;flex-direction:column;gap:10px;min-width:0;flex:1 1 420px}
+.mast h1{font-size:clamp(34px,6vw,58px);font-weight:700;text-transform:uppercase}
+.lede{max-width:58ch;color:var(--muted);font-size:17px}
+.ship-label{flex:0 1 300px;border:2px solid var(--ink);border-radius:4px;font:500 12px/1.5 var(--f-mono);background:var(--surface)}
+.ship-label div{padding:7px 12px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;gap:12px}
+.ship-label div:last-child{border-bottom:0}
+.ship-label b{font-weight:700}
+.bars{height:34px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px,var(--ink) 5px 9px,transparent 9px 11px,var(--ink) 11px 12px,transparent 12px 16px)}
+.tape{height:8px;background:repeating-linear-gradient(-45deg,var(--hi) 0 12px,var(--ink) 12px 24px)}
+
+/* Tabs */
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);border-bottom:1px solid var(--line)}
+.tabs .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tabs a{flex:none;padding:14px 14px 12px;font:600 17px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent}
+.tabs a:hover{color:var(--ink)}
+.tabs a.on{color:var(--ink);border-bottom-color:var(--hi)}
+
+main{padding-block:28px 72px}
+.view{display:flex;flex-direction:column;gap:36px}
+.sec{display:flex;flex-direction:column;gap:14px}
+.sec>h2{font-size:30px;font-weight:700}
+.sec>p,.prose{max-width:68ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.panel h3{font-size:21px;font-weight:600}
+.panel h4{font-size:18px;font-weight:600}
+.actor{border-top:4px solid var(--c,var(--line))}
+.actor .role{font:700 12px/1.3 var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--c)}
+.note{background:var(--hi-soft);color:var(--ink);border:1px solid var(--hi);border-radius:6px;padding:12px 16px;max-width:76ch}
+.tag{display:inline-block;font:700 10.5px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:3px;white-space:nowrap;vertical-align:middle}
+.tag.doc{background:var(--accent-soft);color:var(--accent)}
+.tag.ind{background:var(--hi-soft);color:var(--hi-ink);border:1px dashed var(--hi)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:baseline}
+.kv dt{font:700 13px var(--f-mono);color:var(--accent)}
+.kv dd{margin:0}
+
+/* Status rail */
+.states{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.states li{font:600 12.5px/1 var(--f-body);padding:7px 10px;border-radius:4px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.states li.past{background:var(--sunken)}
+.states li.now{background:var(--hi);border-color:var(--hi);color:#1B1400}
+.states li.sep{border:0;background:none;padding:0 2px;color:var(--muted)}
+
+/* Flow layout */
+.flow{display:grid;grid-template-columns:232px minmax(0,1fr);gap:24px;align-items:start}
+.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 62px);display:flex;flex-direction:column;gap:10px;min-width:0}
+.rail ol{display:flex;flex-direction:column;gap:6px}
+.rail-b{width:100%;display:flex;gap:10px;align-items:center;text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:14px;line-height:1.3}
+.rail-b .num{flex:none;width:30px;height:30px;display:grid;place-items:center;font:700 18px/1 var(--f-display);border:2px solid var(--ink);border-radius:3px}
+.rail-b.seen .num{background:var(--sunken)}
+.rail-b[aria-current="step"]{border-color:var(--ink);box-shadow:inset 4px 0 0 var(--hi)}
+.rail-b[aria-current="step"] .num{background:var(--hi);color:#1B1400;border-color:var(--hi)}
+.step{display:flex;flex-direction:column;gap:22px;min-width:0}
+.step-h{display:flex;flex-direction:column;gap:8px}
+.step-h h2{font-size:clamp(28px,4.4vw,40px);font-weight:700}
+.step-h .one{font-size:18px;max-width:64ch}
+.blk{display:flex;flex-direction:column;gap:10px;min-width:0}
+.blk>h3{font-size:22px;font-weight:600}
+.blk>p{max-width:70ch}
+.steps-ol{counter-reset:s;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.steps-ol li{counter-increment:s;display:grid;grid-template-columns:26px 1fr;gap:8px}
+.steps-ol li::before{content:counter(s);font:700 13px/1.9 var(--f-mono);color:var(--accent)}
+.nav-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:18px}
+.btn{padding:10px 16px;border-radius:5px;border:1.5px solid var(--ink);background:var(--surface);font-weight:600;font-size:15px}
+.btn:hover{background:var(--sunken)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:6px 11px;font-size:13.5px}
+
+/* Stage */
+.stage{background:var(--sunken);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.stage-scroll{overflow-x:auto}
+.stage svg{display:block;width:100%;min-width:620px;height:auto}
+.stage-bar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--line);background:var(--surface);flex-wrap:wrap}
+.caps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;padding:12px;background:var(--surface);border-top:1px solid var(--line)}
+.caps li{display:grid;grid-template-columns:22px 1fr;gap:6px;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid var(--line);border-radius:5px;animation:var(--cap) var(--cyc) linear infinite}
+.caps li b{font:700 14px/1.5 var(--f-mono);color:var(--accent)}
+@keyframes cap1{0%,24.9%{background:var(--hi-soft);border-color:var(--hi)}25%,100%{background:transparent;border-color:var(--line)}}
+@keyframes cap2{0%,24.9%{background:transparent;border-color:var(--line)}25%,49.9%{background:var(--hi-soft);border-color:var(--hi)}50%,100%{background:transparent;border-color:var(--line)}}
+@keyframes cap3{0%,49.9%{background:transparent;border-color:var(--line)}50%,74.9%{background:var(--hi-soft);border-color:var(--hi)}75%,100%{background:transparent;border-color:var(--line)}}
+@keyframes cap4{0%,74.9%{background:transparent;border-color:var(--line)}75%,100%{background:var(--hi-soft);border-color:var(--hi)}}
+
+/* SVG kit */
+.st{font:600 11px var(--f-body);fill:var(--ink);text-anchor:middle}
+.st.sm{font-weight:500;font-size:10px;fill:var(--muted)}
+.st.zn{font:700 10px var(--f-mono);fill:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.st.l{text-anchor:start}
+.k-floor{stroke:var(--metal);stroke-width:2;fill:none}
+.k-carton{fill:var(--carton);stroke:var(--carton-edge);stroke-width:1.2}
+.k-edge{stroke:var(--carton-edge);stroke-width:1.2;fill:none}
+.k-tote{fill:var(--tote);stroke:var(--tote-edge);stroke-width:1}
+.k-ink{fill:var(--ink)}
+.k-metal{fill:var(--metal)}
+.k-belt{stroke:var(--metal);stroke-width:9;stroke-linecap:round;fill:none}
+.k-cell{fill:var(--surface);stroke:var(--metal);stroke-width:1.2}
+.k-body{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.k-truck{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+.k-cab{fill:var(--accent);stroke:var(--ink);stroke-width:2}
+.k-glass{fill:var(--accent-soft)}
+.k-skin{fill:var(--skin)}
+.k-vest{fill:var(--vest);stroke:var(--ink);stroke-width:1}
+.k-hi{fill:var(--hi)}
+.k-fork{fill:var(--hi);stroke:var(--ink);stroke-width:1.5}
+.k-robot{fill:var(--accent);stroke:var(--ink);stroke-width:1.2}
+.k-ok{fill:var(--ok)}
+.k-bad{fill:var(--bad)}
+.k-shirt{fill:var(--surface);stroke:var(--ink);stroke-width:1.3}
+.k-paper{fill:var(--surface);stroke:var(--ink);stroke-width:1.2}
+.k-pl{stroke:var(--muted);stroke-width:1.2}
+.k-dash{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:4 4;fill:none}
+.k-wave{fill:none;stroke:var(--accent);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:wave 1.3s ease-out infinite}
+.node rect{fill:var(--surface);stroke:var(--c);stroke-width:2}
+.node .nt{font:700 12.5px var(--f-body);fill:var(--c)}
+.n-erp{--c:var(--erp)} .n-wes{--c:var(--wes)} .n-wiv{--c:var(--wiv)} .n-dev{--c:var(--dev)}
+.bd{stroke-width:1.5}
+.b-ink .bd{fill:var(--surface);stroke:var(--ink)}
+.b-ok .bd{fill:var(--ok-soft);stroke:var(--ok)}
+.b-bad .bd{fill:var(--bad-soft);stroke:var(--bad)}
+.b-hi .bd{fill:var(--hi-soft);stroke:var(--hi)}
+.b-pkt .bd{fill:var(--accent);stroke:var(--accent)}
+.b-pkt .st{fill:var(--accent-ink)}
+.act{animation:cyc var(--cyc) linear infinite}
+.mv1,.mv2,.mv3,.mv4,.bk2{animation:var(--n) var(--cyc) ease-in-out infinite}
+.mv1{--n:mv1}.mv2{--n:mv2}.mv3{--n:mv3}.mv4{--n:mv4}.bk2{--n:bk2}
+.on2,.on3,.on4,.off2,.off3,.off4,.only1,.only2,.only3,.only4{animation:var(--n) var(--cyc) linear infinite}
+.on2{--n:on2}.on3{--n:on3}.on4{--n:on4}.off2{--n:off2}.off3{--n:off3}.off4{--n:off4}.only1{--n:only1}.only2{--n:only2}.only3{--n:only3}.only4{--n:only4}
+.blink{animation:blink 1s steps(2) infinite}
+@keyframes cyc{0%{opacity:0}3%,96%{opacity:1}100%{opacity:0}}
+@keyframes mv1{0%,4%{transform:translate(0,0)}22%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes mv2{0%,28%{transform:translate(0,0)}47%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes mv3{0%,53%{transform:translate(0,0)}72%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes mv4{0%,78%{transform:translate(0,0)}95%,100%{transform:translate(var(--dx,0px),var(--dy,0px))}}
+@keyframes bk2{0%,27%{transform:translate(0,0)}36%,40%{transform:translate(var(--dx,0px),var(--dy,0px))}48%,100%{transform:translate(0,0)}}
+@keyframes on2{0%,26%{opacity:0}30%,100%{opacity:1}}
+@keyframes on3{0%,51%{opacity:0}55%,100%{opacity:1}}
+@keyframes on4{0%,76%{opacity:0}80%,100%{opacity:1}}
+@keyframes off2{0%,23%{opacity:1}26%,100%{opacity:0}}
+@keyframes off3{0%,48%{opacity:1}51%,100%{opacity:0}}
+@keyframes off4{0%,73%{opacity:1}76%,100%{opacity:0}}
+@keyframes only1{0%,3%{opacity:0}6%,22%{opacity:1}25%,100%{opacity:0}}
+@keyframes only2{0%,27%{opacity:0}30%,47%{opacity:1}50%,100%{opacity:0}}
+@keyframes only3{0%,52%{opacity:0}55%,72%{opacity:1}75%,100%{opacity:0}}
+@keyframes only4{0%,77%{opacity:0}80%,96%{opacity:1}100%{opacity:0}}
+@keyframes wave{0%{transform:scale(.35);opacity:.95}100%{transform:scale(1.35);opacity:0}}
+@keyframes blink{50%{opacity:.2}}
+.paused *{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){.stage *,.caps li,.k-wave{animation:none!important}}
+
+/* Map */
+.map-zone{cursor:pointer}
+.map-zone rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.map-zone:hover rect,.map-zone.on rect{fill:var(--hi-soft);stroke:var(--hi);stroke-width:2.5}
+.map-in{stroke:var(--accent);stroke-width:3;fill:none;stroke-dasharray:2 7;stroke-linecap:round}
+.map-out{stroke:var(--dev);stroke-width:3;fill:none;stroke-dasharray:2 7;stroke-linecap:round}
+.dot-in{fill:var(--accent)} .dot-out{fill:var(--dev)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:14px}
+.legend i{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+
+/* API list, exceptions */
+.api{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+.api li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.api li:last-child{border-bottom:0}
+.api .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.api code{font:700 12.5px var(--f-mono);overflow-wrap:anywhere}
+.api .nm{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.kind{font:700 10.5px/1 var(--f-mono);padding:4px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;color:var(--surface)}
+.kind.Batch{background:var(--erp)} .kind.API{background:var(--wes)} .kind.Module{background:var(--dev)}
+.exc{display:flex;flex-direction:column;gap:8px}
+.exc li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.exc .q{font-weight:600}
+.concepts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.concepts li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;font-size:15px}
+.concepts b{display:block;font:600 18px/1.25 var(--f-display);margin-bottom:2px}
+
+/* Widgets */
+.widget{background:var(--surface);border:2px solid var(--ink);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.widget>h3{font-size:22px;font-weight:600}
+.widget .hint{font-size:14.5px;color:var(--muted);max-width:68ch}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.out{border-radius:5px;padding:12px 14px;border:1px solid var(--line);background:var(--sunken);font-size:15px}
+.out.ok{background:var(--ok-soft);border-color:var(--ok)}
+.out.bad{background:var(--bad-soft);border-color:var(--bad)}
+.out.hi{background:var(--hi-soft);border-color:var(--hi)}
+.out ul{list-style:disc;padding-left:20px;margin-top:6px}
+input[type=range]{accent-color:var(--accent);flex:1 1 180px;min-width:0}
+.alloc-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,2fr);gap:6px 14px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.alloc-row .who b{display:block;font-size:15px}
+.alloc-row .who span{font-size:13px;color:var(--muted)}
+.bar{height:16px;border-radius:3px;background:var(--sunken);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .5s ease}
+.bar i.lock{background:var(--hi)}
+.alloc-row .res{font-size:13.5px;font-variant-numeric:tabular-nums}
+.short{color:var(--bad);font-weight:600}
+.ledger{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.ledger div{border:1px solid var(--line);border-radius:5px;padding:10px 12px;background:var(--sunken)}
+.ledger span{display:block;font:700 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ledger b{font:700 30px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.cases{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.case{padding:12px 10px;border-radius:4px;border:1.5px solid var(--carton-edge);background:var(--carton);color:#2A1B05;font:700 12.5px/1.3 var(--f-mono);text-align:center}
+.case.loaded{opacity:.35;text-decoration:line-through}
+.case.wrong{background:var(--bad);color:#fff;border-color:var(--bad)}
+.quiz .opts{display:flex;flex-direction:column;gap:6px}
+.quiz .opt{text-align:left;padding:10px 14px;border:1.5px solid var(--line);border-radius:5px;background:var(--surface);font-size:15px}
+.quiz .opt:hover{border-color:var(--ink)}
+.quiz .opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.quiz .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+
+/* Review + glossary */
+.script{border-left:4px solid var(--hi);padding:4px 0 4px 16px;max-width:72ch}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:700 12px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+details{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 16px}
+details summary{cursor:pointer;font-weight:600}
+details p{margin-top:8px;max-width:70ch}
+.cards{display:flex;flex-direction:column;gap:8px}
+.search{width:100%;max-width:420px;padding:11px 14px;border:1.5px solid var(--ink);border-radius:5px;background:var(--surface);color:var(--ink);font:inherit}
+.gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px}
+.gloss li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 14px;font-size:15px}
+.gloss b{font:700 13.5px var(--f-mono);color:var(--accent);display:block}
+
+@media (max-width:860px){
+  .flow{grid-template-columns:minmax(0,1fr)}
+  .rail{position:static}
+  .rail ol{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .rail ol li{flex:none}
+  .rail-b{width:auto}
+  .rail-b .ttl{display:none}
+  .rail-b[aria-current="step"] .ttl{display:inline;max-width:52vw}
+}
+
+/* ---- v2: chi tiết ---- */
+.concepts .ex{display:block;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);font-size:14px;color:var(--muted)}
+.concepts .ex b{display:inline;font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 4px 0 0}
+.roles{display:flex;flex-direction:column;gap:6px}
+.roles li{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:10px;font-size:15px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.roles li:last-child{border-bottom:0}
+.roles b{font-weight:600}
+.seq{border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+.seq-scroll{overflow-x:auto}
+.seq-in{min-width:600px;padding:12px 8px 8px}
+.seq-head{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px}
+.seq-head span{text-align:center;font:700 12px/1.2 var(--f-body);padding:7px 4px;border:2px solid var(--c);color:var(--c);border-radius:5px;background:var(--surface)}
+.seq-rows{display:flex;flex-direction:column;background-image:linear-gradient(var(--line),var(--line)),linear-gradient(var(--line),var(--line)),linear-gradient(var(--line),var(--line)),linear-gradient(var(--line),var(--line));background-size:2px 100%;background-position:12.5% 0,37.5% 0,62.5% 0,87.5% 0;background-repeat:no-repeat}
+.seq-row{display:grid;grid-template-columns:repeat(8,1fr);padding:7px 0;color:var(--muted);cursor:pointer}
+.seq-msg{grid-column:var(--gc);display:flex;flex-direction:column;gap:3px;align-items:center;text-align:center;min-width:0}
+.seq-msg .tx{font-size:13.5px;line-height:1.3;font-weight:500;background:var(--surface);padding:0 4px}
+.seq-msg code{font:700 10.5px var(--f-mono);background:var(--surface);padding:0 4px;order:3}
+.seq-msg .ar{display:block;position:relative;width:100%;height:2px;background:currentColor}
+.seq-msg .ar::after{content:"";position:absolute;right:-1px;top:-5px;border:6px solid transparent;border-left-color:currentColor;border-right:0}
+.seq-row.rev .ar::after{right:auto;left:-1px;border-left:0;border-right:6px solid currentColor;border-left-color:transparent}
+.seq-row.self .seq-msg{border:1.5px dashed currentColor;border-radius:5px;padding:5px 4px;background:var(--surface)}
+.seq-row.self .ar{display:none}
+.seq-msg .dot{position:absolute;top:-5px;left:0;width:12px;height:12px;border-radius:50%;background:var(--hi);border:2px solid var(--ink);opacity:0}
+.seq-row.on{color:var(--ink)}
+.seq-row.on .tx{font-weight:700}
+.seq-row.on .ar{background:var(--accent);height:3px}
+.seq-row.on .ar::after{border-left-color:var(--accent)}
+.seq-row.on.rev .ar::after{border-right-color:var(--accent);border-left-color:transparent}
+.seq-row.on.self .seq-msg{border-style:solid;border-color:var(--hi);background:var(--hi-soft)}
+.seq-row.on.self .tx,.seq-row.on.self code{background:transparent}
+.seq-row.on .dot{opacity:1;animation:dotgo 1.6s ease-in-out infinite}
+.seq-row.on.rev .dot{animation-name:dotback}
+@keyframes dotgo{0%{left:0}80%,100%{left:calc(100% - 12px)}}
+@keyframes dotback{0%{left:calc(100% - 12px)}80%,100%{left:0}}
+@media (prefers-reduced-motion:reduce){.seq-row.on .dot{animation:none;left:50%}}
+.docm{background:var(--surface);border:1.5px solid var(--ink);border-radius:3px;box-shadow:5px 5px 0 var(--sunken);font-size:14px;min-width:0}
+.docm-h{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1.5px solid var(--ink);font:700 13px/1.3 var(--f-mono);letter-spacing:.05em;text-transform:uppercase}
+.docm-h span:last-child{color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
+.docm-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-bottom:1px solid var(--line)}
+.docm-meta div{padding:7px 14px;border-bottom:1px dashed var(--line);display:flex;flex-direction:column;min-width:0}
+.docm-meta span{font:700 10.5px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.docm-meta b{font:600 13.5px var(--f-mono);overflow-wrap:anywhere}
+.docm .tbl-wrap{border:0;border-radius:0}
+.docm table{min-width:440px;font-size:13.5px}
+.docm td{font-family:var(--f-mono);font-size:12.5px}
+.docm-f{padding:9px 14px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.led table{min-width:480px;font-variant-numeric:tabular-nums}
+.led td,.led th{text-align:right}
+.led td:first-child,.led th:first-child{text-align:left}
+.led td.chg{background:var(--hi-soft);font-weight:700}
+.led td.nt,.led th.nt{text-align:left;color:var(--muted);font-size:13.5px}
+.led tr.cur td{background:var(--accent-soft)}
+.led tr.cur td.chg{background:var(--hi-soft)}
+.mx table{min-width:900px;font-size:13.5px}
+.mx th.lane{white-space:nowrap;border-left:4px solid var(--c);color:var(--c)}
+.mx td{min-width:120px}
+.mx td.none{color:var(--muted)}
+.mx .hb{display:flex;gap:6px;align-items:center;border:0;background:none;padding:0;text-align:left;font:700 12px var(--f-body);color:var(--ink);text-transform:none;letter-spacing:0}
+.mx .hb .num{flex:none;width:22px;height:22px;display:grid;place-items:center;font:700 14px/1 var(--f-display);border:2px solid var(--ink);border-radius:3px}
+.mx .hb:hover .num{background:var(--hi);border-color:var(--hi);color:#1B1400}
+.life{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.life li{border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-size:14px;font-weight:600}
+.life li code{font:500 10.5px var(--f-mono);color:var(--muted)}
+.life li small{font:700 10.5px var(--f-mono);color:var(--accent);letter-spacing:.06em}
+.life li.sep{border:0;background:none;padding:0;justify-content:center;color:var(--muted)}
+.pin{cursor:pointer}
+.pin circle{fill:var(--hi);stroke:var(--ink);stroke-width:2}
+.pin text{font:700 13px var(--f-display);fill:#1B1400;text-anchor:middle}
+.pin:hover circle{fill:var(--surface)}
+.map-z rect{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.equip{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.equip li{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column}
+.equip svg{display:block;width:100%;height:auto;background:var(--sunken);border-bottom:1px solid var(--line)}
+.equip div{padding:12px 14px;font-size:14.5px}
+.equip b{display:block;font:600 19px/1.2 var(--f-display)}
+.equip i{display:block;font:500 11.5px var(--f-mono);font-style:normal;color:var(--accent);margin-bottom:4px}
+.rail-b.ov .num{border-style:dashed}
+.theme-b{flex:none;margin:auto 0 auto auto;white-space:nowrap}
+
+/* ---- v3: thẻ API chi tiết + phỏng vấn ---- */
+.apis{display:flex;flex-direction:column;gap:8px}
+.apid{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:0;overflow:hidden}
+.apid>summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;flex-direction:column;gap:4px;font-weight:400}
+.apid>summary::-webkit-details-marker{display:none}
+.apid>summary .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.apid>summary code{font:700 12.5px var(--f-mono);overflow-wrap:anywhere}
+.apid>summary .nm{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.apid>summary .more{margin-left:auto;font:700 11px var(--f-mono);color:var(--accent);white-space:nowrap}
+.apid[open]>summary{border-bottom:1px solid var(--line);background:var(--sunken)}
+.apid[open]>summary .more{visibility:hidden}
+.apid-b{padding:14px;display:flex;flex-direction:column;gap:14px}
+.apid-b p{margin:0;max-width:72ch}
+.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.who span{border:1.5px solid var(--ink);border-radius:4px;padding:5px 9px;background:var(--surface)}
+.who i{font-style:normal;color:var(--muted);font-weight:700}
+.pipe{display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1.5fr) 22px minmax(0,1fr);gap:6px;align-items:stretch}
+.pipe .pb{--bc:var(--line);border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:4px;min-width:0}
+.pipe .pb>b{font:700 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.pipe .arr{display:grid;place-items:center;color:var(--muted);font-weight:700}
+.pipe .arr::before{content:"→"}
+.pipe ol{counter-reset:p;display:flex;flex-direction:column;gap:4px}
+.pipe ol li{--bc:transparent;counter-increment:p;display:grid;grid-template-columns:20px minmax(0,1fr);gap:6px;padding:5px 7px;border-radius:4px;border:1px solid transparent}
+.pipe ol li::before{content:counter(p);font:700 12px/1.7 var(--f-mono);color:var(--accent)}
+.hl{animation:var(--hl) var(--T) linear infinite;animation-delay:calc(var(--i)*2.2s)}
+@keyframes hl5{0%,19.9%{background:var(--hi-soft);border-color:var(--hi)}20%,100%{background:transparent;border-color:var(--bc)}}
+@keyframes hl6{0%,16.5%{background:var(--hi-soft);border-color:var(--hi)}16.6%,100%{background:transparent;border-color:var(--bc)}}
+@media (prefers-reduced-motion:reduce){.hl{animation:none}}
+@media (max-width:720px){.pipe{grid-template-columns:minmax(0,1fr)}.pipe .arr::before{content:"↓"}}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.facts div{border:1px solid var(--line);border-radius:5px;padding:9px 11px;font-size:14px;background:var(--sunken);min-width:0}
+.facts b{display:block;font:700 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.raw{border:0;padding:0;background:none}
+.raw summary{font:700 12px var(--f-mono);color:var(--accent)}
+.raw pre{margin:8px 0 0;padding:10px 12px;background:var(--sunken);border:1px solid var(--line);border-radius:5px;font:500 12px/1.5 var(--f-mono);overflow-x:auto;white-space:pre}
+.qa-list{display:flex;flex-direction:column;gap:8px}
+.qa summary{display:flex;gap:10px;align-items:baseline}
+.qa summary::before{content:"Hỏi";flex:none;font:700 10.5px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}
+.qa .ans{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.qa .ans p{margin:0}
+.qa .ans .row{gap:10px}
+.selfbox{border:2px dashed var(--hi);border-radius:6px;padding:14px 18px;background:var(--hi-soft);max-width:80ch}
+.selfbox ul{list-style:disc;padding-left:20px;margin-top:6px}
+.qa summary .anim{flex:none;margin-left:auto;font:700 10px/1 var(--f-mono);letter-spacing:.05em;text-transform:uppercase;padding:4px 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.qa[data-st="ok"] summary::before{content:"Đã nắm";color:var(--ok)}
+.qa[data-st="again"] summary::before{content:"Cần ôn";color:var(--bad)}
+.qa[data-st="ok"]{border-color:var(--ok)}
+.qa[data-st="again"]{border-color:var(--bad)}
+.of-steps li{display:block;padding:6px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.of-steps li:last-child{border-bottom:0}
+.of-steps b{font-weight:600}
+.of-steps{counter-reset:o}
+.of-steps li::before{counter-increment:o;content:counter(o);font:700 13px var(--f-mono);color:var(--accent);margin-right:8px}
+.of-c li{font-size:15px;padding:5px 0}
+.of-c b{font-weight:600}
+
+#case{display:flex;flex-direction:column;gap:18px}
+.tl{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;max-width:70ch}
+.tl i{display:block;background:var(--accent)}.tl i:nth-child(even){background:var(--hi)}
+.tlt{margin:0}
+.timer .ct-time{font:700 28px var(--f-mono)}
+.cseg{border-left:3px solid var(--accent);padding:4px 0 4px 14px;display:flex;flex-direction:column;gap:6px;max-width:75ch}
+.cseg-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.cseg-t{font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.cseg-p{margin:0;font-size:17px}
+.cseg .why{margin:0;color:var(--muted);font-size:14.5px}
+.cs-sec{display:flex;flex-direction:column;gap:18px;padding-top:28px;border-top:2px solid var(--line);margin-top:10px}.mem{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.memc{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);background:var(--surface);padding:10px 12px;border-radius:4px;min-width:0}.memc b{font:700 20px var(--f-mono);color:var(--accent)}.say{margin:0;padding:8px 12px;border-left:3px solid var(--hi);background:var(--hi-soft);max-width:75ch}
+</style>
+<link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body>
+<header class="mast"><div class="wrap mast-in"><div class="mast-txt"><p class="eyebrow">Hoạt họa để nhớ lâu · Luồng 1 và 2</p><h1>Một API và một batch, xem là nhớ</h1><p class="lede">Con API đổ khay ở khâu nhận hàng và con batch tạo lệnh nhặt ở khâu xuất. Mỗi con có hoạt họa chức năng và hoạt họa từng tình huống chạy cùng lúc.</p></div>
+<button class="btn sm theme-b" id="theme-b" type="button" aria-label="Đổi giao diện sáng hoặc tối">Giao diện tối</button></div><div class="tape"></div></header>
+<main class="wrap" style="padding-block:28px"><div id="app" class="sec"><div class="sec"><p>Cách học: xem mỗi hoạt họa một vòng (14 giây), che chú thích đi và tự kể lại bốn nhịp, rồi so với bản nói. Mỗi con có một câu thần chú bốn ý để nhớ nhanh. Nhãn <span class="tag doc">Tài liệu</span> là có trong file thiết kế, nhãn <span class="tag ind">Chuẩn ngành</span> là cách xử lý thường dùng mà tôi suy ra. Hãy chỉ nói như việc của mình nếu đúng với phần bạn làm.</p></div><section class="cs-sec" id="api"><p class="eyebrow">Luồng 1 · Nhập kho · RC_AP_0008_01/02</p><h2>API đổ khay: Register Receiving Inspection and Decanting Result</h2><p>Hàng về theo thùng, nhưng robot kho chỉ làm việc với khay. API này ghi lại việc đổ áo từ thùng sang khay và đổi trạng thái tồn từ “thùng” sang “khay robot”.</p>
+  <div class="mem"><div class="memc"><b>1</b><span>KHÓA: một khay một lúc một trạm</span></div><div class="memc"><b>2</b><span>TRỪ CÓ ĐIỀU KIỆN: kiểm số dòng</span></div><div class="memc"><b>3</b><span>LẶP KHÔNG TRÙNG: gửi lại an toàn</span></div><div class="memc"><b>4</b><span>GÓI: tất cả trong một transaction</span></div></div>
+  <div class="blk"><h3>A. Nó làm gì, từng bước <span class="tag doc">Tài liệu</span></h3><div class="stage" data-stage="cDec" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><rect x="16" y="24" width="150" height="100" rx="5" class="k-body"></rect><rect x="16" y="24" width="150" height="18" rx="5" class="k-ink"></rect><text x="91" y="37" class="st" style="fill:var(--surface);font-size:10px">Thùng carton C-9</text><g class="off3"><text x="91" y="86" class="st" style="font-size:26px">24 áo</text></g><g class="on3"><text x="91" y="86" class="st" style="font-size:26px;fill:var(--muted)">0 áo</text></g><g class="node n-dev"><rect x="290" y="38" width="140" height="56" rx="5"></rect><text x="360" y="64" class="st nt">Trạm đổ khay</text><text x="360" y="79" class="st sm">quét và cân</text></g><line x1="166" y1="66" x2="290" y2="66" class="k-dash"></line><line x1="430" y1="66" x2="540" y2="66" class="k-dash"></line><rect x="540" y="24" width="164" height="100" rx="5" class="k-body"></rect><rect x="540" y="24" width="164" height="18" rx="5" class="k-ink"></rect><text x="622" y="37" class="st" style="fill:var(--surface);font-size:10px">Khay robot T-077</text><g class="off3"><text x="622" y="86" class="st" style="font-size:22px;fill:var(--muted)">trống</text></g><g class="on3"><text x="622" y="86" class="st" style="font-size:26px;fill:var(--ok)">24 áo</text></g><g class="act"><g class="only1"><g class="b-pkt"><rect x="239.75" y="178" width="240.5" height="24" rx="12" class="bd"></rect><text x="360" y="194" class="st">Quét thùng C-9 và khay T-077 ở trạm</text></g></g><g class="only2"><g class="b-ok"><rect x="164.15" y="178" width="391.7" height="24" rx="12" class="bd"></rect><text x="360" y="194" class="st">Cân 18 kg, dưới 30 kg: cho qua. Trên 30 kg thì còi báo động</text></g></g><g class="mv3" style="--dx:300px;--dy:0px"><g class="only3"><g class="b-pkt"><rect x="164.25" y="128" width="51.5" height="24" rx="12" class="bd"></rect><text x="190" y="144" class="st">24 áo</text></g></g></g><g class="only3"><g class="b-pkt"><rect x="173.6" y="178" width="372.8" height="24" rx="12" class="bd"></rect><text x="360" y="194" class="st">Ghi: khay T-077 chứa áo này, 24 chiếc. Trừ 24 khỏi thùng</text></g></g><g class="only4"><g class="b-ok"><rect x="211.4" y="178" width="297.2" height="24" rx="12" class="bd"></rect><text x="360" y="194" class="st">Tồn đổi trạng thái: từ thùng sang khay robot</text></g><circle cx="694" cy="102" r="9" class="k-ok"></circle><path d="M690 102l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Nhân viên quét thùng C-9 và khay T-077 ở trạm đổ khay.</span></li><li style="--cap:cap2"><b>2</b><span>Trạm cân khay. Dưới 30 kg thì cho qua, trên 30 kg thì còi báo động.</span></li><li style="--cap:cap3"><b>3</b><span>API ghi: khay chứa áo này, 24 chiếc, đồng thời trừ 24 áo khỏi thùng.</span></li><li style="--cap:cap4"><b>4</b><span>Tồn đổi trạng thái từ thùng sang khay robot. Robot có thể đem đi cất.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Trạm đổ khay gửi mã khay, mã thùng, mã áo, số chiếc, cân nặng. API kiểm khay hợp lệ và đang trống, kiểm cân nặng không quá 30 kg, ghi khay chứa áo gì, trừ khỏi thùng. Tồn chuyển từ trạng thái thùng sang khay robot.</p></div>
+  <div class="blk"><h3>B. Chạy cùng lúc: Hai trạm cùng một khay <span class="tag doc">Tài liệu</span></h3><div class="stage" data-stage="cDecLock" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><g class="node n-dev"><rect x="16" y="24" width="130" height="50" rx="5"></rect><text x="81" y="47" class="st nt">Trạm A</text><text x="81" y="62" class="st sm">đổ 12 áo</text></g><g class="node n-dev"><rect x="16" y="110" width="130" height="50" rx="5"></rect><text x="81" y="133" class="st nt">Trạm B</text><text x="81" y="148" class="st sm">đổ 12 áo</text></g><line x1="146" y1="49" x2="300" y2="72" class="k-dash"></line><line x1="146" y1="135" x2="300" y2="100" class="k-dash"></line><rect x="300" y="30" width="170" height="100" rx="5" class="k-body"></rect><rect x="300" y="30" width="170" height="18" rx="5" class="k-ink"></rect><text x="385" y="43" class="st" style="fill:var(--surface);font-size:10px">Khay T-077</text><g class="off2"><text x="385" y="92" class="st" style="fill:var(--muted)">đang trống</text></g><g class="only2"><text x="385" y="84" class="st" style="fill:var(--ok);font-weight:700">Khóa của Trạm A</text><text x="385" y="108" class="st" style="fill:var(--muted)">(độc quyền)</text></g><g class="only3"><text x="385" y="84" class="st" style="fill:var(--ok);font-weight:700">Khóa của Trạm A</text><text x="385" y="108" class="st" style="fill:var(--muted)">(độc quyền)</text></g><g class="only4"><text x="385" y="84" class="st" style="fill:var(--muted);font-weight:700">Đã nhả khóa</text><text x="385" y="108" class="st" style="fill:var(--muted)">A đã ghi xong</text></g><g class="on4"><rect x="540" y="30" width="164" height="100" rx="5" class="k-body"></rect><rect x="540" y="30" width="164" height="18" rx="5" class="k-ink"></rect><text x="622" y="43" class="st" style="fill:var(--surface);font-size:10px">Kết quả</text><text x="622" y="76" class="st" style="">A: đã ghi xong</text><text x="622" y="104" class="st" style="fill:var(--hi)">B: chọn khay khác</text></g><g class="act"><g class="only1"><g class="b-pkt"><rect x="224" y="164" width="272" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Hai trạm cùng gửi lệnh đổ vào khay T-077</text></g></g><g class="only2"><g class="b-ok"><rect x="201.95000000000002" y="164" width="316.09999999999997" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Trạm A giữ khóa trước: khay chỉ nhận lệnh của A</text></g></g><g class="only3"><g class="b-bad"><rect x="205.1" y="164" width="309.8" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Trạm B bị từ chối: khay đang bận, không ghi gì</text></g></g><g class="only4"><g class="b-ok"><rect x="205.1" y="164" width="309.8" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">A xong thì nhả khóa. B được báo dùng khay khác</text></g></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Hai trạm cùng gửi lệnh đổ vào cùng một khay.</span></li><li style="--cap:cap2"><b>2</b><span>Trạm A giữ khóa độc quyền theo mã khay trước.</span></li><li style="--cap:cap3"><b>3</b><span>Trạm B bị từ chối vì khay đang bận. Không có gì bị ghi.</span></li><li style="--cap:cap4"><b>4</b><span>A xong thì nhả khóa. B được báo chọn khay khác.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Khóa độc quyền theo mã khay. Kiểm “khay đang trống” ngay trong cùng transaction.</p><p class="say">Câu nói: “Em khóa theo mã khay để hai trạm không ghi chồng vào một khay.”</p></div><div class="blk"><h3>C. Chạy cùng lúc: Hai trạm cùng một thùng <span class="tag ind">Chuẩn ngành</span></h3><div class="stage" data-stage="cDecRows" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><rect x="16" y="24" width="170" height="100" rx="5" class="k-body"></rect><rect x="16" y="24" width="170" height="18" rx="5" class="k-ink"></rect><text x="101" y="37" class="st" style="fill:var(--surface);font-size:10px">Thùng C-9</text><g class="off2"><text x="101" y="88" class="st" style="font-size:22px">còn 10 áo</text></g><g class="on2"><text x="101" y="88" class="st" style="font-size:22px;fill:var(--hi)">còn 2 áo</text></g><g class="node n-dev"><rect x="260" y="22" width="150" height="46" rx="5"></rect><text x="335" y="43" class="st nt">Trạm A</text><text x="335" y="58" class="st sm">đổ 8 áo</text></g><g class="node n-dev"><rect x="260" y="84" width="150" height="46" rx="5"></rect><text x="335" y="105" class="st nt">Trạm B</text><text x="335" y="120" class="st sm">đổ 8 áo</text></g><line x1="186" y1="45" x2="260" y2="45" class="k-dash"></line><line x1="186" y1="107" x2="260" y2="107" class="k-dash"></line><rect x="520" y="24" width="184" height="106" rx="5" class="k-body"></rect><rect x="520" y="24" width="184" height="18" rx="5" class="k-ink"></rect><text x="612" y="37" class="st" style="fill:var(--surface);font-size:10px">Kết quả lệnh trừ</text><g class="off2"><text x="612" y="84" class="st" style="fill:var(--muted)">chờ…</text></g><g class="only2"><text x="612" y="76" class="st" style="">A: 1 dòng được sửa</text><text x="612" y="104" class="st" style="fill:var(--ok)">trừ thành công</text></g><g class="on3"><text x="612" y="76" class="st" style="fill:var(--bad);font-weight:700">B: 0 dòng được sửa</text><text x="612" y="104" class="st" style="fill:var(--bad)">còn 2 &lt; cần 8</text></g><g class="act"><g class="only1"><g class="b-pkt"><rect x="211.4" y="164" width="297.2" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Thùng còn 10 áo, mà hai trạm cùng muốn lấy 8</text></g></g><g class="only2"><g class="b-ok"><rect x="195.65" y="164" width="328.7" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">A: trừ nếu còn_lại ≥ 8. Đủ, trừ thành công, còn 2</text></g></g><g class="only3"><g class="b-bad"><rect x="195.65" y="164" width="328.7" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">B: cùng lệnh nhưng còn 2 &lt; 8, nên 0 dòng được sửa</text></g></g><g class="only4"><g class="b-ok"><rect x="195.65" y="164" width="328.7" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">B kiểm số dòng = 0: dừng, báo lỗi, không ghi khay</text></g><circle cx="694" cy="114" r="9" class="k-ok"></circle><path d="M690 114l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Thùng còn 10 áo nhưng hai trạm cùng muốn lấy 8 áo.</span></li><li style="--cap:cap2"><b>2</b><span>Lệnh trừ chỉ chạy nếu số còn lại đủ. Trạm A đủ nên trừ được, còn 2.</span></li><li style="--cap:cap3"><b>3</b><span>Trạm B gửi lệnh tương tự, nhưng chỉ còn 2 nên không dòng nào được sửa.</span></li><li style="--cap:cap4"><b>4</b><span>API kiểm số dòng bằng 0 thì dừng và báo lỗi, không ghi khay, không để tồn âm.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Trừ có điều kiện, rồi kiểm số dòng được sửa. Bằng 0 thì dừng, báo lỗi, không ghi khay. Đây cũng là bài học của case kiện Retired.</p><p class="say">Câu nói: “Em trừ có điều kiện và kiểm số dòng, để không bao giờ trừ âm.”</p></div><div class="blk"><h3>D. Chạy cùng lúc: Mạng chập chờn, trạm gửi lại <span class="tag ind">Chuẩn ngành</span></h3><div class="stage" data-stage="cDecRetry" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><g class="node n-dev"><rect x="16" y="40" width="130" height="52" rx="5"></rect><text x="81" y="70" class="st nt">Trạm đổ khay</text></g><g class="node n-wes"><rect x="290" y="40" width="140" height="52" rx="5"></rect><text x="360" y="70" class="st nt">API đổ khay</text></g><rect x="540" y="24" width="164" height="100" rx="5" class="k-body"></rect><rect x="540" y="24" width="164" height="18" rx="5" class="k-ink"></rect><text x="622" y="37" class="st" style="fill:var(--surface);font-size:10px">Thùng C-9</text><g class="only1"><text x="622" y="88" class="st" style="font-size:24px">còn 24</text></g><g class="on2"><text x="622" y="88" class="st" style="font-size:26px;fill:var(--ok)">còn 0</text></g><line x1="146" y1="66" x2="290" y2="66" class="k-dash"></line><line x1="430" y1="66" x2="540" y2="66" class="k-dash"></line><g class="act"><g class="mv1" style="--dx:100px;--dy:0px"><g class="only1"><g class="b-pkt"><rect x="138.5" y="114" width="83" height="24" rx="12" class="bd"></rect><text x="180" y="130" class="st">mã GD-5521</text></g></g></g><g class="only1"><g class="b-pkt"><rect x="179.9" y="164" width="360.2" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Trạm gửi: đổ 24 áo, mã giao dịch GD-5521. API ghi xong</text></g></g><g class="only2"><g class="b-bad"><rect x="173.6" y="164" width="372.8" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Mạng chập chờn: phản hồi bị mất, trạm không biết đã xong</text></g></g><g class="mv3" style="--dx:100px;--dy:0px"><g class="only3"><g class="b-pkt"><rect x="138.5" y="114" width="83" height="24" rx="12" class="bd"></rect><text x="180" y="130" class="st">mã GD-5521</text></g></g></g><g class="only3"><g class="b-hi"><rect x="261.8" y="164" width="196.4" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Trạm gửi lại, vẫn mã GD-5521</text></g></g><g class="only4"><g class="b-ok"><rect x="176.75" y="164" width="366.5" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">API thấy mã đã xử lý: trả kết quả cũ, không trừ lần hai</text></g><circle cx="694" cy="112" r="9" class="k-ok"></circle><path d="M690 112l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Trạm gửi lệnh đổ 24 áo kèm mã giao dịch. API xử lý xong.</span></li><li style="--cap:cap2"><b>2</b><span>Mạng chập chờn nên phản hồi bị mất. Trạm tưởng chưa xong.</span></li><li style="--cap:cap3"><b>3</b><span>Trạm gửi lại đúng mã giao dịch đó.</span></li><li style="--cap:cap4"><b>4</b><span>API nhận ra mã đã xử lý, trả kết quả cũ, không trừ lần hai.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Gửi lại không ghi trùng: cùng mã giao dịch thì trả kết quả cũ.</p><p class="say">Câu nói: “Em thiết kế để gửi lại không ghi trùng, vì máy quét hay gửi lại khi mạng chập chờn.”</p></div>
+  </section><section class="cs-sec" id="batch"><p class="eyebrow">Luồng 2 · Xuất B2B · SP_BT_0031_02</p><h2>Batch tạo lệnh nhặt: Create Picking Instruction (Member)</h2><p>Sau khi chia hàng cho đơn cửa hàng, batch gom các việc nhặt thành từng lượt cho xe đẩy: cùng dãy kệ, đi quãng ngắn nhất, không quá 150 kg mỗi lượt.</p>
+  <div class="mem"><div class="memc"><b>1</b><span>KHÓA CÓ HẠN: hai lần chạy không chồng</span></div><div class="memc"><b>2</b><span>GIÀNH MỘT LẦN: một việc một chủ</span></div><div class="memc"><b>3</b><span>CHẠY LẠI ĐƯỢC: không tạo lượt trùng</span></div><div class="memc"><b>4</b><span>BỎ QUA CÓ GHI: một dòng lỗi không sập cả batch</span></div></div>
+  <div class="blk"><h3>A. Nó làm gì, từng bước <span class="tag doc">Tài liệu</span></h3><div class="stage" data-stage="cPk" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><rect x="16" y="24" width="170" height="110" rx="5" class="k-body"></rect><rect x="16" y="24" width="170" height="18" rx="5" class="k-ink"></rect><text x="101" y="37" class="st" style="fill:var(--surface);font-size:10px">Việc nhặt đã chia</text><text x="101" y="60" class="st" style="">Dãy A: 3 việc</text><text x="101" y="84" class="st" style="">Dãy B: 2 việc</text><text x="101" y="108" class="st" style="">Dãy C: 4 việc</text><g class="node n-wes"><rect x="270" y="40" width="150" height="52" rx="5"></rect><text x="345" y="64" class="st nt">Batch tạo lệnh nhặt</text><text x="345" y="79" class="st sm">chạy theo đợt</text></g><line x1="186" y1="66" x2="270" y2="66" class="k-dash"></line><line x1="420" y1="66" x2="520" y2="66" class="k-dash"></line><rect x="520" y="24" width="184" height="110" rx="5" class="k-body"></rect><rect x="520" y="24" width="184" height="18" rx="5" class="k-ink"></rect><text x="612" y="37" class="st" style="fill:var(--surface);font-size:10px">Lượt nhặt 1</text><g class="only1"><text x="612" y="86" class="st" style="fill:var(--muted);font-size:24px">…</text></g><g class="only2"><text x="612" y="74" class="st" style="">A1 → A2 → A3</text><text x="612" y="100" class="st" style="fill:var(--muted)">đi một chiều</text></g><g class="only3"><text x="612" y="86" class="st" style="fill:var(--hi);font-size:22px">148 / 150 kg</text></g><g class="on4"><text x="612" y="74" class="st" style="fill:var(--ok);font-weight:700">Lượt 1 đã lưu</text><text x="612" y="100" class="st" style="">đơn: đã tạo lệnh nhặt</text></g><g class="act"><g class="only1"><g class="b-pkt"><rect x="214.55" y="164" width="290.9" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Gom các việc cùng dãy kệ vào chung một lượt</text></g></g><g class="only2"><g class="b-pkt"><rect x="208.25" y="164" width="303.5" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Sắp thứ tự ô sao cho quãng đường đi ngắn nhất</text></g></g><g class="only3"><g class="b-hi"><rect x="201.95000000000002" y="164" width="316.09999999999997" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Cộng cân nặng. Chạm 150 kg thì cắt, mở lượt mới</text></g></g><g class="only4"><g class="b-ok"><rect x="211.4" y="164" width="297.2" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Lưu lượt nhặt, đổi đơn sang đã tạo lệnh nhặt</text></g><circle cx="694" cy="114" r="9" class="k-ok"></circle><path d="M690 114l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Batch lấy các việc nhặt đã được chia hàng, nhóm theo dãy kệ.</span></li><li style="--cap:cap2"><b>2</b><span>Sắp thứ tự ô sao cho người nhặt đi một chiều, quãng đường ngắn nhất.</span></li><li style="--cap:cap3"><b>3</b><span>Cộng cân nặng. Chạm 150 kg thì cắt lượt, phần còn lại sang lượt mới.</span></li><li style="--cap:cap4"><b>4</b><span>Lưu lượt nhặt và đổi đơn sang trạng thái đã tạo lệnh nhặt.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Gom việc theo dãy kệ, sắp thứ tự ô cho quãng đường ngắn nhất, cắt lượt khi chạm 150 kg, lưu lượt nhặt và đổi đơn sang đã tạo lệnh nhặt.</p></div>
+  <div class="blk"><h3>B. Chạy cùng lúc: Hai lần chạy chồng nhau <span class="tag doc">Tài liệu</span></h3><div class="stage" data-stage="cPkLock" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><g class="node n-wes"><rect x="16" y="24" width="140" height="48" rx="5"></rect><text x="86" y="52" class="st nt">Lần chạy 08:00</text></g><g class="node n-wes"><rect x="16" y="116" width="140" height="48" rx="5"></rect><text x="86" y="144" class="st nt">Lần chạy 08:20</text></g><line x1="156" y1="48" x2="300" y2="70" class="k-dash"></line><line x1="156" y1="140" x2="300" y2="100" class="k-dash"></line><rect x="300" y="30" width="170" height="100" rx="5" class="k-body"></rect><rect x="300" y="30" width="170" height="18" rx="5" class="k-ink"></rect><text x="385" y="43" class="st" style="fill:var(--surface);font-size:10px">Khóa batch</text><g class="only1"><text x="385" y="92" class="st" style="fill:var(--muted)">đang trống</text></g><g class="only2"><text x="385" y="84" class="st" style="">Giữ bởi lần 08:00</text><text x="385" y="108" class="st" style="fill:var(--muted)">hạn 45 phút</text></g><g class="only3"><text x="385" y="84" class="st" style="">Giữ bởi lần 08:00</text><text x="385" y="108" class="st" style="fill:var(--bad)">lần 08:20 bị chặn</text></g><g class="on4"><text x="385" y="84" class="st" style="fill:var(--ok);font-weight:700">Hết hạn, tự nhả</text><text x="385" y="108" class="st" style="fill:var(--muted)">lần sau chạy được</text></g><rect x="540" y="30" width="164" height="100" rx="5" class="k-body"></rect><rect x="540" y="30" width="164" height="18" rx="5" class="k-ink"></rect><text x="622" y="43" class="st" style="fill:var(--surface);font-size:10px">Việc nhặt</text><g class="only1"><text x="622" y="92" class="st" style="fill:var(--muted)">chờ xử lý</text></g><g class="only2"><text x="622" y="92" class="st" style="">đang xử lý</text></g><g class="only3"><text x="622" y="92" class="st" style="">đang xử lý</text></g><g class="on4"><text x="622" y="84" class="st" style="">không bị ai</text><text x="622" y="108" class="st" style="fill:var(--ok)">xử lý hai lần</text></g><g class="act"><g class="only1"><g class="b-pkt"><rect x="195.65" y="170" width="328.7" height="24" rx="12" class="bd"></rect><text x="360" y="186" class="st">08:00 batch bắt đầu. Trước hết xin khóa của batch</text></g></g><g class="only2"><g class="b-ok"><rect x="236.60000000000002" y="170" width="246.79999999999998" height="24" rx="12" class="bd"></rect><text x="360" y="186" class="st">Được khóa. Việc nhặt đang được xử lý</text></g></g><g class="only3"><g class="b-bad"><rect x="195.65" y="170" width="328.7" height="24" rx="12" class="bd"></rect><text x="360" y="186" class="st">08:20 lần chạy mới thấy khóa đang bận, thoát luôn</text></g></g><g class="only4"><g class="b-ok"><rect x="170.45000000000002" y="170" width="379.09999999999997" height="24" rx="12" class="bd"></rect><text x="360" y="186" class="st">Nếu job chết, khóa tự hết hạn sau 45 phút, không treo mãi</text></g></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Batch bắt đầu, việc đầu tiên là xin khóa batch.</span></li><li style="--cap:cap2"><b>2</b><span>Có khóa. Việc nhặt được xử lý.</span></li><li style="--cap:cap3"><b>3</b><span>Lần chạy thứ hai thấy khóa đang bận nên thoát, không chồng lên lần một.</span></li><li style="--cap:cap4"><b>4</b><span>Nếu lần một chết giữa chừng, khóa tự hết hạn sau 45 phút để không treo mãi.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Batch Process Lock, có hạn tự hết (45 phút) để job chết cũng không treo mãi.</p><p class="say">Câu nói: “Em dùng khóa batch có hạn tự hết để hai lần chạy không chồng nhau.”</p></div><div class="blk"><h3>C. Chạy cùng lúc: Một việc nhặt bị hai lượt giành <span class="tag ind">Chuẩn ngành</span></h3><div class="stage" data-stage="cPkTask" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><rect x="16" y="24" width="180" height="106" rx="5" class="k-body"></rect><rect x="16" y="24" width="180" height="18" rx="5" class="k-ink"></rect><text x="106" y="37" class="st" style="fill:var(--surface);font-size:10px">Việc #101</text><g class="off2"><text x="106" y="84" class="st" style="fill:var(--muted);font-size:20px">chưa có lượt</text></g><g class="on2"><text x="106" y="84" class="st" style="fill:var(--ok);font-size:20px;font-weight:700">thuộc lượt L1</text></g><g class="node n-wes"><rect x="280" y="22" width="150" height="46" rx="5"></rect><text x="355" y="49" class="st nt">Lượt L1</text></g><g class="node n-wes"><rect x="280" y="84" width="150" height="46" rx="5"></rect><text x="355" y="111" class="st nt">Lượt L2</text></g><line x1="196" y1="45" x2="280" y2="45" class="k-dash"></line><line x1="196" y1="107" x2="280" y2="107" class="k-dash"></line><rect x="520" y="24" width="184" height="106" rx="5" class="k-body"></rect><rect x="520" y="24" width="184" height="18" rx="5" class="k-ink"></rect><text x="612" y="37" class="st" style="fill:var(--surface);font-size:10px">Kết quả gán việc</text><g class="off2"><text x="612" y="84" class="st" style="fill:var(--muted)">chờ…</text></g><g class="only2"><text x="612" y="76" class="st" style="">L1: 1 dòng được sửa</text><text x="612" y="104" class="st" style="fill:var(--ok)">nhận việc</text></g><g class="on3"><text x="612" y="76" class="st" style="fill:var(--bad);font-weight:700">L2: 0 dòng được sửa</text><text x="612" y="104" class="st" style="fill:var(--bad)">đã có chủ</text></g><g class="act"><g class="only1"><g class="b-pkt"><rect x="246.05" y="164" width="227.9" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Hai lượt cùng muốn nhận việc #101</text></g></g><g class="only2"><g class="b-ok"><rect x="189.35" y="164" width="341.3" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">L1 gán việc nếu chưa có lượt: 1 dòng được sửa, nhận</text></g></g><g class="only3"><g class="b-bad"><rect x="217.70000000000002" y="164" width="284.59999999999997" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">L2 cùng lệnh đó: 0 dòng, vì việc đã có chủ</text></g></g><g class="only4"><g class="b-ok"><rect x="173.6" y="164" width="372.8" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">L2 bỏ việc này, tìm việc khác. Không việc nào có hai chủ</text></g><circle cx="694" cy="114" r="9" class="k-ok"></circle><path d="M690 114l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Hai lượt nhặt cùng muốn nhận việc #101.</span></li><li style="--cap:cap2"><b>2</b><span>Lượt L1 gán việc với điều kiện việc chưa có lượt. Thành công, 1 dòng được sửa.</span></li><li style="--cap:cap3"><b>3</b><span>Lượt L2 chạy cùng lệnh nhưng việc đã có chủ nên 0 dòng được sửa.</span></li><li style="--cap:cap4"><b>4</b><span>L2 bỏ việc này và tìm việc khác. Không việc nào có hai chủ.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Gán việc vào lượt chỉ khi việc chưa có lượt, rồi kiểm số dòng. Nếu chạy lại sau sự cố, chỉ chọn việc chưa có lượt nên không tạo lượt trùng.</p><p class="say">Câu nói: “Em gán việc có điều kiện và kiểm số dòng, nên không việc nào có hai chủ.”</p></div><div class="blk"><h3>D. Chạy cùng lúc: Đơn bị hủy giữa chừng <span class="tag ind">Chuẩn ngành</span></h3><div class="stage" data-stage="cPkSkip" data-bound="1"><div class="stage-scroll" data-scene=""><svg viewBox="0 0 720 240" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới."><rect x="16" y="24" width="190" height="110" rx="5" class="k-body"></rect><rect x="16" y="24" width="190" height="18" rx="5" class="k-ink"></rect><text x="111" y="37" class="st" style="fill:var(--surface);font-size:10px">Đơn đang xử lý</text><text x="111" y="58" class="st" style="fill:var(--ok)">Đơn 1: xong</text><g class="off2"><text x="111" y="84" class="st" style="">Đơn 2: đang xử lý</text></g><g class="on2"><text x="111" y="84" class="st" style="fill:var(--bad);font-weight:700">Đơn 2: đã bị hủy</text></g><g class="off3"><text x="111" y="110" class="st" style="fill:var(--muted)">Đơn 3: chờ</text></g><g class="on3"><text x="111" y="110" class="st" style="fill:var(--ok)">Đơn 3: xong</text></g><g class="node n-wes"><rect x="280" y="44" width="140" height="50" rx="5"></rect><text x="350" y="67" class="st nt">Batch</text><text x="350" y="82" class="st sm">chạy lần lượt</text></g><line x1="206" y1="70" x2="280" y2="70" class="k-dash"></line><line x1="420" y1="70" x2="520" y2="70" class="k-dash"></line><rect x="520" y="24" width="184" height="110" rx="5" class="k-body"></rect><rect x="520" y="24" width="184" height="18" rx="5" class="k-ink"></rect><text x="612" y="37" class="st" style="fill:var(--surface);font-size:10px">Nhật ký bỏ qua</text><g class="off3"><text x="612" y="86" class="st" style="fill:var(--muted)">trống</text></g><g class="on3"><text x="612" y="76" class="st" style="fill:var(--bad)">Đơn 2: bỏ qua</text><text x="612" y="102" class="st" style="">lý do: đã bị hủy</text></g><g class="act"><g class="only1"><g class="b-pkt"><rect x="258.65" y="164" width="202.7" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Batch xử lý lần lượt từng đơn</text></g></g><g class="only2"><g class="b-bad"><rect x="236.60000000000002" y="164" width="246.79999999999998" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Đơn 2 vừa bị cửa hàng hủy giữa chừng</text></g></g><g class="only3"><g class="b-pkt"><rect x="205.1" y="164" width="309.8" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Bỏ qua đơn 2, ghi vào nhật ký, chạy tiếp đơn 3</text></g></g><g class="only4"><g class="b-ok"><rect x="183.05" y="164" width="353.9" height="24" rx="12" class="bd"></rect><text x="360" y="180" class="st">Batch không sập. Người vận hành xem nhật ký xử lý sau</text></g><circle cx="694" cy="114" r="9" class="k-ok"></circle><path d="M690 114l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></g></g></svg></div>
+ <ol class="caps"><li style="--cap:cap1"><b>1</b><span>Batch xử lý từng đơn một.</span></li><li style="--cap:cap2"><b>2</b><span>Đơn 2 bị cửa hàng hủy ngay trong lúc batch chạy.</span></li><li style="--cap:cap3"><b>3</b><span>Batch kiểm lại, bỏ qua đơn 2, ghi vào nhật ký rồi chạy tiếp đơn 3.</span></li><li style="--cap:cap4"><b>4</b><span>Batch không sập. Người vận hành xem nhật ký để xử lý sau.</span></li></ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause="">Tạm dừng</button><button class="btn sm" data-replay="">Phát lại từ đầu</button></span></div></div><p>Kiểm lại trạng thái lúc ghi. Bỏ qua dòng lỗi và ghi lại, không để một dòng làm sập cả batch.</p><p class="say">Câu nói: “Dòng nào lỗi thì em bỏ qua và ghi lại, chứ không để cả batch sập.”</p></div>
+  </section></div></main>
+<script>
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const tag=s=>s==="doc"?'<span class="tag doc">Tài liệu</span>':'<span class="tag ind">Chuẩn ngành</span>';
+const tx=(x,y,s,st="")=>`<text x="${x}" y="${y}" class="st" style="${st}">${s}</text>`;
+const G=206;
+const K={
+ svg:(inner,h=240)=>`<svg viewBox="0 0 720 ${h}" role="img" aria-label="Hoạt họa minh họa bước này. Nội dung được mô tả trong 4 dòng chú thích bên dưới.">${inner}</svg>`,
+ floor:(x1=8,x2=712)=>`<line x1="${x1}" y1="${G}" x2="${x2}" y2="${G}" class="k-floor"/>`,
+ t:(x,y,s,c="")=>`<text x="${x}" y="${y}" class="st ${c}">${s}</text>`,
+ zn:(x,s)=>`<text x="${x}" y="226" class="st zn">${s}</text>`,
+ badge(x,y,s,c="b-ink"){const w=s.length*6.3+20;return `<g class="${c}"><rect x="${x-w/2}" y="${y-12}" width="${w}" height="24" rx="12" class="bd"/><text x="${x}" y="${y+4}" class="st">${s}</text></g>`},
+ node(x,y,w,h,t,s,c){return `<g class="node ${c}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/><text x="${x+w/2}" y="${y+(s?h/2-2:h/2+4)}" class="st nt">${t}</text>${s?`<text x="${x+w/2}" y="${y+h/2+13}" class="st sm">${s}</text>`:""}</g>`},
+ carton:(x,g,w=24,h=20,lab="")=>`<rect x="${x}" y="${g-h}" width="${w}" height="${h}" rx="2" class="k-carton"/><line x1="${x+w/2}" y1="${g-h}" x2="${x+w/2}" y2="${g-h+6}" class="k-edge"/>${lab?`<text x="${x+w/2}" y="${g-5}" class="st" style="font-size:9px;fill:#2A1B05">${lab}</text>`:""}`,
+ pallet(x,g){let s=`<rect x="${x}" y="${g-5}" width="66" height="5" class="k-metal"/>`;for(let r=0;r<2;r++)for(let c=0;c<3;c++)s+=K.carton(x+c*22,g-5-r*18,22,18);return s},
+ tote:(x,g,w=30,h=15)=>`<path d="M${x} ${g-h}h${w}l-3 ${h}h${-(w-6)}z" class="k-tote"/><rect x="${x-2}" y="${g-h-3}" width="${w+4}" height="4" rx="1.5" class="k-tote"/>`,
+ robot:(x,g)=>`<rect x="${x}" y="${g-14}" width="38" height="10" rx="3" class="k-robot"/><circle cx="${x+8}" cy="${g-4}" r="4" class="k-ink"/><circle cx="${x+30}" cy="${g-4}" r="4" class="k-ink"/><circle cx="${x+33}" cy="${g-9}" r="1.8" class="k-hi"/>`,
+ person:(x,g)=>`<rect x="${x-7}" y="${g-20}" width="6" height="20" rx="2" class="k-ink"/><rect x="${x+1}" y="${g-20}" width="6" height="20" rx="2" class="k-ink"/><path d="M${x-9} ${g-18}v-16a9 9 0 0 1 18 0v16z" class="k-vest"/><circle cx="${x}" cy="${g-51}" r="7.5" class="k-skin"/>`,
+ truck:(x,g,lab="")=>`<rect x="${x}" y="${g-74}" width="120" height="60" rx="3" class="k-truck"/><path d="M${x+122} ${g-14}v-40h20l14 18v22z" class="k-cab"/><rect x="${x+127}" y="${g-48}" width="14" height="13" class="k-glass"/><circle cx="${x+26}" cy="${g-10}" r="10" class="k-ink"/><circle cx="${x+94}" cy="${g-10}" r="10" class="k-ink"/><circle cx="${x+140}" cy="${g-10}" r="10" class="k-ink"/>${lab?`<text x="${x+60}" y="${g-40}" class="st" style="font-family:var(--f-mono);font-size:10.5px">${lab}</text>`:""}`,
+ forklift:(x,g)=>`<rect x="${x+40}" y="${g-64}" width="4" height="60" class="k-ink"/><rect x="${x+44}" y="${g-9}" width="68" height="3" class="k-ink"/><path d="M${x} ${g-10}v-22h14l6-14h18v36z" class="k-fork"/><circle cx="${x+9}" cy="${g-8}" r="8" class="k-ink"/><circle cx="${x+32}" cy="${g-8}" r="8" class="k-ink"/><circle cx="${x+24}" cy="${g-54}" r="6.5" class="k-skin"/>`,
+ gate:(x,g,w=96,h=110)=>`<rect x="${x}" y="${g-h}" width="8" height="${h}" class="k-ink"/><rect x="${x+w-8}" y="${g-h}" width="8" height="${h}" class="k-ink"/><rect x="${x-4}" y="${g-h-8}" width="${w+8}" height="10" rx="2" class="k-ink"/><rect x="${x+8}" y="${g-h+14}" width="5" height="50" class="k-robot"/><rect x="${x+w-13}" y="${g-h+14}" width="5" height="50" class="k-robot"/>`,
+ lamp:(x,y,c)=>`<circle cx="${x}" cy="${y}" r="6" class="${c}" stroke="var(--ink)" stroke-width="1.5"/>`,
+ rack(x,g,cols,rows,cw=30,ch=24,fill=[]){let s="";for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const cx=x+c*cw,cy=g-(r+1)*ch;s+=`<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" class="k-cell"/>`;const f=fill.find(a=>a[0]===c&&a[1]===r);if(f)s+=f[2]==="c"?K.carton(cx+4,cy+ch-2,cw-8,ch-6):`<rect x="${cx+4}" y="${cy+ch-11}" width="${cw-8}" height="9" rx="1.5" class="k-tote"/>`}return s},
+ conv(x,y,w){let s=`<rect x="${x}" y="${y}" width="${w}" height="8" rx="4" class="k-metal"/>`;for(let i=x+10;i<x+w-4;i+=16)s+=`<circle cx="${i}" cy="${y+4}" r="2.4" class="k-ink"/>`;return s+`<rect x="${x+8}" y="${y+8}" width="4" height="${G-y-8}" class="k-metal"/><rect x="${x+w-12}" y="${y+8}" width="4" height="${G-y-8}" class="k-metal"/>`},
+ table:(x,g,w,h=34)=>`<rect x="${x}" y="${g-h}" width="${w}" height="6" rx="2" class="k-ink"/><rect x="${x+6}" y="${g-h+6}" width="4" height="${h-6}" class="k-metal"/><rect x="${x+w-10}" y="${g-h+6}" width="4" height="${h-6}" class="k-metal"/>`,
+ screen(x,y,w,h,t){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" class="k-body"/><rect x="${x}" y="${y}" width="${w}" height="18" rx="5" class="k-ink"/><text x="${x+w/2}" y="${y+13}" class="st" style="fill:var(--surface);font-size:10px">${t}</text>`},
+ printer:(x,g)=>`<rect x="${x}" y="${g-20}" width="40" height="20" rx="3" class="k-body"/><rect x="${x+7}" y="${g-24}" width="26" height="5" class="k-ink"/>`,
+ paper:(x,y)=>`<rect x="${x}" y="${y}" width="24" height="30" rx="1.5" class="k-paper"/><line x1="${x+4}" y1="${y+8}" x2="${x+20}" y2="${y+8}" class="k-pl"/><line x1="${x+4}" y1="${y+14}" x2="${x+20}" y2="${y+14}" class="k-pl"/><line x1="${x+4}" y1="${y+20}" x2="${x+15}" y2="${y+20}" class="k-pl"/>`,
+ shirt:(x,y,k=1)=>`<path transform="translate(${x} ${y}) scale(${k})" d="M0 5 8 0q5 5 10 0l8 5-3 6-4-2v17H7V9l-4 2z" class="k-shirt"/>`,
+ cart:(x,g)=>`<rect x="${x}" y="${g-40}" width="44" height="4" class="k-ink"/><rect x="${x}" y="${g-22}" width="44" height="4" class="k-ink"/><rect x="${x}" y="${g-44}" width="3" height="38" class="k-ink"/><rect x="${x+41}" y="${g-60}" width="3" height="54" class="k-ink"/><rect x="${x+34}" y="${g-72}" width="18" height="13" rx="2" class="k-robot"/><circle cx="${x+7}" cy="${g-4}" r="4" class="k-ink"/><circle cx="${x+38}" cy="${g-4}" r="4" class="k-ink"/>`,
+ waves:(cx,cy)=>[0,.43,.86].map(d=>`<circle cx="${cx}" cy="${cy}" r="46" class="k-wave" style="animation-delay:${d}s"/>`).join(""),
+ mv:(n,dx,dy,inner)=>`<g class="mv${n}" style="--dx:${dx}px;--dy:${dy}px">${inner}</g>`,
+ g:(c,inner)=>`<g class="${c}">${inner}</g>`,
+ dash:(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="k-dash"/>`,
+ check:(x,y)=>`<circle cx="${x}" cy="${y}" r="9" class="k-ok"/><path d="M${x-4} ${y}l3 3 5-6" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`
+};
+
+const SCENES={
+ s11:()=>K.svg(
+  K.floor()+K.node(16,16,128,42,"Nhà máy","gửi bản kê trước","n-erp")+K.node(400,16,128,42,"WES","quản đốc sàn kho","n-wes")+K.dash(150,37,394,37)+
+  `<rect x="600" y="${G-112}" width="104" height="112" class="k-body"/><rect x="600" y="${G-112}" width="104" height="20" class="k-ink"/><text x="652" y="${G-98}" class="st" style="fill:var(--surface);font-family:var(--f-mono)">DOCK 04</text>`+
+  [0,1,2,3].map(i=>`<line x1="608" y1="${G-80+i*20}" x2="696" y2="${G-80+i*20}" class="k-pl"/>`).join("")+K.person(582,G)+K.zn(90,"Đường vào kho")+K.zn(652,"Cửa nhận hàng")+
+  K.g("act",K.mv(1,180,0,K.badge(190,37,"ASN","b-pkt"))+K.mv(2,400,0,K.truck(14,G,"51D-892.41"))+
+   K.g("only3",K.badge(430,112,"Gõ biển số: tìm thấy ASN, 120 thùng"))+K.g("on4",K.badge(464,80,"Đã khóa cho anh Tuấn","b-hi")))),
+
+ s12:()=>K.svg(
+  K.floor()+K.node(16,16,128,42,"WES","chuẩn bị lệnh quét","n-wes")+K.gate(300,G)+K.lamp(348,G-126,"k-bad")+K.table(548,G,84)+K.printer(570,G-34)+K.person(668,G)+
+  K.zn(348,"Cổng RFID số 01")+K.zn(590,"Bàn in phiếu")+K.zn(668,"Trưởng ca")+
+  K.g("act",K.mv(1,150,22,K.g("off2",K.badge(196,37,"800 mã chip","b-pkt")))+
+   K.g("on2",K.lamp(348,G-126,"k-ok")+K.badge(348,150,"Sẵn sàng","b-ok"))+
+   K.mv(4,66,22,K.mv(3,0,-34,K.g("on3",K.paper(578,G-62))))+K.g("only3",K.badge(590,96,"In phiếu kiểm hàng")))),
+
+ s13:()=>K.svg(
+  K.floor()+K.gate(306,G)+K.lamp(354,G-126,"k-hi")+K.screen(544,16,160,76,"Màn hình cổng RFID")+K.t(624,50,"Theo ASN: 800 chiếc")+
+  K.zn(80,"Từ bến dỡ hàng")+K.zn(354,"Cổng RFID")+K.zn(632,"Sang trạm đổ khay")+
+  K.g("act",K.mv(4,300,0,K.mv(1,250,0,K.forklift(20,G)+K.pallet(66,G-9)))+K.g("only2",K.waves(354,150))+
+   K.g("on2",K.t(624,66,"Đọc được: 800 chiếc"))+K.g("on3",K.lamp(354,G-126,"k-ok")+`<text x="624" y="82" class="st" style="fill:var(--ok)">Khớp 100%</text>`)+
+   K.g("only4",K.badge(300,60,"Trưởng ca bấm Hoàn tất kiểm đếm","b-ok")))),
+
+ s14:()=>K.svg(
+  K.floor()+K.conv(16,G-38,164)+K.person(212,G)+K.table(188,G,92,38)+
+  K.rack(480,G,7,7,30,24,[[0,0,"t"],[1,0,"t"],[3,0,"t"],[5,1,"t"],[2,2,"t"],[6,2,"t"],[4,3,"t"],[1,4,"t"],[5,5,"t"],[3,6,"t"]])+
+  K.zn(96,"Băng chuyền")+K.zn(234,"Trạm đổ khay")+K.zn(585,"Giàn kệ robot")+
+  K.g("act",K.mv(1,166,0,K.g("off2",K.carton(30,G-38)))+K.g("only2",K.tote(244,G-38)+K.shirt(246,G-84)+K.badge(236,102,"Quét mã khay, cân 14,5 kg"))+
+   K.mv(3,150,0,K.mv(4,0,-96,K.robot(290,G)+K.g("on3",K.tote(294,G-14))))+
+   K.g("only3",K.badge(340,60,"WES chọn ô LOC-04-12-08-C"))+K.g("on4",K.badge(340,60,"Tồn khả dụng +50","b-ok")))),
+
+ s15:()=>K.svg(
+  `<path d="M16 110H596" class="k-belt"/><path d="M380 110L470 176H596" class="k-belt"/>`+
+  `<rect x="222" y="62" width="6" height="52" class="k-ink"/><rect x="262" y="62" width="6" height="52" class="k-ink"/><rect x="218" y="56" width="54" height="8" rx="2" class="k-ink"/>`+
+  `<text x="604" y="114" class="st l">Lên kệ lưu kho</text><text x="604" y="180" class="st l">Khu xuất hàng</text>`+K.t(245,48,"Máy đọc mã","sm")+K.t(346,138,"Tay gạt","sm")+
+  K.g("act",K.mv(3,110,0,K.mv(2,180,0,K.mv(1,170,0,K.carton(100,105))))+
+   K.mv(4,110,0,K.mv(3,100,66,K.mv(2,130,0,K.mv(1,180,0,`<rect x="40" y="85" width="24" height="20" rx="2" class="k-carton" style="stroke:var(--hi);stroke-width:3"/>`))))+
+   K.g("only1",K.badge(245,24,"Thùng viền vàng: cần xuất gấp","b-hi"))+K.g("only2",`<line x1="366" y1="96" x2="396" y2="122" stroke="var(--hi)" stroke-width="5" stroke-linecap="round" class="blink"/>`)+
+   K.g("on4",K.badge(470,214,"Cảm biến: đã tới khu xuất","b-ok"))),236),
+
+ s16:()=>K.svg(
+  K.floor()+K.person(312,G)+K.table(228,G,110,38)+`<rect x="372" y="${G-30}" width="46" height="30" rx="3" class="k-body" style="stroke:var(--bad);stroke-width:2"/>`+
+  K.rack(644,G,2,6,30,24,[[0,1,"t"],[1,3,"t"],[0,5,"t"]])+K.node(560,10,144,38,"Kế toán","hoàn tiền cho khách","n-erp")+
+  K.zn(60,"Gói khách trả")+K.zn(283,"Bàn kiểm hàng hoàn")+K.zn(395,"Cách ly")+K.zn(600,"Về kệ robot")+
+  K.g("act",K.mv(1,190,-38,K.g("off2",`<rect x="48" y="${G-20}" width="30" height="20" rx="4" class="k-paper"/><line x1="48" y1="${G-10}" x2="78" y2="${G-10}" class="k-pl"/>`))+
+   K.mv(3,222,8,K.g("on2",K.g("off4",K.shirt(252,G-66))))+K.g("only2",K.badge(283,112,"Còn tem, sạch: loại A","b-ok"))+
+   K.mv(4,132,0,K.robot(468,G)+K.tote(472,G-14))+K.g("on4",K.badge(560,120,"Mở bán lại +1","b-ok"))+
+   K.mv(4,170,-8,K.g("on4",K.badge(330,37,"Lệnh hoàn tiền","b-pkt"))))),
+
+ s17:()=>K.svg(
+  K.node(296,96,128,46,"WES","gom số thực nhận","n-wes")+K.node(16,16,150,42,"Nhà máy","nhận AR1","n-erp")+K.node(554,16,150,42,"Kế toán nội bộ","nhận AR2","n-wiv")+K.node(554,172,150,46,"Hải quan (CMS)","duyệt tờ khai","n-dev")+
+  K.dash(296,104,166,52)+K.dash(424,104,554,52)+K.dash(424,134,554,188)+K.rack(30,214,4,3,30,22,[[0,0,"t"],[1,0,"t"],[2,1,"t"],[3,0,"t"],[1,2,"t"]])+
+  K.g("act",K.mv(1,-150,-52,K.g("only1",K.badge(350,119,"AR1","b-pkt")))+K.mv(2,160,-52,K.g("only2",K.badge(370,119,"AR2","b-pkt")))+
+   K.mv(3,130,62,K.g("only3",K.badge(380,119,"Tờ khai","b-pkt")))+K.mv(4,-110,-11,K.g("on4",K.badge(510,171,"Luồng xanh","b-ok")))+
+   K.g("off4",K.badge(90,130,"Chờ thông quan: khóa","b-hi"))+K.g("on4",K.badge(90,130,"Được phép xuất bán","b-ok"))),232),
+
+ s21:()=>K.svg(
+  K.node(16,24,156,40,"Store Flagship","ưu tiên 1","n-erp")+K.node(16,88,156,40,"Store B","ưu tiên 2","n-erp")+K.node(16,152,156,40,"Store tỉnh","ưu tiên 3","n-erp")+
+  K.node(296,84,128,46,"WES","điều phối xuất","n-wes")+K.node(540,16,164,42,"Sổ cái WIV","giữ con số tồn","n-wiv")+K.dash(424,107,540,107)+
+  K.t(622,84,"Tồn của các mã được đặt","sm")+`<rect x="540" y="92" width="164" height="22" rx="3" fill="var(--ok)"/>`+
+  K.g("act",K.mv(1,90,63,K.g("only1",K.badge(196,44,"Đơn","b-pkt")))+K.mv(1,90,0,K.g("only1",K.badge(196,108,"Đơn","b-pkt")))+K.mv(1,90,-63,K.g("only1",K.badge(196,172,"Đơn","b-pkt")))+
+   K.g("off3",`<text x="622" y="107" class="st" style="fill:#fff">Khả dụng</text>`)+
+   K.mv(2,40,0,K.g("only2",K.badge(452,107,"Chạy thử","b-pkt")))+K.g("only2",K.badge(560,176,"Kết quả thử: đủ 27.950, thiếu 450"))+
+   K.mv(3,40,0,K.g("only3",K.badge(452,107,"Chốt","b-pkt")))+
+   K.g("on3",`<rect x="540" y="92" width="150" height="22" rx="3" fill="var(--hi)"/><text x="615" y="107" class="st" style="fill:#1B1400">Đã giữ chỗ 27.950</text>`)+
+   K.g("on4",K.badge(360,176,"Chia thành việc: thùng nguyên + nhặt lẻ","b-ok"))),216),
+
+ s22:()=>{const row=(y,t,s,ic)=>`<g class="node n-dev"><rect x="430" y="${y}" width="274" height="50" rx="5"/><text x="444" y="${y+22}" class="st nt l">${t}</text><text x="444" y="${y+38}" class="st sm l">${s}</text></g>${ic}`;
+  return K.svg(
+  K.node(16,88,136,50,"WES","tạo lệnh nhặt","n-wes")+
+  row(12,"Robot Exotec","lấy khay trên giàn",K.robot(636,52)+K.tote(640,38))+row(88,"Xe Smart Cart","nhặt lẻ ở kệ thấp",`<g transform="translate(638 -60) scale(.62)">${K.cart(0,G+110)}</g>`)+row(164,"Phiếu giấy","khu làm thủ công",K.paper(648,174))+
+  K.dash(152,105,430,37)+K.dash(152,113,430,113)+K.dash(152,121,430,189)+
+  K.g("act",K.g("only1",K.badge(190,56,"Gom món cùng dãy kệ thành 1 lượt","b-hi"))+K.g("on2",K.badge(160,176,"Lượt RUN-01: 180 việc, 24 ô, 420 m"))+
+   K.mv(2,160,-76,K.g("only2",K.badge(210,113,"Danh sách khay","b-pkt")))+K.mv(3,160,0,K.g("only3",K.badge(210,113,"Lộ trình nhặt","b-pkt")))+K.mv(4,160,76,K.g("only4",K.badge(210,113,"Lệnh in","b-pkt")))+
+   K.g("on2",K.check(692,24))+K.g("on3",K.check(692,100))+K.g("on4",K.check(692,176))),226)},
+
+ s23:()=>K.svg(
+  K.floor()+K.forklift(0,G)+K.rack(116,G,3,7,34,24,[[0,1,"c"],[1,1,"c"],[2,2,"c"],[1,3,"c"],[2,5,"c"],[0,6,"c"],[1,6,"c"]])+
+  K.rack(250,G,4,3,34,24)+[0,1,2].map(r=>[0,1,2,3].map(c=>(r===2&&c===1)?"":K.shirt(258+c*34,G-22-r*24,.72)).join("")).join("")+
+  K.person(412,G)+K.cart(430,G)+K.carton(496,G,36,28,"STORE")+K.person(552,G)+
+  K.zn(120,"Kệ cao tầng")+K.zn(340,"Kệ nhặt lẻ")+K.zn(600,"Trạm robot")+
+  K.g("act",K.mv(1,-60,113,K.carton(120,84,26,18))+K.g("only1",K.badge(120,20,"Lấy nguyên thùng","b-hi"))+
+   K.mv(2,152,4,K.shirt(292,G-70,.72))+K.g("only2",K.badge(350,100,"Quét rồi nhặt từng chiếc","b-hi"))+
+   K.mv(3,-100,0,K.robot(676,G)+K.tote(680,G-14))+K.g("only3",K.badge(606,100,"Robot mang khay tới","b-hi"))+
+   K.g("on4",K.badge(360,20,"Tiến độ nhặt: 100%","b-ok")))),
+
+ s24:()=>K.svg(
+  `<line x1="8" y1="${G}" x2="210" y2="${G}" class="k-floor"/>`+K.person(108,G)+K.table(16,G,112,38)+K.table(140,G,60,38)+K.printer(150,G-38)+K.screen(16,14,176,60,"Thùng 03 · Store Landmark 81")+
+  `<path d="M214 124H704" class="k-belt"/>`+[420,545,670].map((x,i)=>`<path d="M${x} 124V190" class="k-belt"/><text x="${x}" y="212" class="st zn">Dock 0${5+i}</text>`).join("")+
+  `<rect x="298" y="74" width="6" height="54" class="k-ink"/><rect x="340" y="74" width="6" height="54" class="k-ink"/><rect x="294" y="68" width="56" height="8" rx="2" class="k-ink"/>`+K.t(322,60,"Máy đọc nhãn","sm")+
+  K.g("act",K.g("on2",`<text x="104" y="58" class="st" style="fill:var(--ok)">40/40 món: đủ</text>`)+K.g("only1",`<text x="104" y="58" class="st">Đang kiểm: 40/40 món</text>`)+
+   K.mv(4,223,62,K.mv(3,265,-48,K.carton(40,G-38,34,28)+K.g("on2",`<rect x="46" y="${G-56}" width="22" height="12" class="k-paper"/>`)))+
+   K.g("only2",K.badge(150,100,"In nhãn, dán lên thùng","b-hi"))+K.g("on4",K.badge(545,60,"Rẽ vào máng Dock 06","b-ok"))),226),
+
+ s25:()=>K.svg(
+  K.floor()+K.node(16,12,164,42,"Sổ cái WIV","giữ con số tồn","n-wiv")+K.node(300,12,120,42,"ERP","kế toán ghi sổ","n-erp")+K.node(440,12,140,42,"Hải quan","hàng ngoại quan","n-dev")+
+  K.person(452,G)+K.zn(110,"Khu tập kết")+K.zn(500,"Cửa xuất Dock 06")+
+  K.g("act",`<g class="bk2" style="--dx:340px;--dy:0px">${K.carton(60,G,34,28,"Q3")}</g>`+
+   K.mv(4,280,0,K.truck(500,G,"XE Q1")+K.mv(1,378,-18,K.carton(124,G,34,28,"Q1")))+
+   K.g("only1",K.badge(430,112,"Tít: đúng xe","b-ok"))+K.g("only2",K.badge(400,112,"Hú còi: thùng của tuyến Q3","b-bad"))+
+   K.g("only3",K.badge(400,112,"Trưởng ca bấm Chốt xuất kho","b-hi"))+K.g("on3",K.badge(110,80,"Trừ hẳn khỏi tồn","b-hi"))+
+   K.g("on4",K.check(408,20)+K.check(568,20)))),
+};
+
+const MAP_SVG=(()=>{const z=(id,x,y,w,h,l1,l2="")=>`<g class="map-zone" data-z="${id}" tabindex="0" role="button" aria-label="${l1} ${l2}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/><text x="${x+w/2}" y="${y+h/2+(l2?-2:4)}" class="st">${l1}</text>${l2?`<text x="${x+w/2}" y="${y+h/2+12}" class="st">${l2}</text>`:""}</g>`;
+ const pin="M47 130H128L221 75H361", pout="M361 85H496V185L586 135H672";
+ return `<svg viewBox="0 0 720 300" role="img" aria-label="Sơ đồ mặt bằng kho nhìn từ trên xuống">`+
+ z("dockin",12,40,70,180,"Bến","nhập")+z("rfid",100,90,56,80,"Cổng","RFID")+z("decant",176,40,90,70,"Trạm","đổ khay")+z("highbay",176,150,90,70,"Kệ","cao tầng")+
+ z("grid",286,40,150,90,"Giàn kệ robot")+z("shelf",286,150,150,70,"Kệ nhặt lẻ")+z("pick",456,40,80,90,"Trạm nhặt","robot")+z("pack",456,150,80,70,"Bàn","đóng gói")+
+ z("sorter",556,60,60,150,"Phân","loại")+z("dockout",636,40,72,180,"Bến","xuất")+z("ret",12,236,160,48,"Bàn hàng hoàn")+
+ `<path d="${pin}" class="map-in"/><path d="${pout}" class="map-out"/>`+
+ `<circle r="7" class="dot-in sm-dot"><animateMotion dur="7s" repeatCount="indefinite" path="${pin}"/></circle><circle r="7" class="dot-out sm-dot"><animateMotion dur="7s" repeatCount="indefinite" path="${pout}"/></circle></svg>`})();
+
+const UNITS_SVG=`<svg viewBox="0 0 720 150" role="img" aria-label="Bốn cấp đóng gói: chiếc, thùng carton, pallet và khay Live Tote">`+
+ K.shirt(60,46)+`<text x="73" y="112" class="st">1 chiếc</text><text x="73" y="128" class="st sm">đơn vị nhỏ nhất</text>`+
+ `<text x="150" y="70" class="st" style="font-size:20px">→</text>`+K.carton(204,92,52,44)+`<text x="230" y="112" class="st">Thùng carton</text><text x="230" y="128" class="st sm">ví dụ 20 đến 50 chiếc</text>`+
+ `<text x="318" y="70" class="st" style="font-size:20px">→</text>`+K.pallet(372,92)+`<text x="405" y="112" class="st">Pallet</text><text x="405" y="128" class="st sm">nhiều thùng, xe nâng xúc</text>`+
+ `<line x1="500" y1="20" x2="500" y2="130" class="k-dash"/>`+K.tote(570,92,60,30)+`<text x="600" y="112" class="st">Khay Live Tote</text><text x="600" y="128" class="st sm">khay chuẩn, chỉ robot chở</text></svg>`;
+
+const B=(t,c,y)=>K.badge(360,y||190,t,c);
+Object.assign(SCENES,{
+ // ---------- API đổ khay ----------
+ cDec:()=>K.svg(
+  K.screen(16,24,150,100,"Thùng carton C-9")+K.g("off3",tx(91,86,"24 áo","font-size:26px"))+K.g("on3",tx(91,86,"0 áo","font-size:26px;fill:var(--muted)"))+
+  K.node(290,38,140,56,"Trạm đổ khay","quét và cân","n-dev")+K.dash(166,66,290,66)+K.dash(430,66,540,66)+
+  K.screen(540,24,164,100,"Khay robot T-077")+K.g("off3",tx(622,86,"trống","font-size:22px;fill:var(--muted)"))+K.g("on3",tx(622,86,"24 áo","font-size:26px;fill:var(--ok)"))+
+  K.g("act",
+   K.g("only1",B("Quét thùng C-9 và khay T-077 ở trạm","b-pkt"))+
+   K.g("only2",B("Cân 18 kg, dưới 30 kg: cho qua. Trên 30 kg thì còi báo động","b-ok"))+
+   K.mv(3,300,0,K.g("only3",K.badge(190,140,"24 áo","b-pkt")))+K.g("only3",B("Ghi: khay T-077 chứa áo này, 24 chiếc. Trừ 24 khỏi thùng","b-pkt"))+
+   K.g("only4",B("Tồn đổi trạng thái: từ thùng sang khay robot","b-ok")+K.check(694,102)))),
+ cDecLock:()=>K.svg(
+  K.node(16,24,130,50,"Trạm A","đổ 12 áo","n-dev")+K.node(16,110,130,50,"Trạm B","đổ 12 áo","n-dev")+
+  K.dash(146,49,300,72)+K.dash(146,135,300,100)+
+  K.screen(300,30,170,100,"Khay T-077")+K.g("off2",tx(385,92,"đang trống","fill:var(--muted)"))+K.g("only2",tx(385,84,"Khóa của Trạm A","fill:var(--ok);font-weight:700")+tx(385,108,"(độc quyền)","fill:var(--muted)"))+K.g("only3",tx(385,84,"Khóa của Trạm A","fill:var(--ok);font-weight:700")+tx(385,108,"(độc quyền)","fill:var(--muted)"))+K.g("only4",tx(385,84,"Đã nhả khóa","fill:var(--muted);font-weight:700")+tx(385,108,"A đã ghi xong","fill:var(--muted)"))+
+  K.g("on4",K.screen(540,30,164,100,"Kết quả")+tx(622,76,"A: đã ghi xong")+tx(622,104,"B: chọn khay khác","fill:var(--hi)"))+
+  K.g("act",
+   K.g("only1",B("Hai trạm cùng gửi lệnh đổ vào khay T-077","b-pkt",176))+
+   K.g("only2",B("Trạm A giữ khóa trước: khay chỉ nhận lệnh của A","b-ok",176))+
+   K.g("only3",B("Trạm B bị từ chối: khay đang bận, không ghi gì","b-bad",176))+
+   K.g("only4",B("A xong thì nhả khóa. B được báo dùng khay khác","b-ok",176)))),
+ cDecRows:()=>K.svg(
+  K.screen(16,24,170,100,"Thùng C-9")+K.g("off2",tx(101,88,"còn 10 áo","font-size:22px"))+K.g("on2",tx(101,88,"còn 2 áo","font-size:22px;fill:var(--hi)"))+
+  K.node(260,22,150,46,"Trạm A","đổ 8 áo","n-dev")+K.node(260,84,150,46,"Trạm B","đổ 8 áo","n-dev")+K.dash(186,45,260,45)+K.dash(186,107,260,107)+
+  K.screen(520,24,184,106,"Kết quả lệnh trừ")+K.g("off2",tx(612,84,"chờ…","fill:var(--muted)"))+K.g("only2",tx(612,76,"A: 1 dòng được sửa")+tx(612,104,"trừ thành công","fill:var(--ok)"))+
+  K.g("on3",tx(612,76,"B: 0 dòng được sửa","fill:var(--bad);font-weight:700")+tx(612,104,"còn 2 < cần 8","fill:var(--bad)"))+
+  K.g("act",
+   K.g("only1",B("Thùng còn 10 áo, mà hai trạm cùng muốn lấy 8","b-pkt",176))+
+   K.g("only2",B("A: trừ nếu còn_lại ≥ 8. Đủ, trừ thành công, còn 2","b-ok",176))+
+   K.g("only3",B("B: cùng lệnh nhưng còn 2 < 8, nên 0 dòng được sửa","b-bad",176))+
+   K.g("only4",B("B kiểm số dòng = 0: dừng, báo lỗi, không ghi khay","b-ok",176)+K.check(694,114)))),
+ cDecRetry:()=>K.svg(
+  K.node(16,40,130,52,"Trạm đổ khay","","n-dev")+K.node(290,40,140,52,"API đổ khay","","n-wes")+
+  K.screen(540,24,164,100,"Thùng C-9")+K.g("only1",tx(622,88,"còn 24","font-size:24px"))+K.g("on2",tx(622,88,"còn 0","font-size:26px;fill:var(--ok)"))+
+  K.dash(146,66,290,66)+K.dash(430,66,540,66)+
+  K.g("act",
+   K.mv(1,100,0,K.g("only1",K.badge(180,126,"mã GD-5521","b-pkt")))+K.g("only1",B("Trạm gửi: đổ 24 áo, mã giao dịch GD-5521. API ghi xong","b-pkt",176))+
+   K.g("only2",B("Mạng chập chờn: phản hồi bị mất, trạm không biết đã xong","b-bad",176))+
+   K.mv(3,100,0,K.g("only3",K.badge(180,126,"mã GD-5521","b-pkt")))+K.g("only3",B("Trạm gửi lại, vẫn mã GD-5521","b-hi",176))+
+   K.g("only4",B("API thấy mã đã xử lý: trả kết quả cũ, không trừ lần hai","b-ok",176)+K.check(694,112)))),
+ // ---------- Batch tạo lệnh nhặt ----------
+ cPk:()=>K.svg(
+  K.screen(16,24,170,110,"Việc nhặt đã chia")+tx(101,60,"Dãy A: 3 việc")+tx(101,84,"Dãy B: 2 việc")+tx(101,108,"Dãy C: 4 việc")+
+  K.node(270,40,150,52,"Batch tạo lệnh nhặt","chạy theo đợt","n-wes")+K.dash(186,66,270,66)+K.dash(420,66,520,66)+
+  K.screen(520,24,184,110,"Lượt nhặt 1")+
+  K.g("only1",tx(612,86,"…","fill:var(--muted);font-size:24px"))+K.g("only2",tx(612,74,"A1 → A2 → A3")+tx(612,100,"đi một chiều","fill:var(--muted)"))+K.g("only3",tx(612,86,"148 / 150 kg","fill:var(--hi);font-size:22px"))+K.g("on4",tx(612,74,"Lượt 1 đã lưu","fill:var(--ok);font-weight:700")+tx(612,100,"đơn: đã tạo lệnh nhặt"))+
+  K.g("act",
+   K.g("only1",B("Gom các việc cùng dãy kệ vào chung một lượt","b-pkt",176))+
+   K.g("only2",B("Sắp thứ tự ô sao cho quãng đường đi ngắn nhất","b-pkt",176))+
+   K.g("only3",B("Cộng cân nặng. Chạm 150 kg thì cắt, mở lượt mới","b-hi",176))+
+   K.g("only4",B("Lưu lượt nhặt, đổi đơn sang đã tạo lệnh nhặt","b-ok",176)+K.check(694,114)))),
+ cPkLock:()=>K.svg(
+  K.node(16,24,140,48,"Lần chạy 08:00","","n-wes")+K.node(16,116,140,48,"Lần chạy 08:20","","n-wes")+
+  K.dash(156,48,300,70)+K.dash(156,140,300,100)+
+  K.screen(300,30,170,100,"Khóa batch")+K.g("only1",tx(385,92,"đang trống","fill:var(--muted)"))+K.g("only2",tx(385,84,"Giữ bởi lần 08:00")+tx(385,108,"hạn 45 phút","fill:var(--muted)"))+K.g("only3",tx(385,84,"Giữ bởi lần 08:00")+tx(385,108,"lần 08:20 bị chặn","fill:var(--bad)"))+K.g("on4",tx(385,84,"Hết hạn, tự nhả","fill:var(--ok);font-weight:700")+tx(385,108,"lần sau chạy được","fill:var(--muted)"))+
+  K.screen(540,30,164,100,"Việc nhặt")+K.g("only1",tx(622,92,"chờ xử lý","fill:var(--muted)"))+K.g("only2",tx(622,92,"đang xử lý"))+K.g("only3",tx(622,92,"đang xử lý"))+K.g("on4",tx(622,84,"không bị ai")+tx(622,108,"xử lý hai lần","fill:var(--ok)"))+
+  K.g("act",
+   K.g("only1",B("08:00 batch bắt đầu. Trước hết xin khóa của batch","b-pkt",182))+
+   K.g("only2",B("Được khóa. Việc nhặt đang được xử lý","b-ok",182))+
+   K.g("only3",B("08:20 lần chạy mới thấy khóa đang bận, thoát luôn","b-bad",182))+
+   K.g("only4",B("Nếu job chết, khóa tự hết hạn sau 45 phút, không treo mãi","b-ok",182)))),
+ cPkTask:()=>K.svg(
+  K.screen(16,24,180,106,"Việc #101")+K.g("off2",tx(106,84,"chưa có lượt","fill:var(--muted);font-size:20px"))+K.g("on2",tx(106,84,"thuộc lượt L1","fill:var(--ok);font-size:20px;font-weight:700"))+
+  K.node(280,22,150,46,"Lượt L1","","n-wes")+K.node(280,84,150,46,"Lượt L2","","n-wes")+K.dash(196,45,280,45)+K.dash(196,107,280,107)+
+  K.screen(520,24,184,106,"Kết quả gán việc")+K.g("off2",tx(612,84,"chờ…","fill:var(--muted)"))+K.g("only2",tx(612,76,"L1: 1 dòng được sửa")+tx(612,104,"nhận việc","fill:var(--ok)"))+K.g("on3",tx(612,76,"L2: 0 dòng được sửa","fill:var(--bad);font-weight:700")+tx(612,104,"đã có chủ","fill:var(--bad)"))+
+  K.g("act",
+   K.g("only1",B("Hai lượt cùng muốn nhận việc #101","b-pkt",176))+
+   K.g("only2",B("L1 gán việc nếu chưa có lượt: 1 dòng được sửa, nhận","b-ok",176))+
+   K.g("only3",B("L2 cùng lệnh đó: 0 dòng, vì việc đã có chủ","b-bad",176))+
+   K.g("only4",B("L2 bỏ việc này, tìm việc khác. Không việc nào có hai chủ","b-ok",176)+K.check(694,114)))),
+ cPkSkip:()=>K.svg(
+  K.screen(16,24,190,110,"Đơn đang xử lý")+tx(111,58,"Đơn 1: xong","fill:var(--ok)")+
+  K.g("off2",tx(111,84,"Đơn 2: đang xử lý"))+K.g("on2",tx(111,84,"Đơn 2: đã bị hủy","fill:var(--bad);font-weight:700"))+
+  K.g("off3",tx(111,110,"Đơn 3: chờ","fill:var(--muted)"))+K.g("on3",tx(111,110,"Đơn 3: xong","fill:var(--ok)"))+
+  K.node(280,44,140,50,"Batch","chạy lần lượt","n-wes")+K.dash(206,70,280,70)+K.dash(420,70,520,70)+
+  K.screen(520,24,184,110,"Nhật ký bỏ qua")+K.g("off3",tx(612,86,"trống","fill:var(--muted)"))+K.g("on3",tx(612,76,"Đơn 2: bỏ qua","fill:var(--bad)")+tx(612,102,"lý do: đã bị hủy"))+
+  K.g("act",
+   K.g("only1",B("Batch xử lý lần lượt từng đơn","b-pkt",176))+
+   K.g("only2",B("Đơn 2 vừa bị cửa hàng hủy giữa chừng","b-bad",176))+
+   K.g("only3",B("Bỏ qua đơn 2, ghi vào nhật ký, chạy tiếp đơn 3","b-pkt",176))+
+   K.g("only4",B("Batch không sập. Người vận hành xem nhật ký xử lý sau","b-ok",176)+K.check(694,114))))
+});
+var ANIMS={
+ cDec:["Nhân viên quét thùng C-9 và khay T-077 ở trạm đổ khay.","Trạm cân khay. Dưới 30 kg thì cho qua, trên 30 kg thì còi báo động.","API ghi: khay chứa áo này, 24 chiếc, đồng thời trừ 24 áo khỏi thùng.","Tồn đổi trạng thái từ thùng sang khay robot. Robot có thể đem đi cất."],
+ cDecLock:["Hai trạm cùng gửi lệnh đổ vào cùng một khay.","Trạm A giữ khóa độc quyền theo mã khay trước.","Trạm B bị từ chối vì khay đang bận. Không có gì bị ghi.","A xong thì nhả khóa. B được báo chọn khay khác."],
+ cDecRows:["Thùng còn 10 áo nhưng hai trạm cùng muốn lấy 8 áo.","Lệnh trừ chỉ chạy nếu số còn lại đủ. Trạm A đủ nên trừ được, còn 2.","Trạm B gửi lệnh tương tự, nhưng chỉ còn 2 nên không dòng nào được sửa.","API kiểm số dòng bằng 0 thì dừng và báo lỗi, không ghi khay, không để tồn âm."],
+ cDecRetry:["Trạm gửi lệnh đổ 24 áo kèm mã giao dịch. API xử lý xong.","Mạng chập chờn nên phản hồi bị mất. Trạm tưởng chưa xong.","Trạm gửi lại đúng mã giao dịch đó.","API nhận ra mã đã xử lý, trả kết quả cũ, không trừ lần hai."],
+ cPk:["Batch lấy các việc nhặt đã được chia hàng, nhóm theo dãy kệ.","Sắp thứ tự ô sao cho người nhặt đi một chiều, quãng đường ngắn nhất.","Cộng cân nặng. Chạm 150 kg thì cắt lượt, phần còn lại sang lượt mới.","Lưu lượt nhặt và đổi đơn sang trạng thái đã tạo lệnh nhặt."],
+ cPkLock:["Batch bắt đầu, việc đầu tiên là xin khóa batch.","Có khóa. Việc nhặt được xử lý.","Lần chạy thứ hai thấy khóa đang bận nên thoát, không chồng lên lần một.","Nếu lần một chết giữa chừng, khóa tự hết hạn sau 45 phút để không treo mãi."],
+ cPkTask:["Hai lượt nhặt cùng muốn nhận việc #101.","Lượt L1 gán việc với điều kiện việc chưa có lượt. Thành công, 1 dòng được sửa.","Lượt L2 chạy cùng lệnh nhưng việc đã có chủ nên 0 dòng được sửa.","L2 bỏ việc này và tìm việc khác. Không việc nào có hai chủ."],
+ cPkSkip:["Batch xử lý từng đơn một.","Đơn 2 bị cửa hàng hủy ngay trong lúc batch chạy.","Batch kiểm lại, bỏ qua đơn 2, ghi vào nhật ký rồi chạy tiếp đơn 3.","Batch không sập. Người vận hành xem nhật ký để xử lý sau."]};
+const TWO=[
+ {id:"api",flow:"Luồng 1 · Nhập kho",title:"API đổ khay: Register Receiving Inspection and Decanting Result",code:"RC_AP_0008_01/02",
+  one:"Hàng về theo thùng, nhưng robot kho chỉ làm việc với khay. API này ghi lại việc đổ áo từ thùng sang khay và đổi trạng thái tồn từ “thùng” sang “khay robot”.",
+  mem:["KHÓA: một khay một lúc một trạm","TRỪ CÓ ĐIỀU KIỆN: kiểm số dòng","LẶP KHÔNG TRÙNG: gửi lại an toàn","GÓI: tất cả trong một transaction"],
+  base:{k:"cDec",t:"Nó làm gì, từng bước",tag:"doc",n:"Trạm đổ khay gửi mã khay, mã thùng, mã áo, số chiếc, cân nặng. API kiểm khay hợp lệ và đang trống, kiểm cân nặng không quá 30 kg, ghi khay chứa áo gì, trừ khỏi thùng. Tồn chuyển từ trạng thái thùng sang khay robot."},
+  conc:[
+   {k:"cDecLock",t:"Hai trạm cùng một khay",tag:"doc",n:"Khóa độc quyền theo mã khay. Kiểm “khay đang trống” ngay trong cùng transaction.",say:"Em khóa theo mã khay để hai trạm không ghi chồng vào một khay."},
+   {k:"cDecRows",t:"Hai trạm cùng một thùng",tag:"ind",n:"Trừ có điều kiện, rồi kiểm số dòng được sửa. Bằng 0 thì dừng, báo lỗi, không ghi khay. Đây cũng là bài học của case kiện Retired.",say:"Em trừ có điều kiện và kiểm số dòng, để không bao giờ trừ âm."},
+   {k:"cDecRetry",t:"Mạng chập chờn, trạm gửi lại",tag:"ind",n:"Gửi lại không ghi trùng: cùng mã giao dịch thì trả kết quả cũ.",say:"Em thiết kế để gửi lại không ghi trùng, vì máy quét hay gửi lại khi mạng chập chờn."}]},
+ {id:"batch",flow:"Luồng 2 · Xuất B2B",title:"Batch tạo lệnh nhặt: Create Picking Instruction (Member)",code:"SP_BT_0031_02",
+  one:"Sau khi chia hàng cho đơn cửa hàng, batch gom các việc nhặt thành từng lượt cho xe đẩy: cùng dãy kệ, đi quãng ngắn nhất, không quá 150 kg mỗi lượt.",
+  mem:["KHÓA CÓ HẠN: hai lần chạy không chồng","GIÀNH MỘT LẦN: một việc một chủ","CHẠY LẠI ĐƯỢC: không tạo lượt trùng","BỎ QUA CÓ GHI: một dòng lỗi không sập cả batch"],
+  base:{k:"cPk",t:"Nó làm gì, từng bước",tag:"doc",n:"Gom việc theo dãy kệ, sắp thứ tự ô cho quãng đường ngắn nhất, cắt lượt khi chạm 150 kg, lưu lượt nhặt và đổi đơn sang đã tạo lệnh nhặt."},
+  conc:[
+   {k:"cPkLock",t:"Hai lần chạy chồng nhau",tag:"doc",n:"Batch Process Lock, có hạn tự hết (45 phút) để job chết cũng không treo mãi.",say:"Em dùng khóa batch có hạn tự hết để hai lần chạy không chồng nhau."},
+   {k:"cPkTask",t:"Một việc nhặt bị hai lượt giành",tag:"ind",n:"Gán việc vào lượt chỉ khi việc chưa có lượt, rồi kiểm số dòng. Nếu chạy lại sau sự cố, chỉ chọn việc chưa có lượt nên không tạo lượt trùng.",say:"Em gán việc có điều kiện và kiểm số dòng, nên không việc nào có hai chủ."},
+   {k:"cPkSkip",t:"Đơn bị hủy giữa chừng",tag:"ind",n:"Kiểm lại trạng thái lúc ghi. Bỏ qua dòng lỗi và ghi lại, không để một dòng làm sập cả batch.",say:"Dòng nào lỗi thì em bỏ qua và ghi lại, chứ không để cả batch sập."}]}
+];
+function render(){const el=$("#app");
+ el.innerHTML=`<div class="sec"><p>Cách học: xem mỗi hoạt họa một vòng (14 giây), che chú thích đi và tự kể lại bốn nhịp, rồi so với bản nói. Mỗi con có một câu thần chú bốn ý để nhớ nhanh. Nhãn <span class="tag doc">Tài liệu</span> là có trong file thiết kế, nhãn <span class="tag ind">Chuẩn ngành</span> là cách xử lý thường dùng mà tôi suy ra. Hãy chỉ nói như việc của mình nếu đúng với phần bạn làm.</p></div>`+
+ TWO.map(c=>`<section class="cs-sec" id="${c.id}"><p class="eyebrow">${c.flow} · ${c.code}</p><h2>${c.title}</h2><p>${c.one}</p>
+  <div class="mem">${c.mem.map((m,i)=>`<div class="memc"><b>${i+1}</b><span>${m}</span></div>`).join("")}</div>
+  <div class="blk"><h3>A. ${c.base.t} ${tag(c.base.tag)}</h3>${stageHTML(c.base.k,ANIMS[c.base.k])}<p>${c.base.n}</p></div>
+  ${c.conc.map((x,i)=>`<div class="blk"><h3>${"BCD"[i]}. Chạy cùng lúc: ${x.t} ${tag(x.tag)}</h3>${stageHTML(x.k,ANIMS[x.k])}<p>${x.n}</p><p class="say">Câu nói: “${x.say}”</p></div>`).join("")}
+  </section>`).join("");
+ bindStages(el)}
+
+function stageHTML(key,caps){return `<div class="stage" data-stage="${key}"><div class="stage-scroll" data-scene>${SCENES[key]()}</div>
+ <ol class="caps">${caps.map((c,k)=>`<li style="--cap:cap${k+1}"><b>${k+1}</b><span>${c}</span></li>`).join("")}</ol>
+ <div class="stage-bar"><span class="muted" style="font-size:13.5px">Hoạt họa lặp lại. Dòng đang sáng là việc đang diễn ra.</span><span class="row"><button class="btn sm" data-pause>Tạm dừng</button><button class="btn sm" data-replay>Phát lại từ đầu</button></span></div></div>`}
+function bindStages(root){$$("[data-stage]",root).forEach(st=>{if(st.dataset.bound)return;st.dataset.bound="1";const pb=$("[data-pause]",st);
+ pb.onclick=()=>{const p=st.classList.toggle("paused");pb.textContent=p?"Chạy tiếp":"Tạm dừng"};
+ $("[data-replay]",st).onclick=()=>{st.classList.remove("paused");pb.textContent="Tạm dừng";$("[data-scene]",st).innerHTML=SCENES[st.dataset.stage]();const c=$(".caps",st);c.innerHTML=c.innerHTML}})}
+(function(){const R=document.documentElement,b=$("#theme-b"),mq=window.matchMedia?matchMedia("(prefers-color-scheme: dark)"):null;
+ const isDark=()=>R.dataset.theme?R.dataset.theme==="dark":!!(mq&&mq.matches);
+ const paint=()=>{b.textContent=isDark()?"Giao diện sáng":"Giao diện tối"};
+ const saved=store.get("kho-theme",null);if(saved==="dark"||saved==="light")R.dataset.theme=saved;
+ b.onclick=()=>{const t=isDark()?"light":"dark";R.dataset.theme=t;store.set("kho-theme",t);paint()};
+ if(mq&&mq.addEventListener)mq.addEventListener("change",paint);paint()})();
+
+render();
+
+</script>
+
+
+</body></html>

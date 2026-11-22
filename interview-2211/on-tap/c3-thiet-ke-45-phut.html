@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>C3 · Đề thiết kế 45 phút</title><meta name="description" content="8 đề: media ngắn, feed, nhắn tin, push 50M, bộ đếm + top video, rút gọn link, rate limiter gateway, lưu trữ tệp."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">C · Use case &amp; system design</p><h1>C3 · Đề thiết kế 45 phút</h1><p class="lede">Mỗi đề là một <b>dàn ý để tự luyện với đồng hồ</b>: 5′ làm rõ · 5′ ước lượng · 15′ thiết kế tổng thể · 15′ đào sâu 1–2 điểm nghẽn · 5′ vận hành và mở rộng. Đọc dàn ý, rồi tắt đi và tự vẽ lại trên giấy.</p><div class="mast-meta"><span>8 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q121">121</a><a href="#q122">122</a><a href="#q123">123</a><a href="#q124">124</a><a href="#q125">125</a><a href="#q126">126</a><a href="#q127">127</a><a href="#q128">128</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<div class="intro-box"><p><b>Khung vẽ chung:</b> Client → CDN → Load balancer / API gateway (auth, rate limit) → các service không trạng thái → cache (Redis) → DB chính (+ replica) · Kafka cho việc bất đồng bộ · Object storage cho file · Worker. Sau đó chỉ ra <b>đường đọc nóng</b> và <b>đường ghi nóng</b>, rồi đào sâu đúng hai chỗ đó.</p></div>
+<article class="qa" id="q121" data-q="q121">
+<div class="qa-h"><span class="qa-n">121</span><h3>Thiết kế hệ thống đăng và xem ảnh/video ngắn (Zalo Media).</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> đăng ảnh và video ngắn (≤ 60 giây), xem trong feed và trang cá nhân, like/bình luận cơ bản. Ưu tiên: xem nhanh, mượt trên mạng di động. Giả định 10M DAU, mỗi người xem 50 media, đăng 0,5 media/ngày.</p>
+<p><b>Ước lượng:</b> đọc ~6.000/s TB, đỉnh ~30.000/s; ghi ~60/s. Video 720p 60s ≈ 10 MB, nhiều độ phân giải ≈ 25 MB/video → 5 × 10⁶ × 25 MB ≈ <b>125 TB/ngày</b> (nếu toàn video) → object storage + lớp lạnh. Băng thông đỉnh hàng trăm Gbps → <b>CDN là trung tâm</b>.</p>
+<p><b>Thiết kế:</b></p>
+<ul><li><b>Upload:</b> API cấp presigned URL multipart → client upload thẳng lên object storage → sự kiện → hàng đợi transcode → worker tạo HLS nhiều mức, thumbnail, kiểm duyệt → <code>media.status = READY</code>.</li><li><b>Xem:</b> metadata qua Media API (cache Redis); video qua <b>CDN</b> với HLS, player chọn mức theo băng thông.</li><li><b>Dữ liệu:</b> <code>media(id, owner_id, status, urls, created_at)</code> trong PostgreSQL shard theo <code>owner_id</code> hoặc NoSQL; like/bình luận như C1.</li></ul>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Transcode:</b> tốn CPU/GPU nhất; hàng đợi ưu tiên (người nhiều follower trước), autoscale worker theo độ dài hàng đợi, job idempotent theo media_id; tạo trước bản 360p để đăng nhanh, bản cao làm sau.</li><li><b>Phát mượt:</b> đoạn HLS 2–4 giây, CDN cache theo segment, <b>prefetch</b> vài giây đầu video tiếp theo trong feed.</li></ol>
+<p><b>Vận hành:</b> đo thời gian từ upload tới READY, tỉ lệ rebuffer, CDN hit ratio; chi phí lưu trữ và băng thông là chi phí lớn nhất → lifecycle, nén AV1/HEVC cho video phổ biến.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Video bị xem nhiều đột biến?</summary><div class="a"><p>CDN gánh; origin shield (một tầng cache trung gian) để nhiều edge miss cùng lúc không đánh thẳng vào storage.</p></div></details></div>
+</article>
+<article class="qa" id="q122" data-q="q122">
+<div class="qa-h"><span class="qa-n">122</span><h3>Thiết kế nhật ký/timeline bạn bè (feed) với like và bình luận.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> nhật ký bạn bè: bài viết (chữ, ảnh), like, bình luận; feed sắp theo thời gian (có thể chấm điểm sau). Giả định 20M DAU, mỗi người 200 bạn, đăng 1 bài/ngày, mở feed 10 lần/ngày.</p>
+<p><b>Ước lượng:</b> đăng ~230/s; đọc feed 2 × 10⁸/ngày ≈ 2.300/s, đỉnh ~12.000/s. Fan-out on write: 230 × 200 = <b>46.000 lần ghi hộp feed/s</b> → chấp nhận được với Redis/Cassandra.</p>
+<p><b>Thiết kế:</b></p>
+<ul><li><b>Post service:</b> lưu bài (DB shard theo <code>author_id</code>), phát sự kiện qua outbox → Kafka.</li><li><b>Fan-out worker:</b> đọc danh sách bạn (Graph service), ghi <code>post_id</code> vào <b>hộp feed</b> từng người (Redis ZSet score = thời gian, giữ 500 mục mới nhất; bản bền ở Cassandra).</li><li><b>Feed service:</b> đọc hộp feed → lấy nội dung bài theo lô từ <b>cache bài viết</b> → lấy số like/comment từ bộ đếm → trả kèm cursor.</li><li><b>Like/bình luận:</b> bảng nguồn unique + bộ đếm gộp (như C1). Bình luận shard theo <code>post_id</code>, phân trang keyset.</li></ul>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Người có rất nhiều bạn/follower:</b> hybrid, không push, kéo khi đọc và trộn.</li><li><b>Đọc hộp feed rồi lấy 20 bài:</b> multi-get từ Redis, bài thiếu thì đọc DB theo lô; tránh N+1.</li></ol>
+<p><b>Vận hành:</b> độ trễ từ lúc đăng tới lúc xuất hiện trong feed bạn bè (fan-out lag), p99 mở feed; quyền riêng tư (bài chỉ bạn bè, chặn) kiểm tra lúc đọc.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Xếp hạng feed thay vì theo thời gian?</summary><div class="a"><p>Gom ứng viên (vài trăm bài) từ hộp feed + nguồn kéo, chấm điểm bằng mô hình (tương tác, độ mới, quan hệ), cache kết quả ngắn hạn.</p></div></details></div>
+</article>
+<article class="qa" id="q123" data-q="q123">
+<div class="qa-h"><span class="qa-n">123</span><h3>Thiết kế hệ thống nhắn tin 1–1 và nhóm, lưu lịch sử, đồng bộ đa thiết bị.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> 1–1 và nhóm (tối đa vài trăm người), lưu lịch sử, đồng bộ nhiều thiết bị, trạng thái đã gửi/đã nhận/đã xem. Giả định 5M DAU × 40 tin (C2: ~25k tin/s đỉnh).</p>
+<p><b>Thiết kế:</b></p>
+<ul><li><b>Kết nối:</b> client giữ <b>WebSocket</b> tới <b>Gateway</b> (giữ hàng trăm nghìn kết nối mỗi node, không trạng thái nghiệp vụ). Bảng <b>presence</b> trong Redis: <code>user → gateway node, thiết bị</code>.</li><li><b>Gửi:</b> client gửi tin kèm <code>client_msg_id</code> → Chat service gán <code>message_id</code> (Snowflake), <b>ghi vào Message store</b> (Cassandra, partition <code>(conversation_id, bucket)</code>) → trả ack “đã gửi” → phát sự kiện vào Kafka (key = conversation_id để giữ thứ tự).</li><li><b>Giao:</b> Delivery worker tra thành viên và presence; online thì đẩy qua gateway node của từng thiết bị; offline thì gửi <b>push notification</b>.</li><li><b>Đồng bộ đa thiết bị:</b> mỗi thiết bị nhớ mốc đồng bộ cuối; kết nối lại thì xin “tin sau mốc” theo từng hội thoại, hoặc một <b>inbox theo user</b> có số thứ tự tăng dần.</li><li><b>Đã nhận/đã xem:</b> lưu con trỏ <code>last_read_message_id</code> theo (user, conversation), không lưu trạng thái từng tin cho từng người.</li></ul>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Không trùng, không mất:</b> client retry với cùng <code>client_msg_id</code> → unique trên <code>(conversation_id, client_msg_id)</code>; ack chỉ gửi sau khi ghi bền.</li><li><b>Nhóm lớn:</b> fan-out bằng worker; nhóm cực lớn (kênh) chuyển sang mô hình kéo.</li></ol>
+<p><b>Vận hành:</b> số kết nối mỗi gateway, độ trễ gửi-nhận p99, deploy gateway phải drain kết nối từ từ để client kết nối lại không dồn một lúc.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Gateway node chết?</summary><div class="a"><p>Client tự kết nối lại (backoff + jitter) vào node khác, presence cập nhật, đồng bộ lại từ mốc cuối nên không mất tin.</p></div></details></div>
+</article>
+<article class="qa" id="q124" data-q="q124">
+<div class="qa-h"><span class="qa-n">124</span><h3>Thiết kế hệ thống thông báo đẩy cho 50 triệu thiết bị.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> gửi thông báo đẩy tới 50M thiết bị; hai loại: <b>giao dịch</b> (tin nhắn, OTP, độ trễ vài giây) và <b>broadcast</b> (chiến dịch tới hàng chục triệu, trong vòng 30–60 phút). Không gửi trùng, tôn trọng cài đặt người dùng.</p>
+<p><b>Ước lượng:</b> broadcast 50M trong 30 phút ≈ <b>28.000 thông báo/s</b>; giao dịch đỉnh vài nghìn/s. Bảng thiết bị: 50M × ~300 byte = 15 GB.</p>
+<p><b>Thiết kế:</b> (mở rộng từ Notification Hub)</p>
+<ul><li><b>Notification API:</b> nhận yêu cầu + idempotency key, kiểm tra cài đặt, ghi nhận, đẩy Kafka theo ưu tiên.</li><li><b>Device registry:</b> <code>user → [device token, nền tảng, app version]</code>, cập nhật khi app mở; token hỏng thì xóa.</li><li><b>Broadcast planner:</b> chia tập người nhận thành lô (theo khoảng user_id), đẩy vào topic <code>low</code> với tốc độ được điều tiết.</li><li><b>Sender workers theo nền tảng:</b> APNs (HTTP/2, nhiều stream một kết nối), FCM; giữ kết nối lâu, gửi theo lô.</li><li><b>Retry topic có trễ, DLQ, circuit breaker</b> theo nhà cung cấp; rate limit theo hạn mức nhà cung cấp.</li><li><b>Ghi nhận kết quả</b> (gửi được, token hỏng, đã mở) vào kho phân tích qua Kafka.</li></ul>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Không trùng khi worker chết giữa lô:</b> bảng <code>(campaign_id, device_id)</code> unique hoặc bitmap đã gửi theo chiến dịch; tiếp tục từ lô dở.</li><li><b>Broadcast không làm chậm OTP:</b> topic và worker pool tách biệt, hạn mức riêng.</li></ol>
+<p><b>Vận hành:</b> tốc độ gửi theo thời gian, tỉ lệ lỗi theo nhà cung cấp, độ trễ của luồng giao dịch, số token hỏng.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Lên lịch gửi theo múi giờ người dùng?</summary><div class="a"><p>Planner chia theo múi giờ, tạo các đợt đúng giờ địa phương; dùng scheduler bền (bảng lịch + worker quét) thay vì timer trong bộ nhớ.</p></div></details></div>
+</article>
+<article class="qa" id="q125" data-q="q125">
+<div class="qa-h"><span class="qa-n">125</span><h3>Thiết kế bộ đếm lượt xem thời gian thực và bảng xếp hạng top video.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> đếm lượt xem video gần thời gian thực (trễ vài giây), bảng xếp hạng <b>top 100</b> theo giờ, ngày, toàn thời gian, có thể theo quốc gia. Lượt xem chấp nhận sai số nhỏ; chống lượt xem ảo cơ bản.</p>
+<p><b>Ước lượng:</b> 10⁹ lượt xem/ngày → ~12.000/s TB, đỉnh ~60.000/s.</p>
+<p><b>Thiết kế:</b></p>
+<ul><li><b>Ingest:</b> client gửi sự kiện xem (sau ≥ 3 giây xem) → API nhẹ → <b>Kafka</b> <code>view-events</code> (key = video_id).</li><li><b>Chống ảo:</b> lọc theo (user/thiết bị, video) trong cửa sổ ngắn bằng Redis <code>SET NX EX</code> hoặc Bloom filter theo khung giờ.</li><li><b>Gộp:</b> stream processor (Flink/Kafka Streams hoặc consumer tự viết) <b>gộp theo video theo cửa sổ 5–10 giây</b>, xả: <code>INCRBY views:{video}</code> và <code>ZINCRBY top:hour:{yyyyMMddHH} n video</code>.</li><li><b>Bảng xếp hạng:</b> Redis <b>ZSet</b> cho từng khung giờ; top ngày = <code>ZUNIONSTORE</code> 24 khung giờ (chạy định kỳ, cache kết quả); hết hạn khung cũ bằng TTL.</li><li><b>Bền vững:</b> số tổng xả định kỳ xuống DB; sự kiện thô lưu kho phân tích (để đối soát và tính lại).</li></ul>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Video viral (hot key):</b> gộp trước ở consumer (giảm số lệnh), tách counter thành nhiều key con.</li><li><b>Toàn thời gian với hàng trăm triệu video:</b> ZSet một key quá lớn → chỉ giữ ứng viên (video có lượt xem gần đây cao) hoặc tính top-K theo lô từ kho phân tích.</li></ol>
+<p><b>Vận hành:</b> độ trễ từ sự kiện tới số hiển thị (consumer lag), đối soát giữa số gộp và sự kiện thô, phát hiện tăng đột biến bất thường.</p></div>
+</article>
+<article class="qa" id="q126" data-q="q126">
+<div class="qa-h"><span class="qa-n">126</span><h3>Thiết kế dịch vụ rút gọn link / tạo mã mời với 100 triệu bản ghi.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> tạo link ngắn (và mã mời) cho URL dài; chuyển hướng nhanh; 100 triệu bản ghi; có hạn dùng tùy chọn; thống kê lượt bấm. Đọc:ghi rất lệch (100:1).</p>
+<p><b>Ước lượng:</b> 100M bản ghi × ~500 byte = <b>50 GB</b> → vừa một cụm PostgreSQL (có replica), cache phần nóng. Mã độ dài 7 ký tự base62: 62⁷ ≈ <b>3,5 × 10¹²</b> khả năng, dư rất nhiều.</p>
+<p><b>Sinh mã:</b></p>
+<ul><li><b>Bộ đếm tăng dần → base62:</b> không bao giờ trùng. Dùng <b>dải id cấp sẵn</b> cho mỗi instance (mỗi lần lấy 10.000 id từ DB/sequence) để không nghẽn. Nhược: đoán được mã kế tiếp → xáo trộn bằng phép hoán vị khả nghịch nếu cần khó đoán (quan trọng với <b>mã mời</b>).</li><li>Hoặc <b>ngẫu nhiên 7–8 ký tự</b> + unique constraint, đụng thì sinh lại (xác suất cực thấp).</li><li>Tránh hash(URL) cắt ngắn: dễ đụng, và cùng URL của hai người dùng có thể cần hai mã khác.</li></ul>
+<p><b>Đường đọc:</b> <code>GET /{code}</code> → cache cục bộ → Redis → DB → trả <b>301</b> (trình duyệt cache, nhẹ server) hoặc <b>302</b> (đếm được mọi lượt bấm). Thống kê: đẩy sự kiện bấm vào Kafka, gộp bất đồng bộ, không ghi DB trên đường chuyển hướng.</p>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Cache:</b> quy luật 80/20, link mới tạo hay được bấm nhiều; mã không tồn tại thì cache rỗng (chống penetration).</li><li><b>Lạm dụng:</b> quét URL độc hại khi tạo, rate limit tạo link, mã mời có hạn dùng và số lần dùng (<code>UPDATE … SET used = used + 1 WHERE used &lt; max_uses</code>).</li></ol>
+<p><b>Vận hành:</b> p99 chuyển hướng, hit ratio, job dọn link hết hạn.</p></div>
+</article>
+<article class="qa" id="q127" data-q="q127">
+<div class="qa-h"><span class="qa-n">127</span><h3>Thiết kế rate limiter dùng chung cho toàn bộ API gateway.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> rate limiter dùng chung cho mọi API sau gateway; luật theo API key/user/IP và theo endpoint; cấu hình thay đổi được không cần deploy; thêm độ trễ dưới 1–2 ms; gateway có hàng chục instance, tổng 500.000 rps.</p>
+<p><b>Thiết kế:</b></p>
+<ul><li><b>Rule store:</b> luật trong DB/config service (<code>key_type, endpoint, limit, window, burst</code>), gateway nạp và <b>cache cục bộ</b>, nghe sự kiện thay đổi.</li><li><b>Bộ đếm:</b> <b>Redis Cluster</b>, key <code>rl:{rule}:{subject}</code>, <b>token bucket</b> viết bằng <b>Lua</b> (đọc token còn lại và thời điểm nạp cuối, tính token mới, trừ, ghi, đặt TTL) → một vòng mạng, nguyên tử.</li><li><b>Giảm tải Redis:</b> với ngưỡng lớn, mỗi gateway giữ <b>hạn mức cục bộ</b> và đồng bộ theo lô mỗi 100–500 ms (chấp nhận sai số nhỏ); chỉ dùng Redis từng request cho luật nhạy cảm (đăng nhập, OTP).</li><li><b>Phản hồi:</b> 429 + <code>Retry-After</code> + header còn lại.</li></ul>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Redis chậm hoặc chết:</b> timeout rất ngắn (vài ms), <b>fail-open</b> về giới hạn cục bộ thô của từng instance (tổng ngưỡng chia số instance); luật bảo vệ chi phí thì fail-closed.</li><li><b>Hot key</b> (một API key cực lớn): token bucket phân tầng: cấp cho mỗi gateway một “phần token” theo lô thay vì trừ từng token ở Redis.</li></ol>
+<p><b>Vận hành:</b> số request bị chặn theo luật, độ trễ thêm của limiter, có <b>chế độ dry-run</b> (chỉ log, không chặn) khi thử luật mới.</p></div>
+</article>
+<article class="qa" id="q128" data-q="q128">
+<div class="qa-h"><span class="qa-n">128</span><h3>Thiết kế hệ thống lưu trữ và chia sẻ tệp (giống Zalo Cloud).</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">45 phút · dàn ý</span></p><p><b>Làm rõ:</b> người dùng tải lên, tải xuống, chia sẻ tệp (ảnh, tài liệu, video), xem trên nhiều thiết bị; hạn mức dung lượng; tệp tới vài GB; chia sẻ bằng link hoặc cho người cụ thể.</p>
+<p><b>Ước lượng:</b> 10M người dùng hoạt động, trung bình 2 GB → <b>20 PB</b> → object storage, chống trùng lặp và lớp lạnh là bắt buộc về chi phí.</p>
+<p><b>Thiết kế:</b></p>
+<ul><li><b>Metadata service</b> (PostgreSQL shard theo <code>owner_id</code>): cây thư mục <code>file(id, owner_id, parent_id, name, size, content_hash, version, status)</code>, quyền chia sẻ <code>share(file_id, grantee, role)</code>.</li><li><b>Upload:</b> chia <b>chunk 4–8 MB</b>, mỗi chunk có hash → hỏi server chunk nào đã có (<b>dedup theo nội dung</b>, kể cả giữa người dùng) → upload phần thiếu qua presigned URL → commit tạo phiên bản mới. Đứt mạng thì tiếp tục từ chunk dở.</li><li><b>Download / xem:</b> URL có ký, qua CDN; ảnh/video tạo bản xem trước bằng worker.</li><li><b>Đồng bộ thiết bị:</b> <b>change log</b> theo user (số thứ tự tăng), thiết bị hỏi “thay đổi sau mốc X”; đẩy thông báo qua kết nối dài để thiết bị biết có thay đổi.</li><li><b>Hạn mức:</b> cập nhật dung lượng đã dùng nguyên tử khi commit (<code>UPDATE … WHERE used + :size &lt;= quota</code>).</li></ul>
+<p><b>Đào sâu:</b></p>
+<ol><li><b>Xung đột khi hai thiết bị sửa cùng tệp offline:</b> dựa trên version; không ghi đè mà tạo “bản xung đột” cho người dùng chọn.</li><li><b>Xóa:</b> thùng rác 30 ngày; xóa thật thì giảm <b>số tham chiếu</b> của chunk, chunk về 0 mới xóa khỏi storage (job dọn rác).</li></ol>
+<p><b>Vận hành:</b> chi phí lưu trữ theo lớp, tỉ lệ dedup, thời gian đồng bộ; bảo mật link chia sẻ (hạn dùng, mật khẩu), quét mã độc.</p></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet C3 · 8 đề</h2><span>C3</span></div><div class="cheat-b"><div><h4>Nhịp 45 phút</h4>
+<ul><li>5′ làm rõ · 5′ ước lượng · 15′ tổng thể · 15′ đào sâu 2 điểm · 5′ vận hành</li><li>Luôn chỉ ra đường đọc nóng và đường ghi nóng</li></ul></div><div><h4>Media ngắn</h4>
+<ul><li>Presigned multipart → transcode HLS → CDN; 360p trước</li><li>Đào sâu: hàng đợi transcode, prefetch</li></ul></div><div><h4>Feed</h4>
+<ul><li>Outbox → Kafka → fan-out vào ZSet; hybrid cho người nổi tiếng</li><li>Multi-get bài theo lô</li></ul></div><div><h4>Nhắn tin</h4>
+<ul><li>WebSocket gateway + presence Redis</li><li>message_id Snowflake, Cassandra (conv, bucket); client_msg_id unique</li><li>Con trỏ last_read; đồng bộ từ mốc</li></ul></div><div><h4>Push 50M</h4>
+<ul><li>Planner chia lô, topic tách ưu tiên, APNs/FCM HTTP/2</li><li>(campaign, device) unique; retry topic, DLQ, breaker</li></ul></div><div><h4>Đếm &amp; top</h4>
+<ul><li>Kafka → gộp cửa sổ 5–10 s → INCRBY + ZINCRBY theo giờ</li><li>ZUNIONSTORE cho ngày; chống ảo bằng SET NX EX</li></ul></div><div><h4>Link ngắn</h4>
+<ul><li>Dải id + base62 (7 ký tự = 3,5 × 10¹²); 301 vs 302</li><li>Mã mời: khó đoán, hạn dùng, <code>used &lt; max_uses</code></li></ul></div><div><h4>Rate limiter &amp; lưu trữ tệp</h4>
+<ul><li>Token bucket Lua trên Redis Cluster + hạn mức cục bộ; fail-open; dry-run</li><li>Chunk + hash dedup, change log đồng bộ, đếm tham chiếu khi xóa</li></ul></div></div></section>
+</main>
+</body></html>

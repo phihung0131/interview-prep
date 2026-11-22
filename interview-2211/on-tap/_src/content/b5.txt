@@ -1,0 +1,159 @@
+@page b5
+@file b5-rest-http-mang.html
+@code B5
+@group B
+@title REST, HTTP, mạng, bảo mật
+@desc Thiết kế REST, idempotency key, HTTP/1.1–3, gõ URL, TCP, JWT/OAuth2, lỗi bảo mật API.
+@lede JD ghi RESTful API, HTTP, TCP/IP, authentication. Trả lời ngắn gọn có cấu trúc, mỗi câu thêm một ví dụ API thật bạn đã viết (API đổ khay trả 409 TOTE_OVERLOAD).
+
+@q 82
+@time khoảng 90 giây
+@ans
+**URL là danh từ, số nhiều, phân cấp theo quan hệ:** `GET /users/42/posts`, không dùng `/getPosts`. Hành động không hợp CRUD thì dùng tài nguyên con: `POST /orders/7/cancel`.
+
+**Phương thức:**
+| | Ý nghĩa | Idempotent |
+|---|---|---|
+| GET | đọc | Có (và safe) |
+| POST | tạo, hành động | **Không** |
+| PUT | thay toàn bộ | Có |
+| PATCH | sửa một phần | Không bắt buộc |
+| DELETE | xóa | Có (xóa lần 2 kết quả vẫn là “không còn”) |
+
+**Mã trạng thái:** 200, 201 (kèm `Location`), 204; 400 dữ liệu sai, 401 chưa xác thực, 403 không có quyền, 404, **409 xung đột trạng thái** (như khay quá tải ở WMS), 422 sai nghiệp vụ, 429 quá giới hạn; 500 lỗi server, 502/503/504 lỗi phía sau. **4xx là lỗi của client, không retry; 5xx và 429 có thể retry.**
+
+**Lỗi rõ ràng:** body thống nhất `{code, message, details, traceId}`, mã lỗi máy đọc được (`TOTE_OVERLOAD`) để client xử lý, không dựa vào message.
+
+**Versioning:** `/v1/…` trên URL là đơn giản và dễ thấy nhất; thay đổi tương thích (thêm trường) không cần lên version.
+
+**Phân trang:** cursor (`?limit=20&cursor=…`) cho dữ liệu lớn, trả `nextCursor`; lọc và sắp xếp bằng query param.
+@fu PUT và PATCH khác nhau thế nào?
+PUT gửi toàn bộ tài nguyên, thiếu trường nghĩa là xóa trường đó. PATCH gửi phần thay đổi. Gửi PUT nhiều lần cùng nội dung cho cùng kết quả.
+@fu 401 và 403?
+401: chưa đăng nhập hoặc token hỏng, đăng nhập lại có thể được. 403: biết bạn là ai nhưng bạn không có quyền.
+
+@q 83
+@time khoảng 75 giây
+@ans
+Client sinh một **Idempotency-Key** (UUID) cho mỗi thao tác nghiệp vụ và gửi trong header; **retry thì gửi lại đúng key cũ**.
+
+Server:
+1. `INSERT INTO idempotency(key, user_id, request_hash, status) VALUES (…, 'PROCESSING')` với **unique constraint** trên `(user_id, key)`.
+2. Chèn được → xử lý nghiệp vụ, rồi lưu **mã trạng thái và body kết quả**, chuyển `COMPLETED`. Tốt nhất là trong **cùng transaction** với thao tác nghiệp vụ.
+3. Đụng unique → đã có:
+   - `COMPLETED`: trả lại **đúng kết quả đã lưu**, không làm lại.
+   - `PROCESSING`: request đầu còn chạy → trả 409 hoặc 425 “đang xử lý, thử lại sau”.
+   - `request_hash` khác → cùng key nhưng nội dung khác → 422, vì client dùng sai key.
+4. **TTL**: giữ key 24 giờ hoặc vài ngày rồi dọn bằng job.
+
+Lớp chặn thật là **unique constraint ở DB**, không phải “kiểm tra trước rồi chèn” (check-then-act). Notification Hub làm idempotency bằng upsert PostgreSQL đúng theo ý này.
+@fu Lưu idempotency key trong Redis được không?
+Được cho tốc độ (`SET key NX EX`), nhưng Redis có thể mất dữ liệu khi failover. Thao tác tiền hoặc gửi một lần thì giữ lớp cuối ở DB, cùng transaction với nghiệp vụ.
+@fu Server chết giữa chừng, key kẹt PROCESSING thì sao?
+Đặt thời hạn cho trạng thái PROCESSING (ví dụ quá 1 phút coi như hỏng, cho phép xử lý lại), và nghiệp vụ bên trong cũng nên idempotent.
+
+@q 84
+@time khoảng 75 giây
+@ans
+- **HTTP/1.1:** text, **keep-alive** dùng lại kết nối TCP, nhưng **một kết nối một request tại một thời điểm**; request sau chờ request trước (head-of-line blocking ở tầng HTTP). Trình duyệt mở 6 kết nối mỗi domain để chạy song song.
+- **HTTP/2:** nhị phân, **multiplexing** nhiều stream trên **một kết nối**, nén header (HPACK), ưu tiên stream. Hết HOL ở tầng HTTP, nhưng vẫn còn **HOL ở tầng TCP**: mất một gói thì mọi stream trên kết nối đó đứng chờ gửi lại. gRPC chạy trên HTTP/2.
+- **HTTP/3:** chạy trên **QUIC (UDP)**, mỗi stream tự phục hồi mất gói nên **hết HOL của TCP**; bắt tay kết hợp TLS 1.3 nhanh hơn (1-RTT, 0-RTT khi kết nối lại); **đổi mạng** (Wi-Fi sang 4G) không đứt kết nối. Hợp với mobile mạng chập chờn.
+
+**Độ trễ:** mở kết nối mới tốn DNS + TCP (1 RTT) + TLS 1.2 (2 RTT) hoặc TLS 1.3 (1 RTT). Ở mạng di động RTT 100 ms là vài trăm ms trước khi gửi byte đầu tiên. Vì vậy **tái sử dụng kết nối** (keep-alive, connection pool cho HTTP client giữa các service) quan trọng, và TLS session resumption giúp kết nối lại nhanh.
+@fu HTTP client giữa các service cần cấu hình gì?
+Connection pool có giới hạn, connect timeout và read timeout rõ ràng, keep-alive, và không tạo client mới cho mỗi request.
+
+@q 85
+@time khoảng 90 giây
+@ans
+1. **Phân tích URL**, kiểm tra cache của trình duyệt (HSTS, cache trang).
+2. **DNS:** cache trình duyệt → hệ điều hành → resolver của nhà mạng → root → TLD (.vn) → name server của domain. Có cache thì gần 0 ms, không thì 20–100 ms. Với site lớn, DNS trả IP của **CDN gần người dùng** nhất.
+3. **TCP handshake** SYN, SYN-ACK, ACK: 1 RTT.
+4. **TLS:** thỏa thuận khóa, kiểm tra chứng chỉ: TLS 1.3 là 1 RTT.
+5. **HTTP request** tới **CDN edge**: nếu nội dung tĩnh có sẵn thì trả luôn, vài chục ms. Không có thì CDN gọi về origin.
+6. Origin: **load balancer** → **API gateway** (xác thực, rate limit) → service → cache Redis → DB.
+7. **Response** về, trình duyệt parse HTML, tải CSS/JS/ảnh (nhiều request song song trên HTTP/2), dựng DOM, render.
+
+Chỗ cache ở mọi tầng: trình duyệt, DNS, CDN, cache ứng dụng, cache của DB. Với người dùng ở Việt Nam gọi server tại Việt Nam, RTT khoảng 10–30 ms; ra nước ngoài 150–250 ms, nên CDN và giảm số vòng mạng rất quan trọng.
+@fu Nếu trang chậm, đo từng giai đoạn ở đâu?
+Tab Network của trình duyệt (DNS, connect, TLS, TTFB, download), hoặc `curl -w` với `time_namelookup`, `time_connect`, `time_appconnect`, `time_starttransfer`. TTFB cao là server chậm; connect cao là mạng hoặc ở xa.
+
+@q 86
+@time khoảng 75 giây
+@ans
+**3-way handshake:** client SYN, server SYN-ACK, client ACK. Server giữ kết nối dở dang trong SYN queue, xong thì vào accept queue chờ ứng dụng nhận.
+
+**Đóng kết nối:** bên chủ động đóng gửi FIN, sau cùng rơi vào **TIME_WAIT** khoảng 2×MSL (Linux 60 giây) để gói muộn không lẫn vào kết nối mới.
+- **Nhiều TIME_WAIT** ở phía **client** (ví dụ service gọi service khác mà mỗi request mở kết nối mới): **cạn cổng tạm** (khoảng 28 nghìn cổng mặc định cho một cặp IP đích), lỗi không kết nối được. Sửa: **connection pool và keep-alive**, mở rộng dải cổng, `tcp_tw_reuse`.
+- **Nhiều CLOSE_WAIT**: bên kia đã đóng nhưng **ứng dụng của mình chưa gọi close**. Đây gần như luôn là **lỗi code**: quên đóng response, stream, connection. CLOSE_WAIT không tự hết.
+
+**Nghẽn khi nhiều kết nối:**
+- **File descriptor**: mỗi socket một fd; `ulimit -n` mặc định 1024 quá thấp cho server.
+- **Accept backlog** (`somaxconn`) đầy khi ứng dụng nhận không kịp.
+- Bộ nhớ cho buffer mỗi kết nối, số thread nếu mỗi kết nối một thread.
+
+Kiểm tra bằng `ss -s` và `ss -tan state close-wait`.
+@fu Vì sao bắt tay 3 bước mà không phải 2?
+Để cả hai bên xác nhận được số thứ tự ban đầu của nhau và rằng cả hai chiều đều thông, đồng thời tránh kết nối cũ bị trễ mở nhầm kết nối mới.
+
+@q 87
+@time khoảng 90 giây
+@ans
+- **Session:** server lưu phiên (trong Redis), client giữ **cookie session id**. Thu hồi dễ (xóa phiên), nhưng server có trạng thái, mỗi request phải tra.
+- **JWT:** token **tự chứa** thông tin (user id, quyền, hạn) được **ký**; service chỉ cần kiểm chữ ký bằng khóa công khai, **không tra DB** → hợp microservices, chịu tải tốt.
+- **OAuth2:** giao thức **ủy quyền**: ứng dụng bên thứ ba xin quyền truy cập thay người dùng (Authorization Code + PKCE cho app và web), còn OpenID Connect thêm lớp xác thực “đăng nhập bằng Google”.
+
+**Nhược điểm JWT:**
+1. **Khó thu hồi:** token còn hạn thì vẫn dùng được dù người dùng đã đăng xuất hoặc bị khóa.
+2. Payload **chỉ mã hóa base64**, ai cũng đọc được, không để dữ liệu nhạy cảm.
+3. Token to, gửi mỗi request. Phải kiểm chặt thuật toán (`alg: none`).
+
+**Thu hồi:**
+- **Access token ngắn hạn** (5–15 phút) + **refresh token** dài hạn lưu ở server, có thể thu hồi; **xoay vòng** refresh token mỗi lần dùng, phát hiện dùng lại thì hủy cả họ token.
+- **Danh sách chặn** theo `jti` hoặc `token_version` của user trong Redis, kiểm ở gateway cho trường hợp cần khóa ngay.
+@fu Lưu token ở đâu phía web?
+Cookie `HttpOnly; Secure; SameSite` chống XSS đọc token (nhưng cần chống CSRF). localStorage thì JavaScript đọc được, rủi ro XSS. Mobile dùng Keychain/Keystore.
+
+@q 88
+@time khoảng 90 giây
+@ans
+- **SQL injection:** ghép chuỗi vào SQL. Phòng: **prepared statement**, tham số hóa. Với MyBatis dùng `#{}` chứ **không dùng `${}`**; chỗ buộc phải động (tên cột sắp xếp) thì so với danh sách cho phép.
+- **IDOR (Broken Object Level Authorization):** `GET /orders/1002` và chỉ cần đổi số là xem được đơn người khác. Đây là lỗi số 1 của OWASP API. Phòng: **kiểm quyền ở mỗi tài nguyên** (đơn này có thuộc user này không), đưa `user_id` vào điều kiện truy vấn; id khó đoán chỉ là lớp phụ.
+- **Mass assignment:** bind thẳng JSON vào entity, client gửi thêm `"role":"ADMIN"`. Phòng: DTO riêng cho đầu vào.
+- **CSRF:** khi dùng cookie, trang lạ khiến trình duyệt gửi request kèm cookie. Phòng: `SameSite`, CSRF token. API dùng header Authorization thì ít bị.
+- **Lộ dữ liệu:** trả cả entity có hash mật khẩu, email người khác; log chứa token. Phòng: DTO đầu ra chỉ có trường cần, che dữ liệu nhạy cảm trong log.
+- **Thiếu giới hạn:** không rate limit đăng nhập (dò mật khẩu), không giới hạn kích thước trang. Phòng: rate limit, `limit` tối đa, timeout.
+- **SSRF:** server tải URL người dùng đưa (như Kestrel crawl link) có thể bị trỏ vào mạng nội bộ. Phòng: chặn IP nội bộ, danh sách domain cho phép.
+
+Cộng thêm HTTPS mọi nơi, quản lý secret ngoài code, cập nhật thư viện.
+@fu Kestrel nhận link do người dùng dán, em chống SSRF thế nào?
+[[Chỉ cho phép domain các trang tuyển dụng đã hỗ trợ]], phân giải DNS rồi chặn IP nội bộ, không theo redirect sang domain lạ, có timeout và giới hạn kích thước tải về.
+
+@cheat Cheat sheet B5 · REST, HTTP, mạng
+### REST
+- Danh từ số nhiều; hành động → tài nguyên con
+- GET/PUT/DELETE idempotent; POST không
+- 409 xung đột, 422 nghiệp vụ, 429 + Retry-After
+- Lỗi: `{code, message, traceId}`; 4xx không retry
+### Idempotency-Key
+- Unique (user, key) + status + lưu response
+- COMPLETED → trả lại; PROCESSING → 409; hash khác → 422
+- TTL 24h; lớp cuối ở DB
+### HTTP
+- 1.1: keep-alive, 1 request/kết nối
+- 2: multiplexing, HPACK, còn HOL của TCP
+- 3: QUIC/UDP, hết HOL, 0-RTT, đổi mạng không đứt
+- Kết nối mới: TCP 1 RTT + TLS 1.3 1 RTT
+### TCP
+- TIME_WAIT: bên chủ động đóng, cạn cổng → pool
+- CLOSE_WAIT: mình quên close → lỗi code
+- ulimit -n, somaxconn; `ss -s`
+### Auth
+- Session: thu hồi dễ, có trạng thái
+- JWT: stateless, khó thu hồi → access ngắn + refresh xoay vòng + blocklist
+- OAuth2 = ủy quyền; OIDC = đăng nhập
+### OWASP API
+- SQLi: `#{}` không `${}`
+- IDOR: kiểm quyền từng tài nguyên
+- Mass assignment, lộ dữ liệu → DTO
+- Rate limit, SSRF, secret ngoài code

@@ -1,0 +1,222 @@
+@page g
+@file g-tieng-anh-hoi-nguoc.html
+@code G
+@group G
+@title Tiếng Anh và câu hỏi ngược
+@desc 10 câu trả lời tiếng Anh (kèm ghi chú tiếng Việt) và 7 câu nên hỏi lại nhà tuyển dụng.
+@lede Câu trả lời tiếng Anh viết ở mức **B1–B2**: câu ngắn, từ thông dụng, có cấu trúc rõ. Đọc to, ghi âm, nghe lại. Phần **G2** là câu bạn hỏi lại: mỗi câu kèm lý do nên hỏi và điều cần nghe trong câu trả lời.
+@intro
+**Mẹo nói:** dùng từ nối để giữ cấu trúc – *First… Second… Finally…*, *The reason is…*, *As a result…*, *To sum up…*. Kể chuyện quá khứ thì dùng **quá khứ đơn** (*I found, I added, it reduced*). Nghe không rõ thì hỏi lại: *“Sorry, could you repeat the question?”* hoặc *“Do you mean… ?”* – hoàn toàn bình thường.
+
+@q 176
+@time about 90 seconds
+@ans
+Hi, I'm Hung, a **backend software engineer** with about **two years of experience**, mainly with **Java, Spring Boot and PostgreSQL**.
+
+**Currently**, I work at **FPT Software** on a **warehouse management system** for a global fashion retailer. It runs in about fifteen warehouses. I build APIs and batch jobs, and I focus on two things: **data consistency when many operations run at the same time**, and **query performance**. For example, I fixed a race condition where two stations could overload the same robot tote, and I reduced a scanning query from about one second to under one millisecond with the right index. I also helped build an **internal AI platform** that the whole team uses to review requirements and code.
+
+**Before that**, I was an intern at Apollogix, working on a transportation system for a port. **In my free time**, I built **Notification Hub**, an event-driven system with Kafka, gRPC and idempotent consumers.
+
+**I'm applying to Zalo** because I want to bring this foundation to a product with **millions of daily users**, where performance, caching and distributed systems are everyday problems. Thank you.
+@honest Thứ tự **hiện tại → quá khứ → vì sao Zalo**. Nhấn vào các cụm in đậm. “Idempotent” đọc /aɪˈdɛmpətənt/. Nói chậm, dừng sau mỗi đoạn.
+
+@q 177
+@time about 90 seconds
+@ans
+**The problem:** many services need to send notifications – push, email, SMS. If each service calls providers directly, we get duplicate code, no retry, and when a provider is slow, the caller becomes slow too.
+
+**The design:** services send a request to a **gateway**, then to an intake service. The intake service checks the tenant's quota and puts an event into **Kafka**. Sender services consume the events and call the providers. I used **gRPC** between internal services, **Redis** for rate limiting and caching, and **PostgreSQL** to store the results.
+
+**Key trade-offs:**
+- Kafka gives **durability and replay**, but it delivers **at least once**, so I made the consumers **idempotent** with a PostgreSQL upsert on a unique key. Duplicate messages are simply ignored.
+- Messages that fail too many times go to a **dead letter queue**, so one bad message does not block the others.
+- I used a **basic saga**: if sending fails permanently, the quota is given back.
+
+**Result:** it is a personal project, so I don't have production traffic, but I tested failure cases like killing a consumer and confirmed there were **no lost and no duplicate** notifications.
+@honest Khung **problem → architecture → trade-off → result**. Nói thật “personal project, no production traffic”. Xem câu 33–40 (trang A6) để trả lời các câu đào sâu bằng tiếng Việt trước.
+
+@q 178
+@time about 60 seconds
+@ans
+Imagine a **busy restaurant**. Waiters take orders from customers, but they don't cook. They put the order tickets on a **rail in the kitchen**. The cooks take tickets one by one and cook at their own speed.
+
+A **message queue** is that rail. One part of the system leaves a message, and another part picks it up later.
+
+**Why do we need it?**
+- **The waiter doesn't wait for the cook.** The customer gets a quick answer: “Your order is received.”
+- **During rush hour**, tickets pile up on the rail instead of being lost. The cooks catch up later.
+- **If one cook is sick**, the tickets are still there. Another cook can take them.
+- We can **add more cooks** when there are too many tickets.
+
+So a message queue makes the system **faster for users, safer during peaks, and more reliable when something breaks**.
+@honest Không dùng thuật ngữ (producer, consumer, broker). Ví dụ nhà hàng hoặc bưu điện đều được. Câu chốt tóm ba lợi ích.
+
+@q 179
+@time about 90 seconds
+@ans
+**Situation:** In our warehouse system, the robot station sometimes **rejected totes** because they were heavier than the 30 kg limit, but our system said they were fine.
+
+**Task:** I owned the API that records items put into totes, so I had to find the cause.
+
+**Action:** I checked the logs and saw that two stations had written to **the same tote within a few hundred milliseconds**. The code **read the weight, checked the limit, then wrote** – three separate steps. So both requests read 22 kg, both added 6 kg, and the tote became 34 kg. I **reproduced it** with an integration test: two threads started at the same moment on a real PostgreSQL database. Then I **combined the check and the write into one conditional update**. If no row was updated, the API returned a clear “tote overloaded” error.
+
+**Result:** The test ran hundreds of times without failing, and the problem **did not happen again** in production. I learned to look for **check-then-act** patterns whenever I see shared data.
+@honest STAR, **quá khứ đơn** xuyên suốt (*checked, saw, reproduced, combined*). Con số 22 + 6 + 6 = 34 làm câu chuyện dễ nhớ.
+
+@q 180
+@time about 60 seconds
+@ans
+A **database** is the **source of truth**. It stores data durably on disk, it supports transactions, and it is the place we trust.
+
+A **cache** is a **fast copy** of some data, usually in memory, like Redis. We use it because reading from memory is much faster than querying the database, and it reduces load on the database.
+
+**The main risk is stale data.** The database is updated, but the cache still has the old value, so users see wrong information. This happens because updating the database and the cache are **two separate steps**.
+
+**How I handle it:** update the database first, **then delete the cache key**, so the next read loads fresh data. I always set a **TTL**, so even if something goes wrong, old data expires. And for data that must be exact, like money or stock, I read from the database, not the cache.
+
+Other risks: if the cache goes down, all traffic hits the database at once, so we need protection like rate limits or circuit breakers.
+@honest Ba ý: **DB = nguồn sự thật**, **cache = bản sao nhanh**, **rủi ro = dữ liệu cũ** + cách xử lý. “Stale” đọc /steɪl/.
+
+@q 181
+@time about 60 seconds
+@ans
+First, I **listen** and make sure I understand their idea and the reason behind it. Often they see a problem I didn't see.
+
+Then I try to **move the discussion to data**, not opinions. We agree on criteria – for example correctness, performance, complexity and cost to operate – and compare both options. If possible, we do a **small test** or a quick benchmark.
+
+For example, a teammate wanted to use a Redis lock to fix a race condition. I suggested a conditional update in PostgreSQL. We compared them: both were correct, but mine had no extra infrastructure and held the lock for only a few milliseconds. We also wrote down **when we would change the decision**.
+
+If we still disagree, we ask the tech lead to decide. **Once the decision is made, I commit to it** and help make it work, even if it wasn't my idea.
+@honest Cụm khóa: *listen → criteria/data → small test → escalate → disagree and commit*.
+
+@q 182
+@time about 60 seconds
+@ans
+I'm interested in Zalo for two reasons.
+
+**First, the scale.** Zalo serves tens of millions of users in Vietnam, and Media – photos, videos, files – is where the traffic and data are the biggest. The problems in the job description, like **high throughput, low latency, caching and distributed systems**, are exactly what I want to work on next.
+
+**Second, the fit.** The team uses **Java, SQL, Redis and message queues**, which I use every day. In my current project I solved concurrency and query performance problems, and in my side project I built an event-driven system with Kafka. I believe I can contribute quickly and also learn a lot from engineers who have solved these problems at real scale.
+
+In short, I want to move from a complex but **medium-traffic** system to a **very high-traffic** product, and this role is the best place for that step.
+
+@q 183
+@time about 60 seconds
+@ans
+I use **three layers of protection**.
+
+**First, an idempotency key.** The client sends a unique key with each operation, for example in an `Idempotency-Key` header. When it retries, it sends **the same key**.
+
+**Second, a unique constraint in the database.** The server stores the key with a unique constraint and saves the result. If the same key comes again, the server **returns the saved result instead of doing the work again**. I don't rely on “check first, then insert”, because two requests can pass the check at the same time.
+
+**Third, the client retries correctly:** only for errors that are safe to retry, like timeouts or 503, not for 400 errors; with **exponential backoff and jitter**, so many clients don't retry at the same moment; and with a limit on the number of retries.
+
+In my Notification Hub, consumers are idempotent with a PostgreSQL upsert, so even if Kafka delivers a message twice, the user gets **only one notification**.
+
+@q 184
+@time about 90 seconds
+@ans
+I would go **step by step, from the big picture to the detail**.
+
+**Step one, metrics.** When did it start? Is it all endpoints or only one? Did it start right after a deployment? I look at **p99 latency, error rate, and saturation** like CPU, memory and the database connection pool. If it started after a deploy, I would **roll back first** to protect users.
+
+**Step two, traces.** I open a few slow requests in the tracing tool, like Datadog APM, and see **where the time goes**: the database, another service, or our own code.
+
+**Step three, slow queries.** If it's the database, I find the query and run **EXPLAIN ANALYZE**. Usually I see a missing index, a bad join, or an N+1 problem.
+
+**Step four, thread dumps.** If CPU is low but requests are slow, threads are probably **waiting** – for a lock or for a database connection. I take a few thread dumps with jstack and look for blocked threads.
+
+Then I fix the root cause, **measure again** to confirm, and add an alert or a test so it doesn't happen again.
+@honest Thứ tự **metrics → traces → slow query → thread dump → fix → measure**. Dùng *Step one, step two…* để người nghe theo kịp.
+
+@q 185
+@time about 60 seconds
+@ans
+**My strength** is finding the **real root cause** and **measuring before I change things**. For example, when an API was slow, I didn't guess. I used EXPLAIN ANALYZE, saw the database was reading ten million rows to return one, added a partial index, and measured the impact on both reads and writes.
+
+**My weakness** is that I used to **underestimate tasks that have many unknowns**, especially integrations with external systems. In my side project, the billing feature took almost twice as long as I planned. **To improve**, I now split work into small tasks of one or two days, I build a small prototype first for anything external, and I tell people early when I see a delay. My estimates are much more accurate now.
+@honest Giữ nhất quán với câu 167 (bản tiếng Việt). Điểm yếu phải là thật của bạn.
+
+@q 186
+@ans
+**Vì sao hỏi:** cho thấy bạn quan tâm bài toán thật, và giúp bạn biết mình sẽ làm gì.
+
+**Nghe gì:** con số cụ thể (QPS, dung lượng, số người dùng), thách thức là kỹ thuật (độ trễ, chi phí lưu trữ, migration) hay tổ chức. Nếu họ nói về một dự án lớn sắp tới, hỏi tiếp: “Một kỹ sư mới có thể đóng góp vào phần nào của dự án đó?”
+
+**Cách hỏi bằng tiếng Anh:** *“What is the current scale of the Media system, and what is the biggest technical challenge for the team in the next six months?”*
+
+@q 187
+@ans
+**Vì sao hỏi:** cho thấy bạn nghĩ tới việc đóng góp sớm và biết mình cần hỗ trợ.
+
+**Nghe gì:** có mentor/buddy không, có tài liệu onboarding không, việc đầu tiên là việc thật hay chỉ đọc tài liệu. Câu trả lời mơ hồ (“tự tìm hiểu”) là tín hiệu onboarding yếu.
+
+**Tiếng Anh:** *“What would a new engineer work on in the first three months, and how does the team support them?”*
+
+@q 188
+@ans
+**Vì sao hỏi:** hệ thống hàng triệu người dùng chắc chắn có sự cố; cách team xử lý cho thấy văn hóa kỹ thuật.
+
+**Nghe gì:** có lịch on-call rõ, có runbook, postmortem **không đổ lỗi** và có hành động theo dõi. Tần suất bị gọi ban đêm. Người mới bao lâu thì vào on-call, có đi kèm người có kinh nghiệm không.
+
+**Tiếng Anh:** *“How does the team handle incidents and on-call? Do you write postmortems?”*
+
+@q 189
+@ans
+**Vì sao hỏi:** cho thấy bạn quan tâm đo lường và chất lượng, đúng tinh thần JD.
+
+**Nghe gì:** có SLO cụ thể (ví dụ p99 dưới bao nhiêu ms), dashboard, alert theo SLO; review bao nhiêu người, deploy bao lâu một lần, có canary/feature flag, có CI test tự động. Không có số đo nào là tín hiệu cần hỏi thêm.
+
+**Tiếng Anh:** *“Which metrics does the team use for quality and performance, like SLOs or p99 latency? And what does the code review and deployment process look like?”*
+
+@q 190
+@ans
+**Vì sao hỏi:** biết công nghệ thật để chuẩn bị, và thấy hướng phát triển của hệ thống.
+
+**Nghe gì:** họ dùng gì cho lưu trữ (MySQL/PostgreSQL, Cassandra, hệ tự xây), cache, message queue (Kafka hay hệ riêng), object storage; có kế hoạch migration nào không. Nếu có hệ tự xây, đó là cơ hội học nhưng cần thời gian làm quen.
+
+**Tiếng Anh:** *“What technologies does the team use for storage, caching and messaging, and are there any plans to change them?”*
+
+@q 191
+@ans
+**Vì sao hỏi:** biết rõ tiêu chí đánh giá, cho thấy bạn hướng tới kết quả.
+
+**Nghe gì:** tiêu chí cụ thể – tự sở hữu một service, xử lý sự cố độc lập, đề xuất cải tiến có số đo – hay chung chung. Ghi lại để dùng cho kế hoạch 30-60-90 ngày.
+
+**Tiếng Anh:** *“What does success look like for someone in this role after one year?”*
+
+@q 192
+@ans
+**Vì sao hỏi:** cho bạn cơ hội **trả lời lo ngại ngay** thay vì để họ tự kết luận sau buổi phỏng vấn; cho thấy tự tin và cởi mở với phản hồi.
+
+**Chuẩn bị cách trả lời** cho các lo ngại dễ gặp:
+- *“Chưa làm hệ thống hàng triệu người dùng”* → thừa nhận + những gì chuyển được (đồng thời, tối ưu DB, Kafka/idempotency) + kế hoạch học (câu 166).
+- *“Kinh nghiệm phần lớn là outsourcing”* → em vẫn sở hữu API/batch, điều tra sự cố production, và chủ động xây nền tảng AI cho team.
+- *“Nhiều dự án AI, có thật muốn backend?”* → AI là công cụ; nền và phần nặng của mọi dự án là backend (câu 2).
+
+Trả lời ngắn, không phòng thủ, cảm ơn họ đã chia sẻ.
+
+**Tiếng Anh:** *“Is there anything in my background that makes you hesitate? I'd be happy to clarify.”*
+
+@cheat Cheat sheet G · Tiếng Anh & hỏi ngược
+### Khung trả lời tiếng Anh
+- Intro: now → before → why Zalo
+- Project: problem → design → trade-off → result
+- Story: STAR, past simple
+- Debug: metrics → traces → slow query → thread dump → fix → measure
+### Cụm dùng lại
+- *The reason is…* · *For example…* · *As a result…* · *To sum up…*
+- *source of truth* · *stale data* · *idempotent* · *at least once*
+- *check-then-act* · *conditional update* · *root cause* · *roll back*
+- *Sorry, could you repeat the question?*
+### Câu hỏi ngược (chọn 3–5)
+- Scale + biggest challenge in 6 months
+- First 3 months + support
+- Incidents, on-call, postmortems
+- SLO/p99, review, deploy
+- Storage/cache/messaging tech
+- Success after one year
+- *Anything that makes you hesitate?*
+### Tránh hỏi
+- Thứ có trên website, lương/thưởng ở vòng kỹ thuật
+- Không hỏi gì cả

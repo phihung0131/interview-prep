@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>B3 · SQL và PostgreSQL</title><meta name="description" content="B-tree, EXPLAIN, isolation, MVCC/VACUUM, khóa dòng, phân trang, N+1, thiết kế bảng, migration, pool."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">B · Kỹ thuật nền tảng</p><h1>B3 · SQL và PostgreSQL</h1><p class="lede">Đây là phần mạnh nhất của bạn nhờ WMS. Mỗi câu lý thuyết nên kèm một chi tiết thật: index partial cho quét thùng, conditional update cho khay, SKIP LOCKED cho batch nhặt.</p><div class="mast-meta"><span>10 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q63">63</a><a href="#q64">64</a><a href="#q65">65</a><a href="#q66">66</a><a href="#q67">67</a><a href="#q68">68</a><a href="#q69">69</a><a href="#q70">70</a><a href="#q71">71</a><a href="#q72">72</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q63" data-q="q63">
+<div class="qa-h"><span class="qa-n">63</span><h3>Index B-tree hoạt động thế nào? Composite index (a,b,c) dùng được khi nào (leftmost prefix)?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> thứ tự cột, range ở cột giữa chặn các cột sau.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>B-tree</b> là cây cân bằng, các khóa được <b>sắp xếp</b>; lá chứa giá trị khóa và con trỏ tới dòng (TID trong PostgreSQL), các lá nối với nhau nên quét khoảng rất nhanh. Tìm một giá trị là O(log n), chỉ vài lần đọc trang dù bảng hàng chục triệu dòng.</p>
+<p>Composite index <code>(a, b, c)</code> sắp theo a, trong cùng a thì theo b, rồi c. Giống danh bạ sắp theo họ, rồi tên. Nên:</p>
+<ul><li>Dùng tốt: <code>a = ?</code>, <code>a = ? AND b = ?</code>, <code>a = ? AND b = ? AND c = ?</code>, <code>a = ? ORDER BY b</code>.</li><li><b>Không dùng hiệu quả:</b> chỉ lọc <code>b</code> hoặc <code>c</code> (thiếu cột đầu, <b>leftmost prefix</b>).</li><li><b>Range ở cột giữa chặn các cột sau:</b> <code>a = ? AND b &gt; ? AND c = ?</code> thì index dùng a và b để khoanh vùng, nhưng c chỉ còn lọc từng dòng, không thu hẹp vùng quét.</li></ul>
+<p>Quy tắc sắp cột: <b>so sánh bằng trước, khoảng sau</b>; cột chọn lọc cao trước nếu cùng loại.</p>
+<p>Ví dụ WMS: tra thùng theo <code>carton_code</code> khi <code>status = 'EXPECTED'</code>. Trạng thái chỉ có vài giá trị nên em không cho nó làm cột đầu mà dùng <b>partial index</b> <code>ON asn_carton (carton_code) WHERE status = 'EXPECTED'</code>: index nhỏ và chỉ chứa thùng đang chờ nhận.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Covering index là gì?</summary><div class="a"><p>Index chứa đủ các cột query cần (PostgreSQL có <code>INCLUDE</code>), nên có Index Only Scan, không phải đọc bảng. Còn phụ thuộc visibility map, bảng được VACUUM tốt thì mới hiệu quả.</p></div></details><details class="fu"><summary>Khi nào index không được dùng?</summary><div class="a"><p>Bọc cột trong hàm (<code>lower(email)</code>, <code>date(created_at)</code>) mà không có expression index; <code>LIKE '%abc'</code>; kiểu dữ liệu không khớp gây ép kiểu; điều kiện lấy quá nhiều dòng thì Seq Scan rẻ hơn; thống kê cũ khiến planner ước lượng sai.</p></div></details></div>
+<div class="trap">Nói “index càng nhiều càng tốt”. Mỗi index làm chậm ghi và tốn chỗ.</div>
+</article>
+<article class="qa" id="q64" data-q="q64">
+<div class="qa-h"><span class="qa-n">64</span><h3>Đọc EXPLAIN ANALYZE: Seq Scan, Index Scan, Bitmap, Nested Loop, Hash Join; dấu hiệu nhận biết query tệ.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> rows ước tính khác thực tế, thời gian, số dòng lọc.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Em luôn chạy <code>EXPLAIN (ANALYZE, BUFFERS)</code> trên dữ liệu cỡ thật và đọc <b>từ trong ra ngoài</b>, từ node sâu nhất.</p>
+<ul><li><b>Seq Scan:</b> đọc cả bảng. Tốt với bảng nhỏ hoặc lấy phần lớn bảng; xấu khi <code>Rows Removed by Filter</code> rất lớn mà chỉ giữ vài dòng.</li><li><b>Index Scan:</b> đi index rồi đọc từng dòng; tốt khi lấy ít dòng.</li><li><b>Bitmap Index/Heap Scan:</b> gom vị trí từ index thành bitmap rồi đọc bảng theo thứ tự trang; hợp lấy lượng vừa, hoặc gộp nhiều index.</li><li><b>Nested Loop:</b> với mỗi dòng bên ngoài tra bên trong; tốt khi bên ngoài ít dòng và bên trong có index. Thảm họa khi bên ngoài hàng trăm nghìn dòng.</li><li><b>Hash Join:</b> dựng bảng băm từ bảng nhỏ, quét bảng lớn; tốt cho hai tập lớn so bằng.</li><li><b>Merge Join:</b> hai bên đã sắp xếp.</li></ul>
+<p><b>Dấu hiệu query tệ:</b></p>
+<ol><li><b>Ước lượng rows lệch xa thực tế</b> (ước 10, thực 500.000): planner chọn sai kế hoạch, thường do thống kê cũ (chạy <code>ANALYZE</code>) hoặc cột tương quan.</li><li><code>Rows Removed by Filter</code> lớn trên bảng to: thiếu index đúng.</li><li>Nested Loop với <code>loops</code> hàng trăm nghìn.</li><li><code>Sort Method: external merge Disk</code>: thiếu <code>work_mem</code> hoặc nên có index phục vụ ORDER BY.</li><li><code>Buffers: shared read</code> lớn: đọc đĩa nhiều.</li></ol>
+<p>Ở WMS, câu quét thùng trước tối ưu là Parallel Seq Scan bỏ khoảng 10 triệu dòng để giữ 1; sau khi thêm partial index là Index Scan rows=1.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>EXPLAIN và EXPLAIN ANALYZE khác nhau gì?</summary><div class="a"><p>EXPLAIN chỉ ước lượng, không chạy. ANALYZE chạy thật và cho số thật, nên với UPDATE/DELETE phải bọc trong transaction rồi ROLLBACK.</p></div></details><details class="fu"><summary>Làm sao biết query nào chậm trên production?</summary><div class="a"><p><code>pg_stat_statements</code> xếp theo tổng thời gian và thời gian trung bình; <code>log_min_duration_statement</code> ghi query chậm; <code>auto_explain</code> ghi kế hoạch của query chậm.</p></div></details></div>
+</article>
+<article class="qa" id="q65" data-q="q65">
+<div class="qa-h"><span class="qa-n">65</span><h3>Isolation level (Read Committed, Repeatable Read, Serializable): khác nhau gì, anomaly nào xảy ra?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> dirty/non-repeatable/phantom, mặc định Postgres, write skew.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Ba hiện tượng cần chặn:</p>
+<ul><li><b>Dirty read:</b> đọc dữ liệu giao dịch khác chưa commit.</li><li><b>Non-repeatable read:</b> đọc cùng dòng hai lần trong một giao dịch ra hai giá trị khác.</li><li><b>Phantom:</b> chạy cùng điều kiện hai lần ra tập dòng khác (có dòng mới chèn).</li></ul>
+<div class="tw"><table><thead><tr><th>Mức</th><th>Dirty</th><th>Non-repeatable</th><th>Phantom (PG)</th></tr></thead><tbody><tr><td>Read Committed (mặc định PG)</td><td>Không</td><td>Có</td><td>Có</td></tr><tr><td>Repeatable Read</td><td>Không</td><td>Không</td><td>Không (PG dùng snapshot)</td></tr><tr><td>Serializable</td><td>Không</td><td>Không</td><td>Không, chặn cả write skew</td></tr></tbody></table></div>
+<p>PostgreSQL <b>không có dirty read</b> ở mọi mức. Read Committed lấy snapshot <b>mỗi câu lệnh</b>; Repeatable Read lấy snapshot <b>một lần cho cả giao dịch</b>, nếu đụng dòng đã bị giao dịch khác sửa thì lỗi <code>40001</code> và phải thử lại.</p>
+<p><b>Write skew:</b> hai giao dịch đọc cùng dữ liệu, mỗi bên ghi vào <b>dòng khác nhau</b>, mỗi bên tự thấy hợp lệ nhưng gộp lại vi phạm quy tắc. Ví dụ quy tắc “ít nhất một bác sĩ trực”: hai bác sĩ cùng xin nghỉ, mỗi người thấy còn người kia. Repeatable Read không chặn được, chỉ Serializable (SSI) chặn, hoặc khóa rõ ràng.</p>
+<p>Thực tế em giữ Read Committed và giải tranh chấp ở <b>đúng câu lệnh</b>: conditional update, <code>SELECT … FOR UPDATE</code>, unique constraint. Nâng isolation cả hệ thống thì đắt và phải xử lý lỗi serialization ở mọi chỗ.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Lost update là gì, mức nào chặn được?</summary><div class="a"><p>Hai giao dịch cùng đọc rồi cùng ghi đè, mất một lần ghi. Trong PG, Repeatable Read phát hiện và báo lỗi; ở Read Committed phải dùng <code>UPDATE … SET x = x + 1</code>, FOR UPDATE hoặc optimistic version.</p></div></details><details class="fu"><summary>Dùng Serializable cần chuẩn bị gì?</summary><div class="a"><p>Code phải retry toàn bộ giao dịch khi gặp <code>40001</code>, giao dịch ngắn, và chấp nhận tỉ lệ hủy tăng khi tranh chấp cao.</p></div></details></div>
+</article>
+<article class="qa" id="q66" data-q="q66">
+<div class="qa-h"><span class="qa-n">66</span><h3>MVCC trong PostgreSQL là gì? VACUUM để làm gì? Bloat là gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> phiên bản dòng, dead tuple, autovacuum.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>MVCC</b> (multi-version concurrency control): PostgreSQL <b>không sửa dòng tại chỗ</b>. UPDATE tạo <b>phiên bản dòng mới</b> và đánh dấu bản cũ hết hạn (bằng <code>xmin</code>, <code>xmax</code> là id giao dịch). Mỗi giao dịch nhìn theo <b>snapshot</b> của nó, nên <b>đọc không chặn ghi, ghi không chặn đọc</b>.</p>
+<p>Hệ quả: bản cũ trở thành <b>dead tuple</b> khi không còn giao dịch nào cần. <b>VACUUM</b> dọn dead tuple để chỗ trống được dùng lại, cập nhật visibility map (cho Index Only Scan), và <b>đóng băng</b> id giao dịch cũ để tránh tràn vòng id giao dịch (wraparound). <code>autovacuum</code> chạy tự động theo tỉ lệ dòng thay đổi.</p>
+<p><b>Bloat:</b> bảng hoặc index phình to vì nhiều chỗ trống hoặc dead tuple chưa dọn. Bảng cập nhật nhiều mà autovacuum không theo kịp → quét chậm, tốn đĩa, cache kém.</p>
+<p>Nguyên nhân hay gặp: <b>giao dịch mở quá lâu</b> (kể cả <code>idle in transaction</code>) giữ snapshot cũ, VACUUM không dọn được gì sau mốc đó. Ở WMS bảng việc nhặt và tồn kho cập nhật liên tục, nên batch chia chunk và commit ngắn cũng là để không cản VACUUM.</p>
+<p>Xử lý: hạ <code>autovacuum_vacuum_scale_factor</code> cho bảng nóng, theo dõi <code>n_dead_tup</code> trong <code>pg_stat_user_tables</code>, đặt <code>idle_in_transaction_session_timeout</code>; bloat nặng thì <code>pg_repack</code> (không khóa lâu như <code>VACUUM FULL</code>).</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>HOT update là gì?</summary><div class="a"><p>Heap-only tuple: nếu UPDATE không đổi cột nào có index và trang còn chỗ, bản mới nằm cùng trang và không phải cập nhật index. Vì vậy tránh index cột hay đổi, và để <code>fillfactor</code> thấp hơn cho bảng cập nhật nhiều.</p></div></details></div>
+</article>
+<article class="qa" id="q67" data-q="q67">
+<div class="qa-h"><span class="qa-n">67</span><h3>SELECT FOR UPDATE, SKIP LOCKED, optimistic locking (version): dùng khi nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> hàng đợi công việc, tranh chấp cao hay thấp.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><ul><li><b><code>SELECT … FOR UPDATE</code> (pessimistic):</b> khóa dòng, giao dịch khác muốn sửa phải chờ. Dùng khi <b>tranh chấp cao</b> hoặc logic phải đọc rồi tính phức tạp mới ghi. Giữ giao dịch ngắn, kèm <code>lock_timeout</code> hoặc <code>NOWAIT</code>.</li><li><b><code>FOR UPDATE SKIP LOCKED</code>:</b> bỏ qua dòng đang bị khóa. Hợp cho <b>hàng đợi công việc</b>: nhiều worker cùng lấy việc, mỗi worker lấy những dòng chưa ai giữ, không đứng chờ nhau. Ở WMS, batch tạo lệnh nhặt lấy việc bằng SKIP LOCKED, dòng nào API đang giữ thì để vòng sau.</li></ul>
+<pre><code>SELECT task_id FROM picking_task
+ WHERE status = 'READY'
+ ORDER BY priority, task_id
+ LIMIT 100
+ FOR UPDATE SKIP LOCKED;</code></pre>
+<ul><li><b>Optimistic (cột <code>version</code>):</b> đọc không khóa, ghi kèm <code>WHERE version = :v</code>, cập nhật 0 dòng nghĩa là có người sửa trước, báo lỗi hoặc thử lại. Hợp khi <b>tranh chấp thấp</b> và đọc với ghi cách xa nhau, ví dụ người dùng mở form sửa vài phút rồi bấm lưu.</li><li><b>Conditional update:</b> điều kiện nghiệp vụ nằm luôn trong <code>WHERE</code> (khay ≤ 30 ký), nguyên tử, khóa dòng chỉ vài mili giây. Em ưu tiên khi quy tắc viết được trong một câu.</li></ul>
+<p>Tranh chấp cao mà dùng optimistic thì thử lại liên tục; tranh chấp thấp mà dùng FOR UPDATE thì chờ không cần thiết.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>SKIP LOCKED có nhược điểm gì?</summary><div class="a"><p>Không đảm bảo thứ tự tuyệt đối và kết quả không nhất quán theo snapshot, nên chỉ hợp cho hàng đợi. Không dùng cho báo cáo.</p></div></details><details class="fu"><summary>NOWAIT khác lock_timeout?</summary><div class="a"><p>NOWAIT báo lỗi ngay nếu dòng bị khóa. lock_timeout chờ tối đa một khoảng rồi báo lỗi.</p></div></details></div>
+</article>
+<article class="qa" id="q68" data-q="q68">
+<div class="qa-h"><span class="qa-n">68</span><h3>Phân trang: OFFSET và keyset pagination khác nhau thế nào ở bảng 100 triệu dòng?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> OFFSET quét bỏ dòng, keyset dùng index, hạn chế nhảy trang.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p><code>OFFSET 1.000.000 LIMIT 20</code>: DB vẫn phải <b>đọc và bỏ qua một triệu dòng</b> rồi mới trả 20 dòng. Trang càng sâu càng chậm, độ trễ tăng tuyến tính. Ngoài ra nếu giữa hai lần tải có dòng mới chèn, trang sau bị <b>trùng hoặc sót</b> dòng.</p>
+<p><b>Keyset (seek) pagination:</b> nhớ khóa của dòng cuối trang trước và lấy tiếp từ đó:</p>
+<pre><code>SELECT * FROM message
+ WHERE (created_at, id) &lt; (:last_created_at, :last_id)
+ ORDER BY created_at DESC, id DESC
+ LIMIT 20;</code></pre>
+<p>Có index <code>(created_at DESC, id DESC)</code> thì mọi trang đều <b>nhảy thẳng tới vị trí</b> trong index, nhanh như trang đầu, bảng 100 triệu dòng vẫn vài mili giây. Thêm <code>id</code> để phá trùng khi cùng thời điểm.</p>
+<p>Hạn chế: <b>không nhảy thẳng tới trang 57</b>, chỉ đi tiếp hoặc lùi; cursor phải chứa đủ cột sắp xếp. Hợp với feed, chat, cuộn vô hạn, API cho mobile. Màn hình quản trị cần số trang thì giới hạn độ sâu hoặc dùng ước lượng tổng.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Đếm tổng số dòng cho bảng 100 triệu dòng thế nào?</summary><div class="a"><p>Tránh <code>COUNT(*)</code> mỗi lần tải trang. Dùng ước lượng từ <code>pg_class.reltuples</code>, hoặc bộ đếm duy trì riêng, hoặc chỉ trả “có trang sau hay không” bằng cách lấy LIMIT 21.</p></div></details></div>
+</article>
+<article class="qa" id="q69" data-q="q69">
+<div class="qa-h"><span class="qa-n">69</span><h3>N+1 query là gì? Phát hiện và sửa thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> batch, join, IN, log SQL.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p><b>N+1:</b> 1 query lấy danh sách N bản ghi, rồi <b>mỗi bản ghi thêm 1 query</b> để lấy dữ liệu liên quan. 100 đơn thì 101 query, mỗi query 2 ms vẫn thành 200 ms chỉ riêng chờ mạng.</p>
+<p><b>Phát hiện:</b> bật log SQL ở môi trường dev/test, thấy cùng một câu lặp lại hàng loạt với tham số khác nhau; trong APM trace thấy hàng trăm span DB nhỏ trong một request; <code>pg_stat_statements</code> thấy một câu đơn giản có số lần gọi khổng lồ.</p>
+<p><b>Sửa:</b></p>
+<ul><li>Gộp thành <b>JOIN</b> nếu cần dữ liệu cùng lúc.</li><li>Hoặc <b>2 query</b>: lấy danh sách, rồi <code>WHERE parent_id IN (…)</code> / <code>= ANY(:ids)</code> một lần, ghép trong bộ nhớ.</li><li>Với JPA: <code>JOIN FETCH</code>, <code>@EntityGraph</code>, <code>@BatchSize</code>. Với MyBatis: <code>resultMap</code> có <code>collection</code> và một câu JOIN, tránh <code>select</code> lồng nhau cho từng dòng.</li></ul>
+<p>Ở WMS, batch tạo lệnh nhặt từng gọi tra tồn kho cho <b>từng dòng đơn</b> trong vòng lặp; em đổi sang lấy tồn theo lô cho cả chunk bằng một câu <code>= ANY(:sku_ids)</code>.</p></div>
+<div class="honest">Nếu ví dụ N+1 ở WMS không đúng với bạn, thay bằng ví dụ trong trang “Case SQL: index &amp; JOIN”.</div>
+</article>
+<article class="qa" id="q70" data-q="q70">
+<div class="qa-h"><span class="qa-n">70</span><h3>Thiết kế bảng cho chat/feed: chuẩn hóa hay phi chuẩn hóa? Khi nào chọn phi chuẩn?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> đọc nhiều hay ghi nhiều, đánh đổi nhất quán.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Phụ thuộc <b>đọc nhiều hay ghi nhiều</b> và <b>cần nhất quán tới đâu</b>.</p>
+<p><b>Chuẩn hóa</b> (mỗi dữ liệu một chỗ): ghi đơn giản, không lệch dữ liệu, nhưng đọc phải JOIN. Hợp cho dữ liệu gốc: user, quan hệ bạn bè, bài viết, tin nhắn.</p>
+<p><b>Phi chuẩn hóa</b> khi đường đọc nóng và JOIN quá đắt ở quy mô lớn:</p>
+<ul><li><b>Lưu kèm thông tin hiển thị:</b> tin nhắn lưu luôn tên và avatar người gửi lúc gửi, hoặc conversation lưu <code>last_message_preview</code> để danh sách chat không phải JOIN bảng tin nhắn.</li><li><b>Bộ đếm</b> <code>like_count</code>, <code>comment_count</code> ngay trên bài viết thay vì <code>COUNT(*)</code>.</li><li><b>Bảng feed</b> dựng sẵn cho từng người (fan-out on write).</li></ul>
+<p>Đổi lại: một lần ghi phải cập nhật nhiều nơi, và có lúc <b>lệch tạm thời</b>. Em xử lý bằng cách giữ <b>một nguồn sự thật</b> chuẩn hóa, phần phi chuẩn hóa cập nhật bất đồng bộ qua sự kiện, và có <b>job đối soát</b> sửa lệch. Chọn phi chuẩn hóa cho dữ liệu chấp nhận trễ vài giây, không cho dữ liệu tiền hoặc tồn kho.</p>
+<p>Bảng chat: khóa chính <code>(conversation_id, message_id)</code> với message_id tăng theo thời gian, đọc tin gần nhất bằng keyset trên đúng cặp đó.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Avatar đổi thì tin nhắn cũ hiển thị gì?</summary><div class="a"><p>Tùy sản phẩm. Thường chỉ lưu <code>sender_id</code> trong tin nhắn và lấy hồ sơ người gửi qua cache, vì hồ sơ đổi ít và cache hit cao. Chỉ phi chuẩn hóa khi đo thấy đó là điểm nghẽn.</p></div></details></div>
+</article>
+<article class="qa" id="q71" data-q="q71">
+<div class="qa-h"><span class="qa-n">71</span><h3>Migration đổi cấu trúc bảng 500 triệu dòng không downtime: các bước?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> thêm cột cho phép null, ghi kép, backfill theo lô, đổi đọc, xóa cũ.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Nguyên tắc: <b>mỗi bước tương thích ngược</b>, bản code cũ và mới chạy song song được, và lùi lại được. Ví dụ đổi cột <code>phone</code> dạng text sang bảng hoặc định dạng mới:</p>
+<ol><li><b>Expand:</b> thêm cột mới <b>cho phép null, không default tốn kém</b> (PostgreSQL 11+ thêm cột có default hằng số cũng tức thì). Không khóa bảng lâu. Đặt <code>lock_timeout</code> ngắn cho câu DDL để không chặn hàng đợi.</li><li><b>Ghi kép:</b> deploy code ghi cả cột cũ và mới; đọc vẫn từ cột cũ.</li><li><b>Backfill theo lô:</b> job chuyển dữ liệu cũ theo khóa chính, mỗi lô vài nghìn dòng, commit từng lô, có điểm dừng để chạy tiếp, nghỉ giữa các lô, theo dõi replica lag và tải DB.</li><li><b>Kiểm tra:</b> đối soát hai cột khớp.</li><li><b>Đổi đọc</b> sang cột mới, bật dần bằng feature flag.</li><li><b>Thôi ghi cột cũ</b>, theo dõi một thời gian.</li><li><b>Contract:</b> xóa cột cũ ở bản phát hành sau.</li></ol>
+<p>Index cho cột mới tạo bằng <code>CREATE INDEX CONCURRENTLY</code>. Thêm ràng buộc NOT NULL hoặc FK thì dùng <code>NOT VALID</code> trước rồi <code>VALIDATE CONSTRAINT</code> sau, để không khóa bảng khi kiểm tra 500 triệu dòng.</p>
+<p>Em chưa làm migration cỡ 500 triệu dòng; ở WMS em làm thêm index trên bảng vài chục triệu dòng bằng CONCURRENTLY ngoài giờ cao điểm, cùng nguyên tắc.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Sao không <code>ALTER TABLE … TYPE</code> trực tiếp?</summary><div class="a"><p>Đổi kiểu thường phải ghi lại cả bảng và giữ khóa ACCESS EXCLUSIVE suốt thời gian đó, mọi đọc ghi bị chặn hàng giờ.</p></div></details><details class="fu"><summary>Bảng quá lớn thì có cách khác không?</summary><div class="a"><p>Tạo bảng mới, đồng bộ bằng trigger hoặc logical replication/CDC, backfill, rồi đổi tên trong một giao dịch ngắn. Công cụ như pg_repack, hoặc gh-ost/pt-osc bên MySQL làm theo hướng này.</p></div></details></div>
+</article>
+<article class="qa" id="q72" data-q="q72">
+<div class="qa-h"><span class="qa-n">72</span><h3>Connection pool (HikariCP) đặt bao nhiêu? Vì sao pool lớn hơn chưa chắc nhanh hơn?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> giới hạn CPU/đĩa của DB, hàng đợi, timeout.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Pool lớn hơn <b>không nhanh hơn</b>, vì nút thắt nằm ở DB: số core CPU và tốc độ đĩa có hạn. 200 connection cùng chạy trên DB 8 core thì chúng tranh nhau CPU, khóa, bộ đệm; mỗi query chậm đi, tổng throughput có khi giảm. Mỗi connection PostgreSQL là một <b>process</b> tốn vài MB RAM.</p>
+<p>Cách đặt:</p>
+<ul><li>Khởi điểm HikariCP gợi ý: <code>số core DB × 2 + số đĩa</code>, thường <b>10–30</b> mỗi instance.</li><li>Kiểm tra bằng <b>Little's law</b>: 300 query/giây × 20 ms = 6 connection bận trung bình, pool 15 là dư cho cao điểm.</li><li>Tổng connection mọi instance phải dưới <code>max_connections</code> (trừ phần cho admin, replication). Nhiều instance thì dùng <b>PgBouncer</b>.</li></ul>
+<p>Các tham số quan trọng hơn kích thước:</p>
+<ul><li><code>connectionTimeout</code> (chờ lấy connection) ngắn, 1–3 giây, để fail fast thay vì treo.</li><li><code>maxLifetime</code> thấp hơn timeout của DB/firewall.</li><li><code>leakDetectionThreshold</code> khi nghi rò rỉ connection.</li><li>Theo dõi <b>active, idle, pending</b> và thời gian chờ lấy connection.</li></ul>
+<p>Pool cạn thường không phải do pool nhỏ mà do <b>giữ connection quá lâu</b>: query chậm, transaction mở khi gọi HTTP, quên đóng.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Pending connection tăng nhưng DB rảnh thì sao?</summary><div class="a"><p>Ứng dụng giữ connection mà không chạy query: transaction mở trong lúc gọi dịch vụ ngoài, hoặc rò rỉ connection. Bật leakDetectionThreshold và xem thread dump.</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet B3 · SQL &amp; PostgreSQL</h2><span>B3</span></div><div class="cheat-b"><div><h4>Index</h4>
+<ul><li>B-tree sắp xếp, O(log n), lá nối nhau</li><li>(a,b,c): leftmost prefix; range ở b chặn c</li><li>Bằng trước, khoảng sau; partial index cho trạng thái ít giá trị</li><li>Mất index: hàm trên cột, <code>LIKE '%x'</code>, ép kiểu, thống kê cũ</li></ul></div><div><h4>EXPLAIN (ANALYZE, BUFFERS)</h4>
+<ul><li>Đọc từ trong ra</li><li>Cờ đỏ: ước lượng lệch, Rows Removed lớn, Nested Loop loops lớn, sort ra đĩa</li><li><code>pg_stat_statements</code>, <code>auto_explain</code></li></ul></div><div><h4>Isolation (PG)</h4>
+<ul><li>Mặc định Read Committed; không có dirty read</li><li>RR: snapshot cả giao dịch, lỗi 40001 khi đụng</li><li>Write skew: chỉ Serializable hoặc khóa rõ</li></ul></div><div><h4>MVCC</h4>
+<ul><li>UPDATE = bản mới + dead tuple</li><li>VACUUM: dọn, visibility map, chống wraparound</li><li>Bloat do giao dịch mở lâu; <code>idle_in_transaction_session_timeout</code></li></ul></div><div><h4>Khóa</h4>
+<ul><li>FOR UPDATE: tranh chấp cao</li><li>SKIP LOCKED: hàng đợi worker</li><li>Version: tranh chấp thấp, đọc ghi cách xa</li><li>Conditional update: quy tắc trong WHERE</li></ul></div><div><h4>Phân trang, N+1, thiết kế</h4>
+<ul><li>Keyset <code>(created_at,id) &lt;</code> + index; không nhảy trang</li><li>N+1 → JOIN hoặc <code>= ANY(:ids)</code></li><li>Phi chuẩn hóa đường đọc nóng; một nguồn sự thật + đối soát</li></ul></div><div><h4>Migration không downtime</h4>
+<ul><li>Thêm cột null → ghi kép → backfill theo lô → đối soát → đổi đọc → xóa cũ</li><li>CONCURRENTLY; NOT VALID rồi VALIDATE; lock_timeout ngắn</li></ul></div><div><h4>Pool</h4>
+<ul><li>core DB × 2 + đĩa; nhân số instance; PgBouncer</li><li>connectionTimeout ngắn; theo dõi pending</li></ul></div></div></section>
+</main>
+</body></html>

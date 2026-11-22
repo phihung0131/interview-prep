@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ôn tập phỏng vấn – Nền tảng AI hỗ trợ phát triển</title>
+<style>
+/* Nền tảng AI nội bộ – CSS viết lại theo design system chung (token ở assets/site.css) */
+:root{--card:var(--surface);--green:var(--ok);--green-soft:var(--ok-soft);--warn:var(--hi-ink);--warn-soft:var(--hi-soft)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.68 var(--f-body);-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:1120px;margin:0 auto;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bar h1{font:700 24px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:0;flex:1;min-width:200px}
+.tabs{display:flex;gap:4px}
+.tab{border:0;border-bottom:3px solid transparent;background:none;color:var(--muted);padding:10px 12px 8px;font:600 16px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);border-bottom-color:var(--hi);background:none}
+.tool{border:1.5px solid var(--ink);background:var(--surface);color:var(--ink);padding:6px 11px;border-radius:4px;font:600 13.5px/1.2 var(--f-body);cursor:pointer}
+.tool:hover{background:var(--sunken)}
+main{max-width:1120px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-right,0px)) 30px max(16px,env(safe-area-inset-left,0px))}
+.page{display:none}.page.on{display:block}
+.intro{background:var(--hi-soft);border:1px solid var(--hi);border-radius:6px;padding:16px 20px;margin-bottom:20px}
+.intro h2{margin:0 0 6px;font:700 22px/1.1 var(--f-display);text-transform:uppercase}
+.intro p{margin:6px 0;font-size:15px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:13.5px}
+.toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px;margin-bottom:26px}
+.toc a{display:flex;gap:8px;align-items:baseline;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 14px;color:var(--ink);text-decoration:none;font-size:14.5px}
+.toc a b{flex:none;font:700 14px var(--f-mono);color:var(--accent)}
+.toc a:hover{border-color:var(--ink)}
+section.q{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px 22px;margin-bottom:22px;border-top:4px solid var(--accent);scroll-margin-top:64px}
+section.q h2{margin:0 0 6px;font:600 24px/1.2 var(--f-display);text-wrap:balance}
+section.q h2 .n{display:inline-grid;place-items:center;min-width:40px;height:32px;border:2px solid var(--ink);border-radius:3px;margin-right:10px;font:700 20px/1 var(--f-display);color:var(--ink);background:none;vertical-align:2px;padding:0}
+.hint{color:var(--muted);font-size:14px;margin:0 0 14px;border-left:3px solid var(--line);padding-left:10px}
+.label{font:700 12px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}
+.say{background:linear-gradient(90deg,var(--accent-soft),transparent 55%);border-left:4px solid var(--accent);border-radius:0 4px 4px 0;padding:12px 18px}
+.say p{margin:0 0 10px}.say p:last-child{margin:0}
+.todo{background:var(--hi-soft);color:var(--hi-ink);border:1px dashed var(--hi);border-radius:3px;padding:0 4px;font-weight:600;font-size:.94em}
+.key{font-weight:700;color:var(--accent)}
+details.fu{border:1px solid var(--line);border-radius:4px;margin:6px 0;background:var(--sunken)}
+details.fu summary{cursor:pointer;padding:9px 12px;font-weight:600;font-size:15px;list-style:none;display:flex;gap:10px}
+details.fu summary::before{content:"▸";color:var(--accent);transition:transform .15s}
+details.fu[open] summary::before{transform:rotate(90deg)}
+details.fu summary::-webkit-details-marker{display:none}
+details.fu .ans{padding:2px 16px 12px 34px;color:var(--ink);background:var(--surface);border-top:1px solid var(--line)}
+details.fu .ans p{margin:6px 0}
+.note{background:var(--hi-soft);border:1px solid var(--hi);border-radius:4px;padding:10px 14px;margin-top:14px;font-size:14.5px}
+.note b{color:var(--hi-ink)}
+.fix{background:var(--surface);border:2px solid var(--ink);border-radius:6px;padding:18px 22px;margin-bottom:22px}
+.fix h2{margin:0 0 10px;font:700 24px/1.1 var(--f-display);text-transform:uppercase}
+.fix ol{margin:0;padding-left:20px}.fix li{margin:8px 0}
+.golden{background:var(--ink);color:var(--bg);border-radius:6px;padding:16px 20px;margin-bottom:18px}
+.golden h2{margin:0 0 8px;font:700 22px/1.1 var(--f-display);text-transform:uppercase;color:var(--hi)}
+.golden ul{margin:0;padding-left:18px;columns:2;column-gap:28px;font-size:14.5px}
+.golden li{margin:3px 0;break-inside:avoid}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;border-top:4px solid var(--accent)}
+.card h3{margin:0 0 8px;font:600 20px/1.15 var(--f-display);display:flex;gap:10px;align-items:center}
+.card h3 .n{flex:none;border:2px solid var(--ink);color:var(--ink);background:none;border-radius:3px;min-width:32px;height:28px;display:grid;place-items:center;font:700 17px/1 var(--f-display);padding:0 6px}
+.open{font-size:14.5px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;padding:8px 11px;margin-bottom:8px}
+.card ul{margin:0;padding-left:18px;font-size:14.5px}
+.card li{margin:3px 0}
+.tag{display:inline-block;font:700 10.5px/1 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;border-radius:3px;padding:3px 6px;margin-right:4px;vertical-align:1px}
+.t-b{background:var(--blue-soft);color:var(--blue)}
+.t-g{background:var(--ok-soft);color:var(--ok)}
+.t-w{background:var(--hi-soft);color:var(--hi-ink)}
+.row{font-size:14px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.wide{grid-column:1/-1}
+table.mini{width:100%;border-collapse:collapse;font-size:14px}
+table.mini th,table.mini td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+table.mini th{background:var(--sunken);font:700 12px/1.3 var(--f-mono);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+@media(max-width:620px){.grid{grid-template-columns:1fr}.golden ul{columns:1}section.q{padding:16px 14px}}
+@media print{
+  header,.toc{display:none}
+  body{background:#fff;font-size:12.5px}
+  .page{display:block!important;page-break-after:always}
+  details.fu{border:none}details.fu .ans{display:block}
+  section.q,.card,.fix{break-inside:avoid;box-shadow:none}
+}
+
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body>
+
+<header>
+  <div class="bar">
+    <h1>Ôn tập phỏng vấn · Nền tảng AI hỗ trợ phát triển</h1>
+    <div class="tabs">
+      <button class="tab on" data-p="full">Bản đầy đủ</button>
+      <button class="tab" data-p="cheat">Cheat sheet</button>
+    </div>
+    <button class="tool" id="toggleAll">Mở hết câu hỏi phụ</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ===================== TRANG 1: ĐẦY ĐỦ ===================== -->
+<div class="page on" id="full">
+
+  <div class="intro">
+    <h2>Cách dùng trang này</h2>
+    <p>Mỗi câu gồm <b>câu trả lời chính viết theo văn nói</b> (đọc to khi luyện) và các <b>câu hỏi phụ</b> có thể bị hỏi tiếp. Bấm vào từng câu hỏi phụ để xem gợi ý trả lời.</p>
+    <p>Giọng nói: xưng "em", ngắn, đi từ ý chính tới chi tiết. Đừng học thuộc từng chữ, hãy nhớ khung ý.</p>
+    <div class="legend"><span class="todo">[vàng]</span> = chỗ cần điền số liệu hoặc xác nhận bằng sự thật của dự án trước khi đi phỏng vấn.</div>
+  </div>
+
+  <div class="toc">
+    <a href="#c1"><b>1</b>Nền tảng giải quyết vấn đề gì?</a>
+    <a href="#c2"><b>2</b>"Tiết kiệm một nửa thời gian" – ai ước tính?</a>
+    <a href="#c3"><b>3</b>Tự xây vs công cụ có sẵn</a>
+    <a href="#c4"><b>4</b>AI sinh code sai/lệch nghiệp vụ</a>
+    <a href="#c5"><b>5</b>Rủi ro bảo mật</a>
+    <a href="#c6"><b>6</b>Knowledge base từ Confluence</a>
+    <a href="#fix"><b>!</b>4 chỗ cần thống nhất trước khi đi</a>
+  </div>
+
+  <!-- ---------- Câu 1 ---------- -->
+  <section class="q" id="c1">
+    <h2><span class="n">1</span>Nền tảng AI giải quyết vấn đề gì? Quy trình trước và sau khác nhau thế nào?</h2>
+    <p class="hint">Ý cần có: điểm đau thật (chờ vendor làm rõ design, lỗi đơn giản).</p>
+    <div class="label">Trả lời (khoảng 1,5 phút)</div>
+    <div class="say">
+      <p>Dạ, nền tảng này giải quyết <span class="key">hai điểm đau chính</span> của team em.</p>
+      <p>Thứ nhất, <span class="key">design và code do hai vendor khác nhau làm</span>. Coder đọc design mà gặp chỗ chưa rõ thì phải hỏi lại. Mỗi round hỏi đáp mất từ vài tiếng tới vài ngày, nên việc implement bị ngắt quãng, ticket nằm chờ.</p>
+      <p>Thứ hai, những <span class="key">lỗi đơn giản</span> như lệch design, thiếu validate vẫn lọt tới người review, làm tốn thời gian của reviewer.</p>
+      <p><span class="key">Trước khi có nền tảng</span>: nhận ticket, tự đọc design trên Confluence, vừa code vừa hỏi lẻ tẻ, viết test sau, rồi tạo PR để người review từ đầu đến cuối. Điều tra bug thì tự đọc log, tự lần trong code và design.</p>
+      <p><span class="key">Sau khi có nền tảng</span> thì mọi thứ gom về một chỗ. Phần quản lý task và lịch release gom qua PAT, phần này em chưa dùng AI. Còn AI, dựa trên Claude Code, nằm ở bốn tính năng:</p>
+      <p>Một là <span class="key">Implementation</span>: từ ticket lấy link design, AI rà soát một lượt, liệt kê chỗ cần làm rõ và tự soạn sẵn câu hỏi QA cho designer, gửi <span class="key">một lần cho đủ</span> thay vì hỏi lẻ tẻ. Sau đó lên kịch bản test, code theo design, AI review, viết test, AI review, ra PR hoàn chỉnh cho người review.</p>
+      <p>Hai là <span class="key">Review code</span>: tự lấy PR, review theo design và rule đã cấu hình, comment lên PR, phát hiện bug tiềm ẩn.</p>
+      <p>Ba là <span class="key">Knowledge base</span> từ tài liệu Confluence. Bốn là <span class="key">hỗ trợ điều tra bug</span> từ ticket, log, KB và source code.</p>
+      <p>Tóm lại giá trị chính là: <span class="key">làm rõ sớm và đủ</span>, và <span class="key">lọc lỗi đơn giản trước khi tới người review</span>.</p>
+    </div>
+
+    <div class="label">Câu hỏi phụ có thể bị hỏi</div>
+    <details class="fu"><summary>Cho một ví dụ thật về điểm đau đó?</summary><div class="ans">
+      <p>"Tùy ticket, nhưng có mấy case phải hỏi nhiều round. Mỗi round từ vài tiếng đến vài ngày, nên việc implement bị delay theo."</p>
+      <p>Nên chuẩn bị thêm 1 case cụ thể: ticket nào, design thiếu gì, mấy round. <span class="todo">[điền case thật]</span></p>
+    </div></details>
+    <details class="fu"><summary>Tại sao không dùng thẳng Claude Code mà phải có nền tảng?</summary><div class="ans">
+      <p>"Dùng thẳng thì mỗi người một cách: prompt khác nhau, rule khác nhau, không chuẩn hóa được quy trình. Nền tảng chuẩn hóa workflow và rule, kiểm soát quyền truy cập, gắn với Jira, Confluence, Git, và cho phép đo lường."</p>
+    </div></details>
+    <details class="fu"><summary>Phần quản lý task, lịch release có dùng AI không?</summary><div class="ans">
+      <p>"Dạ chưa. Phần đó chủ yếu là gom về một chỗ qua PAT. AI đang nằm ở phần code và bug."</p>
+    </div></details>
+    <details class="fu"><summary>AI hỏi QA thay designer có làm vendor quá tải bởi câu hỏi vô nghĩa không?</summary><div class="ans">
+      <p>"Có rủi ro đó, nên em làm UI để người dùng đọc lại. Mỗi câu hỏi có giải thích vì sao cần hỏi và đề xuất hướng fix. Người dùng chỉnh hoặc bỏ bớt rồi mới gửi, hệ thống không tự gửi thẳng."</p>
+    </div></details>
+    <details class="fu"><summary>Ai dùng, bao nhiêu người?</summary><div class="ans">
+      <p>"Cả team delivery đang dùng, khoảng 20 người."</p>
+    </div></details>
+    <details class="fu"><summary>Hạn chế lớn nhất của nền tảng hiện tại?</summary><div class="ans">
+      <p>"Độ chính xác còn hạn chế, chưa khớp 100% convention của dự án nên vẫn cần human-in-the-loop. Với design quá dài thì bị tràn context và có nguy cơ hallucinate. Em xử lý bằng cách tách nhỏ theo step và cho các phần overlap để không mất ngữ cảnh."</p>
+    </div></details>
+  </section>
+
+  <!-- ---------- Câu 2 ---------- -->
+  <section class="q" id="c2">
+    <h2><span class="n">2</span>"Tiết kiệm khoảng một nửa thời gian": ai ước tính, đo bằng gì, so với cái gì?</h2>
+    <p class="hint">Ý cần có: thừa nhận đây là ước tính của team, nêu cách đo và hạn chế. Đừng bảo vệ con số như sự thật.</p>
+    <div class="label">Trả lời</div>
+    <div class="say">
+      <p>Dạ, em xin nói thẳng: đây là <span class="key">ước tính của team</span> chứ không phải số liệu đo chính xác.</p>
+      <p>Cơ sở có hai phần. Một là <span class="key">kinh nghiệm và cảm nhận của từng thành viên</span> khi làm các ticket tương tự trước đây. Hai là <span class="key">so sánh thời gian xử lý ticket trước và sau khi áp dụng</span> nền tảng. <span class="todo">[điền: bao nhiêu ticket, khoảng thời gian nào, loại ticket nào]</span></p>
+      <p>Hạn chế thì em xin nêu rõ. Ticket không đồng nhất về độ khó. Mẫu còn nhỏ. Mọi người cũng quen dần quy trình nên có yếu tố khác ngoài AI. Và con số "một nửa" là trung bình: việc rõ design, lặp lại thì tiết kiệm nhiều, việc design mơ hồ thì ít hơn.</p>
+      <p>Em dùng chữ "khoảng" cũng vì lý do đó. Nếu cần đo chặt hơn, em sẽ chọn các nhóm ticket cùng loại và so sánh <span class="key">cycle time, số vòng review, số vòng hỏi lại design, số bug sau release</span>.</p>
+    </div>
+
+    <div class="label">Câu hỏi phụ có thể bị hỏi</div>
+    <details class="fu"><summary>Thời gian tính từ lúc nào đến lúc nào?</summary><div class="ans">
+      <p>Nêu đúng mốc bạn dùng, ví dụ từ lúc nhận ticket đến lúc PR được merge, hoặc đến lúc PR sẵn sàng review. <span class="todo">[điền]</span></p>
+    </div></details>
+    <details class="fu"><summary>Có tính thời gian người review và sửa lại output của AI không?</summary><div class="ans">
+      <p>Trả lời đúng sự thật. Nếu chưa tính, nói: "Phần đó em chưa tính, đó là một hạn chế của cách đo hiện tại."</p>
+    </div></details>
+    <details class="fu"><summary>Nhanh hơn nhưng nhiều bug hơn thì sao? Chất lượng giữ nguyên không?</summary><div class="ans">
+      <p>"Đó là lý do cần đo cả chất lượng chứ không chỉ tốc độ: số comment reviewer, số vòng sửa PR, số bug sau release, so sánh trước và sau."</p>
+    </div></details>
+    <details class="fu"><summary>Em có đang cường điệu không?</summary><div class="ans">
+      <p>"Em chủ động nói đây là ước tính chính vì không muốn trình bày như thể đã đo chính xác."</p>
+    </div></details>
+    <div class="note"><b>Mẹo:</b> nếu CV ghi "một nửa", cân nhắc sửa thành "ước tính giảm khoảng 40–50% theo đánh giá của team" hoặc đúng với dữ liệu bạn có.</div>
+  </section>
+
+  <!-- ---------- Câu 3 ---------- -->
+  <section class="q" id="c3">
+    <h2><span class="n">3</span>Phần nào bạn tự xây, phần nào dùng công cụ có sẵn (Claude Code SDK)?</h2>
+    <p class="hint">Ý cần có: ranh giới rõ ràng giữa đóng góp của bạn và công cụ. Đừng hỏi ngược "tự xây là sao?", hãy chia rõ hai phần.</p>
+    <div class="label">Trả lời</div>
+    <div class="say">
+      <p>Dạ em chia rõ thành hai phần.</p>
+      <p><span class="key">Phần dùng sẵn</span> là Claude Code: model, khả năng đọc hiểu và sinh code, dùng tool, chạy agent. Em không xây lại phần này.</p>
+      <p><span class="key">Phần em xây</span> là lớp trung gian để team dùng Claude Code hiệu quả và có kiểm soát:</p>
+      <p>Một là <span class="key">tích hợp</span> với Jira, Confluence, Git qua PAT để lấy ticket, design, PR. Hai là <span class="key">thiết kế workflow</span> cho từng tính năng và thứ tự các bước. Ba là <span class="key">rule review, quy ước dự án, ngữ cảnh</span> đưa cho AI. Bốn là <span class="key">pipeline knowledge base</span> và index liên kết design, code, log. Năm là <span class="key">phân quyền và giới hạn phạm vi đọc</span> source. Sáu là phần quản lý task và lịch release.</p>
+      <p>Nói ngắn gọn: Claude Code là bộ não, em xây phần <span class="key">quy trình, ngữ cảnh và kiểm soát</span> xung quanh để dùng được trong dự án thật. Em dùng SDK trực tiếp.</p>
+    </div>
+
+    <div class="label">Câu hỏi phụ có thể bị hỏi</div>
+    <details class="fu"><summary>Thay Claude Code bằng công cụ khác được không?</summary><div class="ans">
+      <p>"Hiện em tập trung vào Claude Code, nhưng thiết kế theo kiểu Adapter nên khi cần tích hợp công cụ khác thì không phải viết lại toàn bộ."</p>
+    </div></details>
+    <details class="fu"><summary>Phần khó nhất em tự làm là gì?</summary><div class="ans">
+      <p>"Phần khó nhất hiện tại là quản lý version cho knowledge base: đảm bảo dữ liệu luôn mới nhất và theo dõi được qua nhiều version. Phần này em đang hoàn thiện, chưa có hướng hoàn chỉnh."</p>
+      <p>Thừa nhận thế là ổn. Nếu có, thêm 1 hướng đang cân nhắc, ví dụ lưu bản sao từng version của trang kèm commit hash.</p>
+    </div></details>
+    <details class="fu"><summary>Chỉ là prompt và glue code thì có gì đáng nói?</summary><div class="ans">
+      <p>"Giá trị nằm ở việc biến cách dùng AI từ thủ công mỗi người một kiểu thành quy trình chuẩn, đo được và kiểm soát được. Và ở phần ngữ cảnh gồm design, KB, rule, vì chính nó quyết định chất lượng đầu ra."</p>
+    </div></details>
+    <details class="fu"><summary>Dùng SDK hay chạy CLI?</summary><div class="ans"><p>"Em dùng SDK trực tiếp."</p></div></details>
+    <details class="fu"><summary>Chi phí token quản lý thế nào?</summary><div class="ans">
+      <p>"Mỗi người dùng API key của mình, và mỗi bước dùng AI có ghi lại output cost nên theo dõi dễ."</p>
+      <p>Có thể bị hỏi tiếp: key được lưu thế nào? <span class="todo">[chuẩn bị: lưu mã hóa, không ghi vào log...]</span></p>
+    </div></details>
+  </section>
+
+  <!-- ---------- Câu 4 ---------- -->
+  <section class="q" id="c4">
+    <h2><span class="n">4</span>AI sinh code sai/lệch nghiệp vụ thì phát hiện và chặn thế nào?</h2>
+    <p class="hint">Ý cần có: AI code review theo design/quy ước, người review sau cùng, test tự động.</p>
+    <div class="label">Trả lời</div>
+    <div class="say">
+      <p>Trước hết, AI <span class="key">không sinh code từ con số không</span>. Nó có design làm đầu vào, và design đó đã được rà soát, làm rõ chỗ mơ hồ trước khi code. Chỉ riêng việc này đã giảm nhiều việc AI phải đoán nghiệp vụ.</p>
+      <p>Sau đó có <span class="key">nhiều lớp chặn</span>. Lớp một: làm rõ design trước khi code. Lớp hai: kịch bản test lên từ design, nên test phản ánh yêu cầu nghiệp vụ chứ không bị code dẫn dắt. Lớp ba: AI review sau khi code và sau khi viết test, đối chiếu với design và quy ước. Lớp bốn: test tự động. Lớp năm: <span class="key">người review</span>, và người vẫn là bên quyết định merge.</p>
+      <p>Thứ tự review thực tế là <span class="key">người review trước, sau đó mới chạy AI review thêm một round</span>, để người không bị ỷ lại vào AI.</p>
+      <p>Em không nói AI không bao giờ sai. Em nói là có nhiều lớp để bắt lỗi trước khi code vào nhánh chính. Và mỗi lần phát hiện lỗi thì em đưa vào rule hoặc prompt để lần sau chính xác hơn.</p>
+    </div>
+
+    <div class="label">Câu hỏi phụ có thể bị hỏi</div>
+    <details class="fu"><summary>AI review và AI code cùng model thì có chung điểm mù không?</summary><div class="ans">
+      <p>"Có rủi ro. Em giảm bằng cách tách ngữ cảnh và vai trò: reviewer chỉ nhận design, rule và diff chứ không nhận lập luận của bên sinh code. Ngoài ra còn người review và test tự động, là những lớp độc lập với AI."</p>
+    </div></details>
+    <details class="fu"><summary>Test do AI viết có đáng tin không? Test sai cùng chiều với code sai thì sao?</summary><div class="ans">
+      <p>"Kịch bản test lên từ design trước khi code nên không bị code dẫn dắt, và người review cả kịch bản test. Nhưng em thừa nhận đây vẫn là một điểm yếu."</p>
+    </div></details>
+    <details class="fu"><summary>Một lần AI sinh code sai mà em còn nhớ?</summary><div class="ans">
+      <p>"AI nào cũng có lúc sai nên luôn cần human verify. Mỗi lần sai em rút kinh nghiệm và cải tiến rule."</p>
+      <p>Nên thêm 1 ví dụ nhỏ có thật: AI sai convention nào, bạn sửa rule ra sao. <span class="todo">[điền]</span></p>
+    </div></details>
+    <details class="fu"><summary>Nếu bản thân design sai hoặc thiếu?</summary><div class="ans">
+      <p>"AI bám design nên sẽ sai theo. Bước rà soát design giúp phát hiện thiếu sót sớm. Còn design sai nghiệp vụ thì designer và người review phải xác nhận."</p>
+    </div></details>
+    <details class="fu"><summary>Người review có bị ỷ lại vì đã có AI review không?</summary><div class="ans">
+      <p>"Có rủi ro, nên quy trình là người review trước, AI review sau một round để kiểm tra lại. Người vẫn chịu trách nhiệm, AI chỉ là lớp bổ sung."</p>
+    </div></details>
+    <details class="fu"><summary>Đo tỉ lệ AI sinh code sai thế nào?</summary><div class="ans">
+      <p>"Dựa vào số comment và lỗi bị reviewer bắt, và số bug sau release. Khi có comment trên PR thì chủ PR phải trả lời toàn bộ. Em có một feature gom các comment đó lại, dùng một model LLM nhẹ phân tích đúng sai và tổng hợp định kỳ."</p>
+      <p><span class="todo">[nếu feature này chưa chạy, nói "đang xây", đừng nói như đã có]</span></p>
+    </div></details>
+  </section>
+
+  <!-- ---------- Câu 5 ---------- -->
+  <section class="q" id="c5">
+    <h2><span class="n">5</span>Rủi ro bảo mật khi đưa mã nguồn/tài liệu nội bộ cho AI: xử lý thế nào?</h2>
+    <p class="hint">Ý cần có: quyền truy cập, dữ liệu nhạy cảm, nhật ký.</p>
+    <div class="label">Trả lời</div>
+    <div class="say">
+      <p>Dạ em xử lý theo <span class="key">ba hướng</span>.</p>
+      <p><span class="key">Quyền truy cập</span>: hệ thống dùng PAT, phân quyền theo từng người, chỉ cấp đúng quyền cần thiết. Em giới hạn phạm vi đọc: chỉ cho đọc một số cây thư mục cụ thể chứ không đọc toàn bộ repo. AI <span class="key">không có quyền merge</span>, các nhánh chính bị giới hạn quyền push để tránh push nhầm.</p>
+      <p><span class="key">Dữ liệu nhạy cảm</span>: có bước lọc trước khi đưa cho AI. Tài liệu được đọc trên Confluence đã nằm trong một mục riêng, các mục khác ngoài phạm vi nên loại ra dễ. Các tài liệu confidential không được đưa vào KB.</p>
+      <p><span class="key">Nhật ký và truy vết</span>: mọi thao tác chạy dưới tên git của chính người dùng nên truy vết qua lịch sử git và PR rất dễ.</p>
+      <p>Về PAT, nếu lộ thì <span class="key">revoke ngay</span>, và có rule <span class="key">xoay key 14 ngày một lần</span>. Về dữ liệu gửi cho nhà cung cấp AI, <span class="todo">[điền: điều khoản gói đang dùng và công ty/security đã duyệt chưa]</span>.</p>
+    </div>
+
+    <div class="label">Câu hỏi phụ có thể bị hỏi</div>
+    <details class="fu"><summary>Bộ lọc dữ liệu nhạy cảm dựa trên gì? Có bị lọt không?</summary><div class="ans">
+      <p>"Dựa trên việc chỉ đọc đúng mục tài liệu đã được sắp xếp sẵn, nên phạm vi rõ ràng. Lọc theo phạm vi không đảm bảo tuyệt đối 100%, nhưng vì chỉ đọc trong mục cho phép nên rủi ro lọt nhỏ."</p>
+    </div></details>
+    <details class="fu"><summary>PAT bị lộ thì sao?</summary><div class="ans">
+      <p>"Revoke ngay. Ngoài ra có rule xoay key 14 ngày một lần và cấp quyền tối thiểu."</p>
+    </div></details>
+    <details class="fu"><summary>Dữ liệu gửi cho Anthropic có được lưu hoặc dùng để huấn luyện không?</summary><div class="ans">
+      <p>Hãy đọc lại điều khoản thực tế của gói bạn dùng trước khi trả lời, đừng đoán. Nêu thêm công ty/bộ phận security đã duyệt việc dùng chưa. <span class="todo">[xác nhận]</span></p>
+    </div></details>
+    <details class="fu"><summary>AI có bị prompt injection qua nội dung ticket/Confluence/PR không?</summary><div class="ans">
+      <p>Đừng trả lời "nội bộ nên không có". Hãy nói:</p>
+      <p>"Rủi ro nhỏ hơn môi trường public nhưng không bằng không, vì AI đọc nội dung do nhiều người viết, trong đó có design của vendor bên ngoài. Em giảm rủi ro bằng cách giới hạn quyền: Claude Code chỉ làm được những gì quyền được cấp, không merge được, nhánh chính được bảo vệ, và mọi thay đổi đều qua human review."</p>
+    </div></details>
+    <details class="fu"><summary>AI có quyền ghi vào repo, merge, hay chạy lệnh không?</summary><div class="ans">
+      <p>"AI không có quyền merge. Các quyền còn lại theo quyền của người dùng, và một số nhánh chính bị giới hạn push để tránh push nhầm."</p>
+    </div></details>
+    <details class="fu"><summary>Nếu có sự cố thì truy vết được không?</summary><div class="ans">
+      <p>"Được. Thao tác chạy bằng tên git của người dùng nên tra qua lịch sử git và PR rất dễ."</p>
+    </div></details>
+    <details class="fu"><summary>Quyền Confluence: người không có quyền có hỏi KB để đọc được không?</summary><div class="ans">
+      <p>"Mọi người trong dự án đều có quyền vào Confluence. Việc hạn chế là ở chỗ không đưa các file confidential vào KB, và những file đó đã có bước lọc và giới hạn người xem."</p>
+    </div></details>
+  </section>
+
+  <!-- ---------- Câu 6 ---------- -->
+  <section class="q" id="c6">
+    <h2><span class="n">6</span>Knowledge base từ Confluence hoạt động ra sao (chunking, tìm kiếm, cập nhật)? Độ chính xác đo thế nào?</h2>
+    <p class="hint">Ý cần có: cách lấy dữ liệu, cách đánh giá, giới hạn. Cấu trúc nên nói: lấy dữ liệu → chunking → tìm kiếm → cập nhật → đánh giá → giới hạn.</p>
+    <div class="label">Trả lời (khoảng 2–3 phút)</div>
+    <div class="say">
+      <p><span class="key">Lấy dữ liệu</span>: em lấy từ Confluence qua REST API, xác thực bằng API token. Mỗi design là một trang riêng cho từng API hoặc Batch, em chuyển sang Markdown, giữ nguyên mã giả trong code block, và gắn metadata gồm tên API/Batch, version, ngày sửa, link gốc. Macro và sơ đồ xử lý riêng để không mất nội dung nghiệp vụ.</p>
+      <p><span class="key">Chunking</span>: em không cắt cơ học. Mỗi design là một đơn vị vì mã giả cần đọc liền mạch. Với design quá dài thì tách theo heading hoặc theo step, có phần overlap để không mất ngữ cảnh. Bảng và code luôn giữ nguyên, và mỗi chunk gắn đường dẫn ngữ cảnh.</p>
+      <p><span class="key">Tìm kiếm</span>: tài liệu hoàn toàn tiếng Anh và mã giả chứa nhiều tên field, mã lỗi, tên bảng chính xác nên em dùng tìm theo từ khóa. Em dựng thêm một file index ánh xạ giữa API/Batch, trang design, đoạn code tương ứng và mã lỗi hoặc message trong log. Nhờ vậy từ một dòng log, Claude Code lần được sang design rồi sang code. Khi dữ liệu lớn hơn em sẽ bổ sung tìm kiếm ngữ nghĩa.</p>
+      <p><span class="key">Cập nhật</span>: có script chạy định kỳ so version và ngày sửa của từng trang. Trang đổi thì kéo lại, trang bị xóa thì loại khỏi KB. Phần khó là theo dõi lịch sử qua nhiều version và đảm bảo luôn mới nhất, phần này em đang hoàn thiện.</p>
+      <p><span class="key">Đánh giá hai tầng</span>: tầng một là tìm có đúng tài liệu không. Em chuẩn bị khoảng 50 đến 100 câu hỏi lấy từ câu hỏi thật của team, mỗi câu có sẵn trang design đúng, rồi đo trang đúng nằm ở vị trí thứ mấy. Tầng hai là câu trả lời có đúng không: bám tài liệu hay tự bịa, trích nguồn có thật chứa thông tin đó không, và khi KB không có thì hệ thống có biết nói "không tìm thấy" không. Bộ câu hỏi này chạy lại mỗi khi đổi cách làm hoặc sau đợt cập nhật lớn. Với bug, em còn thử lại trên các bug cũ đã biết nguyên nhân.</p>
+      <p><span class="key">Giới hạn</span>: một là chất lượng phụ thuộc tài liệu nguồn, design không cập nhật thì KB lệch. Hai là câu hỏi tổng hợp xuyên nhiều design khó hơn nên em bổ sung tài liệu tổng hợp luồng và bảng mã lỗi. Ba là có độ trễ giữa lúc trang đổi và lúc KB cập nhật. Bốn là AI vẫn có thể diễn giải sai nên bắt buộc trích nguồn để người dùng kiểm chứng. Năm là log và các quyết định bàn miệng không nằm trong Confluence nên KB không thay thế việc đọc code và log khi điều tra bug.</p>
+    </div>
+
+    <div class="label">Câu hỏi phụ có thể bị hỏi</div>
+    <details class="fu"><summary>Tại sao không dùng vector database / RAG embedding?</summary><div class="ans">
+      <p>"Tài liệu là tiếng Anh với nhiều định danh chính xác như tên field, mã lỗi, nên keyword search thường chính xác hơn; embedding dễ làm mờ các định danh này. Quy mô hiện tại chưa cần. Khi dữ liệu lớn hoặc câu hỏi mang tính khái niệm nhiều hơn thì em bổ sung, có thể kết hợp cả hai."</p>
+    </div></details>
+    <details class="fu"><summary>Keyword search có miss khi người dùng hỏi khác từ với tài liệu không?</summary><div class="ans">
+      <p>"Có, đó là hạn chế. Em giảm bằng file index mã lỗi, tên API và từ đồng nghĩa. Nếu bộ câu hỏi đánh giá miss nhiều thì đó là tín hiệu để thêm semantic search."</p>
+    </div></details>
+    <details class="fu"><summary>Bộ 50–100 câu hỏi do ai chuẩn bị? Có thiên vị không?</summary><div class="ans">
+      <p>"Lấy từ câu hỏi thật của team, và đáp án đúng do người hiểu nghiệp vụ xác nhận chứ không để chính AI tạo."</p>
+    </div></details>
+    <details class="fu"><summary>Kết quả đánh giá hiện tại là bao nhiêu?</summary><div class="ans">
+      <p><span class="todo">[Chuẩn bị số thật, ví dụ trang đúng nằm top 1 / top 3 bao nhiêu %.]</span> Nếu chưa chạy đủ thì nói đúng hiện trạng, tuyệt đối không bịa số.</p>
+    </div></details>
+    <details class="fu"><summary>Làm sao biết design đã lỗi thời so với code?</summary><div class="ans">
+      <p>"KB chỉ biết version và ngày sửa của trang, không tự biết code đã đổi mà design chưa đổi. Em có thể đối chiếu ngày sửa design với lịch sử commit, và dùng chính tính năng điều tra bug để phát hiện chỗ lệch."</p>
+    </div></details>
+    <details class="fu"><summary>Sơ đồ, hình ảnh xử lý thế nào?</summary><div class="ans">
+      <p>"Tài liệu của em 100% là text nên không có vấn đề này."</p>
+    </div></details>
+    <details class="fu"><summary>Design dài quá bị tràn context thì sao?</summary><div class="ans">
+      <p>"Em tách nhỏ theo step và cho các phần overlap để không mất ngữ cảnh, tránh hallucinate."</p>
+    </div></details>
+    <details class="fu"><summary>Điều tra bug bằng KB thực tế hiệu quả đến đâu?</summary><div class="ans">
+      <p>Kể 1 bug thật: log nào → design nào → lệch ở đâu → mất bao lâu so với trước. <span class="todo">[điền]</span></p>
+    </div></details>
+  </section>
+
+  <!-- ---------- Cần thống nhất ---------- -->
+  <section class="fix" id="fix">
+    <h2>4 chỗ cần thống nhất trước khi đi phỏng vấn</h2>
+    <ol>
+      <li><b>Prompt injection:</b> đừng nói "nội bộ nên không có". Thiết kế do vendor bên ngoài viết, ticket và comment do nhiều người viết. Nói: rủi ro nhỏ hơn môi trường public nhưng không bằng 0, được giảm nhờ giới hạn quyền, không merge, nhánh chính được bảo vệ, human review.</li>
+      <li><b>Version KB:</b> nói nhất quán là đã có đồng bộ cơ bản theo version và ngày sửa, còn theo dõi lịch sử nhiều version là phần đang hoàn thiện. Đừng lúc nói "đã commit git đầy đủ", lúc nói "chưa làm được".</li>
+      <li><b>Chunking:</b> nói thống nhất: mặc định mỗi design là một đơn vị, design quá dài thì tách theo step có overlap.</li>
+      <li><b>Chỉ nói những gì đã chạy thật:</b> feature gom comment PR, số đo đánh giá KB, bước quét secret. Cái nào đang làm thì nói "đang xây", chưa làm thì nói "hướng tiếp theo".</li>
+    </ol>
+  </section>
+
+</div>
+
+<!-- ===================== TRANG 2: CHEAT SHEET ===================== -->
+<div class="page" id="cheat">
+
+  <div class="golden">
+    <h2>Nguyên tắc vàng khi trả lời</h2>
+    <ul>
+      <li>Ý chính 1 câu trước, chi tiết sau</li>
+      <li>Luôn có 1 ví dụ thật cho mỗi câu</li>
+      <li>Thừa nhận hạn chế rồi nói cách giảm</li>
+      <li>Phân biệt: đã làm / đang làm / sẽ làm</li>
+      <li>Không bịa số, thiếu số thì nói "chưa đo chính thức"</li>
+      <li>Bị chất vấn thì đừng phòng thủ, thừa nhận rồi chỉ ra giá trị</li>
+    </ul>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <h3><span class="n">1</span>Giải quyết vấn đề gì?</h3>
+      <div class="open"><b>Mở đầu:</b> "Hai điểm đau: chờ vendor làm rõ design, và lỗi đơn giản lọt tới reviewer."</div>
+      <ul>
+        <li><b>Đau 1:</b> design &amp; code 2 vendor khác nhau → hỏi lẻ tẻ, mỗi round vài tiếng – vài ngày → implement bị delay</li>
+        <li><b>Đau 2:</b> lỗi đơn giản (lệch design, thiếu validate) tốn thời gian reviewer</li>
+        <li><b>Trước:</b> đọc design → vừa code vừa hỏi → test sau → PR → review từ đầu</li>
+        <li><b>Sau:</b> 4 feature AI: Implementation / Review / KB / Điều tra bug</li>
+        <li><b>Implementation:</b> ticket → design → rà soát → QA gom 1 lần → kịch bản test → code → AI review → test → AI review → PR → người review</li>
+        <li>Task &amp; release: gom qua PAT, <b>chưa dùng AI</b></li>
+      </ul>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Vì sao không dùng thẳng Claude Code? → chuẩn hóa workflow/rule/quyền, gắn Jira-Confluence-Git, đo được</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Quá tải câu hỏi cho vendor? → UI đọc lại, có giải thích + đề xuất fix, user duyệt rồi mới gửi</div>
+      <div class="row"><span class="tag t-g">SỐ</span>~20 người, cả team delivery</div>
+      <div class="row"><span class="tag t-w">HẠN CHẾ</span>Chưa khớp 100% convention → cần HITL. Design dài → tràn context → tách theo step + overlap</div>
+    </div>
+
+    <div class="card">
+      <h3><span class="n">2</span>"Tiết kiệm một nửa"</h3>
+      <div class="open"><b>Mở đầu:</b> "Đây là ước tính của team, không phải số đo chính xác."</div>
+      <ul>
+        <li><b>Cơ sở 1:</b> kinh nghiệm + cảm nhận từng thành viên</li>
+        <li><b>Cơ sở 2:</b> so thời gian ticket trước / sau áp dụng</li>
+        <li><b>Hạn chế:</b> ticket không đồng nhất, mẫu nhỏ, quen dần quy trình, "một nửa" là trung bình</li>
+        <li><b>Cách đo chặt hơn:</b> nhóm ticket cùng loại → cycle time, số vòng review, số vòng hỏi design, bug sau release</li>
+        <li>Việc rõ design thì tiết kiệm nhiều, design mơ hồ thì ít</li>
+      </ul>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Mốc thời gian? → nhận ticket → merge (hoặc PR ready) <span class="todo">[điền]</span></div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Có tính thời gian review/sửa output AI không? → nói thật nếu chưa tính</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Nhanh mà nhiều bug? → đo cả chất lượng, không chỉ tốc độ</div>
+    </div>
+
+    <div class="card">
+      <h3><span class="n">3</span>Tự xây vs công cụ có sẵn</h3>
+      <div class="open"><b>Mở đầu:</b> "Claude Code là bộ não, em xây lớp quy trình, ngữ cảnh và kiểm soát xung quanh."</div>
+      <table class="mini">
+        <tr><th>Dùng sẵn</th><th>Em xây</th></tr>
+        <tr><td>Model, đọc hiểu &amp; sinh code, dùng tool, chạy agent (Claude Code SDK)</td>
+        <td>Tích hợp Jira/Confluence/Git (PAT) · workflow từng feature · rule review &amp; convention · pipeline KB + index · phân quyền, giới hạn đọc · quản lý task/release</td></tr>
+      </table>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Thay công cụ khác? → thiết kế Adapter, tập trung Claude Code</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Phần khó nhất? → quản lý version KB (đang hoàn thiện)</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Chỉ là prompt + glue? → giá trị = quy trình chuẩn, đo được, kiểm soát được + ngữ cảnh quyết định chất lượng</div>
+      <div class="row"><span class="tag t-g">CHI TIẾT</span>Dùng SDK trực tiếp · mỗi user dùng API key riêng · ghi output cost mỗi bước</div>
+    </div>
+
+    <div class="card">
+      <h3><span class="n">4</span>AI sinh code sai</h3>
+      <div class="open"><b>Mở đầu:</b> "AI không code từ số không, có design làm đầu vào, và có nhiều lớp chặn."</div>
+      <ul>
+        <li><b>5 lớp:</b> ① làm rõ design trước ② kịch bản test từ design ③ AI review (design + rule) ④ test tự động ⑤ người review, người quyết định merge</li>
+        <li><b>Thứ tự:</b> người review trước → AI review 1 round sau (tránh ỷ lại)</li>
+        <li><b>Reviewer AI</b> chỉ nhận design + rule + diff, không nhận lập luận bên sinh code</li>
+        <li><b>Học lại:</b> lỗi nào bị bắt → đưa vào rule/prompt</li>
+        <li><b>Đo:</b> chủ PR rep mọi comment → feature gom + LLM nhẹ phân loại đúng/sai định kỳ <span class="todo">[đang xây?]</span></li>
+      </ul>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Cùng model có điểm mù? → tách vai trò + lớp độc lập (người, test)</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Test AI sai cùng chiều code? → test lên từ design trước khi code; thừa nhận là điểm yếu</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Design sai? → AI sai theo; rà soát sớm + designer/người review xác nhận</div>
+    </div>
+
+    <div class="card">
+      <h3><span class="n">5</span>Bảo mật</h3>
+      <div class="open"><b>Mở đầu:</b> "Ba hướng: quyền truy cập, dữ liệu nhạy cảm, nhật ký."</div>
+      <ul>
+        <li><b>Quyền:</b> PAT phân quyền theo người, tối thiểu · chỉ đọc 1 số cây thư mục · <b>AI không merge</b> · nhánh chính giới hạn push</li>
+        <li><b>Dữ liệu:</b> chỉ đọc mục Confluence đã sắp xếp · file confidential không đưa vào KB</li>
+        <li><b>Nhật ký:</b> chạy dưới tên git người dùng → truy vết qua git/PR</li>
+        <li><b>PAT lộ:</b> revoke ngay · xoay key 14 ngày/lần</li>
+      </ul>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Prompt injection? → KHÔNG nói "nội bộ nên không có". Nói: nhỏ hơn public nhưng ≠ 0 (design vendor ngoài viết); giảm bằng giới hạn quyền, không merge, branch protect, human review</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Data gửi Anthropic? → đọc điều khoản gói đang dùng + công ty/security đã duyệt chưa <span class="todo">[xác nhận]</span></div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Quyền Confluence? → mọi người trong dự án đều có; chỉ không feed file confidential</div>
+    </div>
+
+    <div class="card">
+      <h3><span class="n">6</span>Knowledge base</h3>
+      <div class="open"><b>Mở đầu:</b> "Lấy qua REST API → Markdown → mỗi design 1 đơn vị → tìm theo từ khóa + index → cập nhật định kỳ → đánh giá hai tầng."</div>
+      <ul>
+        <li><b>Lấy:</b> REST API + token · Markdown · giữ code block · metadata: tên, version, ngày sửa, link</li>
+        <li><b>Chunking:</b> mỗi design = 1 đơn vị · dài thì tách heading/step + overlap · bảng &amp; code giữ nguyên · gắn đường dẫn ngữ cảnh</li>
+        <li><b>Tìm:</b> keyword (tiếng Anh, nhiều field/mã lỗi) + file index <b>API ↔ design ↔ code ↔ mã lỗi/log</b> · semantic search khi dữ liệu lớn</li>
+        <li><b>Cập nhật:</b> script định kỳ so version/ngày sửa · đổi thì kéo lại, xóa thì loại · lịch sử nhiều version = đang hoàn thiện</li>
+        <li><b>Đánh giá:</b> T1 tìm đúng trang không (50–100 câu thật, đo vị trí) · T2 trả lời đúng không (bám tài liệu, trích nguồn thật, biết nói "không tìm thấy") · thử trên bug cũ</li>
+        <li><b>Giới hạn:</b> phụ thuộc tài liệu nguồn · câu hỏi xuyên nhiều design · độ trễ · AI diễn giải sai → bắt buộc trích nguồn · log/quyết định bàn miệng không có trong KB</li>
+      </ul>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Sao không vector DB? → định danh chính xác, tiếng Anh, quy mô nhỏ; hybrid sau</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Keyword bị miss? → index từ đồng nghĩa; miss nhiều → thêm semantic</div>
+      <div class="row"><span class="tag t-b">HỎI TIẾP</span>Design lỗi thời vs code? → so ngày sửa design với lịch sử commit; điều tra bug lộ chỗ lệch</div>
+      <div class="row"><span class="tag t-g">SƠ ĐỒ</span>Tài liệu 100% text, không lo mất hình</div>
+      <div class="row"><span class="tag t-w">CHUẨN BỊ</span>Số kết quả đánh giá (top 1/top 3) + 1 bug thật log → design → code <span class="todo">[điền]</span></div>
+    </div>
+
+    <div class="card wide">
+      <h3>Điền trước khi đi phỏng vấn</h3>
+      <table class="mini">
+        <tr><th>Mục</th><th>Cần chuẩn bị</th></tr>
+        <tr><td>Câu 1</td><td>1 ticket thật bị hỏi nhiều round: design thiếu gì, mấy round, chờ bao lâu</td></tr>
+        <tr><td>Câu 2</td><td>Số ticket, khoảng thời gian, mốc đo, trước/sau là bao nhiêu</td></tr>
+        <tr><td>Câu 4</td><td>1 lỗi AI thật + cách rule được sửa; trạng thái feature gom comment PR</td></tr>
+        <tr><td>Câu 5</td><td>Điều tra điều khoản dữ liệu của gói dùng; công ty/security đã duyệt chưa</td></tr>
+        <tr><td>Câu 6</td><td>Kết quả đánh giá top 1 / top 3; 1 bug thật điều tra bằng KB; hướng xử lý version KB</td></tr>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+</main>
+
+<script>
+  const tabs=document.querySelectorAll('.tab'), pages=document.querySelectorAll('.page');
+  tabs.forEach(t=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>x.classList.toggle('on',x===t));
+    pages.forEach(p=>p.classList.toggle('on',p.id===t.dataset.p));
+    document.getElementById('toggleAll').style.display = t.dataset.p==='full' ? '' : 'none';
+    window.scrollTo({top:0});
+  }));
+  let allOpen=false;
+  document.getElementById('toggleAll').addEventListener('click',e=>{
+    allOpen=!allOpen;
+    document.querySelectorAll('details.fu').forEach(d=>d.open=allOpen);
+    e.target.textContent = allOpen ? 'Thu gọn câu hỏi phụ' : 'Mở hết câu hỏi phụ';
+  });
+</script>
+</body>
+</html>

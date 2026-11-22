@@ -1,0 +1,214 @@
+@page b1
+@file b1-java-spring.html
+@code B1
+@group B
+@title Java core và Spring
+@desc HashMap, ConcurrentHashMap, equals/hashCode, exception, Stream, pattern, Spring DI, @Transactional.
+@lede Mỗi câu trả lời theo nhịp **bản chất → ví dụ thật → khi nào nên/không nên dùng**. Kết thúc bằng một ví dụ từ WMS hoặc Notification Hub nếu có, để câu lý thuyết thành câu kinh nghiệm.
+
+@q 46
+@time khoảng 90 giây
+@ans
+HashMap là một **mảng các bucket**. Khi `put(key, value)`, nó lấy `key.hashCode()`, trộn bit cao xuống bit thấp (`h ^ (h >>> 16)`) rồi lấy `hash & (n - 1)` để ra vị trí bucket, vì n luôn là lũy thừa của 2.
+
+- **Va chạm:** nhiều key cùng bucket thì nối thành danh sách liên kết; tìm trong bucket dùng `equals`.
+- **Treeify:** khi một bucket có từ 8 phần tử trở lên và mảng đã từ 64 ô, danh sách đổi thành cây đỏ-đen, tìm kiếm từ O(n) xuống O(log n). Mảng nhỏ hơn 64 thì ưu tiên resize thay vì treeify.
+- **Resize:** khi số phần tử vượt `capacity × load factor` (mặc định 16 × 0,75 = 12), mảng gấp đôi và các phần tử chia lại: mỗi phần tử hoặc giữ chỗ cũ, hoặc dời đi đúng `oldCap` ô.
+
+Get/put trung bình O(1), xấu nhất O(log n) nhờ treeify.
+
+**Không an toàn đa luồng:** hai thread cùng `put` có thể ghi đè mất dữ liệu của nhau, `size` sai, và khi đang resize thread khác có thể đọc thấy trạng thái dở dang. Ở Java 7 còn có lỗi vòng lặp vô hạn khi resize đồng thời. Dữ liệu dùng chung giữa các thread thì dùng `ConcurrentHashMap`.
+@fu Biết trước có khoảng 1.000 phần tử thì khởi tạo thế nào?
+Đặt capacity ban đầu khoảng `1000 / 0,75 ≈ 1334`, HashMap sẽ làm tròn lên 2048, tránh resize nhiều lần. Java 19 trở lên có `HashMap.newHashMap(1000)` tính sẵn việc này.
+@fu Dùng object có thể thay đổi làm key thì sao?
+Nếu trường tham gia `hashCode` bị đổi sau khi đã put, phần tử nằm ở bucket cũ, `get` sẽ tìm sai bucket và không thấy. Key nên bất biến, như String, Integer, record.
+@fu HashMap có cho key null không?
+Có, một key null, luôn ở bucket 0. ConcurrentHashMap thì không cho.
+@mini hash → bucket = hash & (n−1) → list → cây khi ≥8 (và mảng ≥64) → resize ×2 khi > 0,75.
+@trap Nói “HashMap luôn O(1)” mà không nhắc va chạm, hoặc nói treeify xảy ra khi chỉ có 8 phần tử mà quên điều kiện mảng ≥ 64.
+
+@q 47
+@time khoảng 60 giây
+@ans
+Cả ba đều dùng được đa luồng, khác nhau ở **cách khóa**:
+
+- `Hashtable` và `Collections.synchronizedMap` khóa **cả map** cho mọi thao tác, kể cả đọc. Nhiều thread thì xếp hàng một chỗ, chậm.
+- `ConcurrentHashMap` (Java 8+) **đọc không khóa** (dùng volatile), ghi vào bucket rỗng bằng **CAS**, ghi vào bucket có sẵn thì `synchronized` trên **node đầu của bucket đó**. Hai thread ghi hai bucket khác nhau không chặn nhau. Resize cũng được nhiều thread cùng giúp.
+
+Điểm quan trọng hơn là **thao tác atomic ghép**: `computeIfAbsent`, `merge`, `putIfAbsent`, `compute`. Ví dụ đếm: `map.merge(key, 1, Integer::sum)` là atomic, còn `if (!map.containsKey(k)) map.put(k, …)` thì không, vì giữa hai lệnh thread khác có thể chen vào.
+
+ConcurrentHashMap **không cho key hoặc value null**, vì khi `get` trả null sẽ không phân biệt được “không có” với “có nhưng là null” trong môi trường đồng thời.
+@fu `size()` của ConcurrentHashMap có chính xác không?
+Chỉ là ước lượng tại thời điểm gọi, vì các thread khác vẫn đang ghi. Dùng để theo dõi thì được, không dùng để ra quyết định nghiệp vụ.
+@fu Trong `computeIfAbsent` gọi DB hoặc HTTP được không?
+Không nên. Hàm đó chạy khi đang giữ khóa của bucket, gọi lâu sẽ chặn các thread khác cùng bucket. Cũng không được sửa chính map đó bên trong hàm.
+@fu Duyệt ConcurrentHashMap khi đang có thread ghi thì sao?
+Iterator là weakly consistent: không ném ConcurrentModificationException, có thể thấy hoặc không thấy thay đổi mới.
+@trap Nói ConcurrentHashMap Java 8 vẫn dùng “segment lock”. Đó là Java 7.
+
+@q 48
+@time khoảng 45 giây
+@ans
+Hợp đồng là: **hai object `equals` nhau thì phải có cùng `hashCode`**. Ngược lại không bắt buộc, trùng hashCode chỉ là va chạm.
+
+HashMap và HashSet dùng hashCode để **chọn bucket trước**, rồi mới dùng equals để so trong bucket. Nếu chỉ override `equals` mà không override `hashCode`, hai object “bằng nhau” về nghiệp vụ sẽ có hashCode khác (mặc định theo địa chỉ object), rơi vào hai bucket khác nhau. Kết quả: `set.add(a); set.contains(b)` trả false dù `a.equals(b)`, và Set chứa “trùng”.
+
+Nếu chỉ override `hashCode` mà không override `equals`, chúng cùng bucket nhưng equals vẫn so tham chiếu, nên vẫn coi là khác nhau.
+
+Thực tế em dùng `record` hoặc để IDE/Lombok sinh, và chỉ dùng các trường bất biến, ví dụ khóa tự nhiên (số ASN, mã thùng) khi gom dữ liệu trong batch.
+@fu Entity JPA/Hibernate override equals thế nào?
+Không dựa vào id tự sinh vì trước khi lưu id là null. Dùng khóa tự nhiên nếu có; nếu không, so id khi khác null và để hashCode là hằng số theo class.
+@fu Viết hashCode thế nào?
+`Objects.hash(a, b, c)` hoặc nhân 31 cộng dồn; dùng đúng những trường dùng trong equals.
+
+@q 49
+@time khoảng 75 giây
+@ans
+- **Checked exception** là lỗi mà bên gọi **có thể và nên xử lý**, compiler bắt khai báo, ví dụ `IOException`.
+- **Unchecked** (`RuntimeException`) là lỗi lập trình hoặc lỗi không phục hồi được tại chỗ, ví dụ `NullPointerException`, `IllegalArgumentException`.
+
+Trong service Spring em chủ yếu dùng **unchecked**: định nghĩa một lớp `BusinessException` mang **mã lỗi** (ví dụ `TOTE_OVERLOAD`), ném từ tầng service, rồi một `@RestControllerAdvice` chuyển thành response thống nhất: HTTP status, mã lỗi, message, correlation id.
+
+```
+@ExceptionHandler(BusinessException.class)
+ResponseEntity<ErrorBody> handle(BusinessException e) {
+  return ResponseEntity.status(e.status())
+      .body(new ErrorBody(e.code(), e.getMessage(), MDC.get("traceId")));
+}
+```
+
+Ba quy tắc:
+1. **Không nuốt lỗi** (`catch (Exception e) {}`); nếu bắt thì log kèm ngữ cảnh hoặc bọc lại với nguyên nhân gốc.
+2. **Log một lần** ở chỗ xử lý cuối, không log ở mọi tầng.
+3. Lỗi 4xx (do client) log mức WARN, lỗi 5xx log ERROR kèm stack trace; không trả stack trace ra ngoài.
+
+Ở WMS, phần lớn lỗi production em sửa là NPE do dữ liệu chưa được xử lý; bài học là kiểm tra dữ liệu đầu vào sớm và trả mã lỗi rõ ràng thay vì để NPE lan ra.
+@fu Checked exception với @Transactional có gì đáng chú ý?
+Mặc định Spring chỉ rollback với unchecked exception và Error. Ném checked exception thì transaction vẫn commit, trừ khi khai báo `rollbackFor = Exception.class`.
+@fu try-with-resources để làm gì?
+Tự đóng tài nguyên (connection, stream) kể cả khi có lỗi, và giữ lại lỗi phụ khi đóng dưới dạng suppressed exception.
+@trap Bắt `Exception` rồi trả 200 kèm `success:false`. Client không phân biệt được lỗi.
+
+@q 50
+@time khoảng 60 giây
+@ans
+**Không.** Stream không nhanh hơn vòng for, thường **chậm hơn một chút** vì có thêm object, lambda và các tầng gọi. Ưu điểm của Stream là **dễ đọc** khi biến đổi, lọc, gom nhóm dữ liệu. Với đoạn code nóng trên mảng số nguyên lớn, vòng for đơn giản thường nhanh hơn.
+
+**parallelStream** chia việc vào **ForkJoinPool chung** của JVM (số thread bằng số core trừ một). Chỉ nên dùng khi:
+- dữ liệu lớn (hàng trăm nghìn phần tử trở lên),
+- mỗi phần tử tốn **CPU** và độc lập, không có trạng thái dùng chung,
+- nguồn dữ liệu chia đôi tốt (ArrayList, mảng; LinkedList thì không).
+
+**Không dùng cho I/O** như gọi DB hay HTTP: pool chung bị chiếm hết, làm chậm cả các phần khác của ứng dụng cũng dùng pool đó. Trong web server, request đã chạy song song rồi, thêm parallelStream thường chỉ làm tranh chấp CPU. Muốn chạy I/O song song thì dùng executor riêng hoặc virtual thread.
+@fu Stream có lazy không?
+Có. Các bước trung gian (`filter`, `map`) chỉ chạy khi gặp bước kết thúc (`collect`, `count`), và có short-circuit như `findFirst`, `anyMatch`.
+@fu Dùng `forEach` để thêm vào list bên ngoài có sao không?
+Với parallelStream thì sai (ArrayList không an toàn đa luồng). Dùng `collect(Collectors.toList())` thay vì tự gom.
+
+@q 51
+@time khoảng 75 giây
+@ans
+Em kể ba pattern em dùng thật:
+
+- **Strategy:** ở WMS, mỗi loại khay hoặc loại hàng có **quy tắc kiểm tra** khác nhau khi đổ khay. Thay vì một chuỗi if-else dài, mỗi quy tắc là một class cài cùng interface, Spring inject cả danh sách vào và chọn theo loại. Thêm loại mới chỉ thêm class, không sửa code cũ, và test từng quy tắc riêng.
+- **Factory / Adapter:** ở Kestrel, lớp LLM nhiều nhà cung cấp (Anthropic, OpenAI, Gemini, DeepSeek). Mỗi nhà cung cấp có một adapter cài cùng interface “gửi prompt, nhận output theo schema”, factory chọn adapter theo cấu hình, có fallback sang nhà cung cấp khác.
+- **Builder:** dựng object nhiều trường tùy chọn như request hoặc DTO test, để code test dễ đọc.
+
+Ngoài ra **Observer** ở dạng sự kiện: Notification Hub phát event qua Kafka để các service khác tự phản ứng, bên phát không cần biết ai nghe.
+
+Nguyên tắc của em: chỉ dùng pattern khi **đã có ít nhất hai biến thể thật**. Một chỗ chỉ có một cách làm thì interface với factory chỉ là thêm tầng khó đọc.
+@fu Strategy khác State thế nào?
+Strategy do bên ngoài chọn thuật toán. State thì object tự đổi hành vi khi trạng thái nội bộ đổi, ví dụ đơn hàng ở trạng thái khác nhau cho phép thao tác khác nhau.
+@fu Singleton trong Spring khác Singleton pattern thế nào?
+Singleton của Spring là một instance cho mỗi container, do container quản lý và inject được, dễ thay khi test. Singleton pattern tự cài bằng static thì khó test và khó thay.
+
+@q 52
+@time khoảng 75 giây
+@ans
+**Dependency injection:** class không tự `new` dependency mà nhận từ container. Nhờ vậy code tách rời, thay được bản giả khi test.
+
+**Bean scope:** mặc định **singleton**, một instance cho cả ứng dụng, dùng chung giữa mọi thread. Ngoài ra có `prototype` (mỗi lần lấy một instance mới), và với web có `request`, `session`.
+
+Hệ quả quan trọng: bean singleton **không được giữ trạng thái thay đổi theo request** trong field. Ví dụ để `currentUser` làm field của service là lỗi đa luồng: request này ghi đè request kia.
+
+**Vòng đời:** tạo instance → inject dependency → `@PostConstruct` → (bọc proxy nếu có AOP như @Transactional) → dùng → `@PreDestroy` khi tắt.
+
+**Vì sao inject qua constructor:**
+1. Field có thể `final`, object bất biến và luôn đầy đủ dependency sau khi tạo.
+2. Test dễ: `new Service(mockRepo)` không cần Spring.
+3. Thấy ngay class có quá nhiều dependency (constructor 8 tham số là dấu hiệu class làm quá nhiều việc).
+4. Phát hiện vòng phụ thuộc ngay lúc khởi động thay vì lúc chạy.
+@fu Inject bean prototype vào bean singleton thì sao?
+Chỉ inject một lần lúc tạo singleton, nên prototype thực tế cũng thành một instance. Muốn lấy mới mỗi lần thì dùng `ObjectProvider` hoặc lookup method.
+@fu Hai bean cùng kiểu thì Spring chọn thế nào?
+Báo lỗi không chọn được, trừ khi có `@Primary` hoặc chỉ rõ bằng `@Qualifier`. Muốn lấy tất cả thì inject `List<Interface>`.
+
+@q 53
+@time khoảng 90 giây
+@ans
+Spring tạo một **proxy** bọc bean. Khi bên ngoài gọi method có `@Transactional`, lời gọi đi qua proxy: proxy mở transaction (lấy connection, tắt auto-commit), gọi method thật, rồi commit hoặc rollback.
+
+**Gọi nội bộ không có transaction** vì `this.methodB()` gọi thẳng vào object thật, **không đi qua proxy**, nên annotation trên methodB bị bỏ qua. Cách sửa: tách methodB sang bean khác, hoặc tự inject chính mình, hoặc dùng `TransactionTemplate` để mở transaction rõ ràng trong code. Tương tự, `@Transactional` trên method `private` cũng không có tác dụng.
+
+**Rollback mặc định** chỉ với `RuntimeException` và `Error`. Checked exception thì **vẫn commit**, cần `rollbackFor = Exception.class`. Và nếu bắt exception bên trong rồi không ném lại thì cũng không rollback.
+
+**Propagation** hay dùng:
+- `REQUIRED` (mặc định): có transaction thì tham gia, chưa có thì mở mới.
+- `REQUIRES_NEW`: tạm dừng transaction ngoài, mở transaction riêng. Em dùng để **ghi log lỗi hoặc nhật ký batch** sao cho vẫn lưu được dù transaction chính rollback.
+
+Ở WMS em dùng MyBatis với Spring, cùng cơ chế: transaction quanh từng chunk của batch để mỗi chunk commit riêng.
+@fu “Transaction silently rolled back because it has been marked as rollback-only” là gì?
+Method bên trong (cùng transaction REQUIRED) ném lỗi nên transaction bị đánh dấu rollback-only; method bên ngoài bắt lỗi đó rồi định commit, Spring báo lỗi này. Sửa bằng cách không nuốt lỗi, hoặc cho method bên trong REQUIRES_NEW nếu thật sự muốn nó độc lập.
+@fu `readOnly = true` có tác dụng gì?
+Gợi ý cho driver và DB tối ưu (Hibernate bỏ dirty checking, có thể định tuyến sang replica). Không phải cơ chế chặn ghi tuyệt đối ở mọi DB.
+@fu Isolation trong @Transactional đặt ở đâu?
+`@Transactional(isolation = …)`, mặc định theo DB (PostgreSQL là READ COMMITTED). Em hiếm khi đổi, thay vào đó dùng conditional update hoặc khóa dòng cho đúng chỗ.
+@mini Proxy → self-invocation không qua proxy → rollback chỉ unchecked → REQUIRES_NEW cho log.
+
+@q 54
+@time khoảng 60 giây
+@ans
+Vấn đề lớn nhất là **giữ connection DB trong suốt thời gian chờ mạng**. Transaction mở là đã chiếm một connection trong pool, và có thể đang giữ khóa dòng.
+
+Ví dụ pool có 20 connection, mỗi request gọi một API ngoài mất 2 giây trong transaction. Chỉ cần 20 request đồng thời là **pool cạn**, request thứ 21 đứng chờ connection rồi timeout, kể cả những request không liên quan đến API ngoài. Nếu đang giữ khóa dòng thì các giao dịch khác cũng chờ theo, nguy cơ dây chuyền.
+
+Ngoài ra **không rollback được việc bên ngoài**: gọi thanh toán thành công rồi transaction DB rollback thì hai bên lệch nhau.
+
+Cách làm đúng:
+1. Đọc dữ liệu cần thiết, **đóng transaction**.
+2. Gọi HTTP/gRPC **ngoài transaction**, có timeout.
+3. Mở transaction ngắn để ghi kết quả.
+
+Nếu cần đảm bảo “ghi DB và gửi đi” cùng thành công thì dùng **outbox**: ghi DB cùng một bản ghi outbox trong một transaction, một tiến trình khác đọc outbox và gửi, có retry và idempotency.
+@fu Làm sao phát hiện chỗ đang làm sai việc này?
+Metric pool: connection đang dùng sát max, thời gian chờ lấy connection tăng; trong trace thấy span HTTP nằm bên trong span transaction; thread dump thấy thread giữ connection mà đang chờ socket.
+@fu `@Transactional` trên cả method controller có được không?
+Không nên, vì transaction kéo dài cả phần serialize, gọi service ngoài. Đặt ở tầng service, bọc đúng đoạn cần nguyên tử.
+
+@cheat Cheat sheet B1 · Java core & Spring
+### HashMap
+- index = (h ^ h>>>16) & (n−1); n là lũy thừa 2
+- Va chạm: list → cây đỏ-đen khi ≥ 8 và mảng ≥ 64
+- Resize ×2 khi size > cap × 0,75; phần tử giữ chỗ hoặc dời +oldCap
+- Không thread-safe: mất ghi, size sai
+### ConcurrentHashMap
+- Đọc không khóa; bucket rỗng: CAS; bucket có node: synchronized node đầu
+- Atomic: `merge`, `compute`, `computeIfAbsent`, `putIfAbsent`
+- Không null; size() chỉ ước lượng
+### equals / hashCode
+- equals bằng → hashCode bằng
+- Thiếu hashCode: Set chứa trùng, Map không tìm thấy
+- Key bất biến; record
+### Exception
+- Unchecked + mã lỗi + `@RestControllerAdvice`
+- Không nuốt lỗi; log một lần; không lộ stack trace
+### Stream
+- Không nhanh hơn for; đọc dễ hơn
+- parallelStream: CPU-bound, dữ liệu lớn, ArrayList; không I/O (ForkJoin pool chung)
+### Spring
+- Singleton dùng chung → không giữ state theo request
+- Constructor injection: final, dễ test, lộ class quá to
+- `@Transactional`: proxy; self-invocation và private không có tác dụng
+- Rollback mặc định: RuntimeException + Error
+- REQUIRES_NEW để ghi log lỗi độc lập
+- Không gọi HTTP trong transaction: cạn pool, không rollback được bên ngoài

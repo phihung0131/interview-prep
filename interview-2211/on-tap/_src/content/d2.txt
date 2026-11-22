@@ -1,0 +1,141 @@
+@page d2
+@file d2-review-quyet-dinh.html
+@code D2
+@group D
+@title Review code và quyết định kỹ thuật
+@desc Check-then-act, danh sách lỗi khi review, PO ép tiến độ, thuyết phục không dùng Kafka, API cho mobile, nợ kỹ thuật, báo trễ.
+@lede Nửa đầu là review code (kỹ thuật thuần), nửa sau là quyết định có yếu tố con người. Với câu con người, luôn có **số liệu, các lựa chọn, và đề xuất của em**.
+
+@q 144
+@time khoảng 75 giây
+@ans
+```
+Stock s = repo.findBySku(sku);
+if (s.getQty() > 0) {          // check
+    s.setQty(s.getQty() - 1);  // act
+    repo.save(s);
+}
+```
+
+**Lỗi:** **race condition check-then-act**. Hai request cùng đọc `qty = 1`, cả hai thấy > 0, cả hai ghi `0` → bán 2 cái khi chỉ còn 1 (hoặc với số khác thì lost update: hai lần trừ chỉ trừ được một). Đúng loại lỗi em gặp với khay 30 ký ở WMS. `synchronized` không cứu được khi chạy nhiều instance.
+
+**Sửa, theo thứ tự em ưu tiên:**
+1. **UPDATE có điều kiện**, nguyên tử trong DB:
+```
+UPDATE stock SET qty = qty - :n
+ WHERE sku = :sku AND qty >= :n;
+-- 1 dòng: thành công; 0 dòng: hết hàng → trả 409
+```
+2. **Khóa dòng** khi logic phức tạp: `SELECT … FOR UPDATE` rồi kiểm tra, cập nhật trong cùng transaction ngắn.
+3. **Optimistic lock** (cột version) khi tranh chấp thấp, kèm retry.
+4. Thêm **`CHECK (qty >= 0)`** làm lưới an toàn cuối.
+
+Và em viết **test đồng thời** với DB thật (hai thread qua CountDownLatch) để chứng minh lỗi trước và hết lỗi sau.
+
+@q 145
+@time khoảng 2 phút
+@ans
+| Lỗi | Tác động ở production |
+|---|---|
+| **HashMap dùng chung giữa thread** (field của singleton) | Mất dữ liệu, `size` sai, đọc trạng thái dở dang lúc resize; lỗi ngẫu nhiên khó tái hiện → `ConcurrentHashMap` hoặc không chia sẻ |
+| **`SimpleDateFormat` static** | Không thread-safe, parse ra ngày sai hoặc ném exception lạ dưới tải → `DateTimeFormatter` (bất biến) |
+| **Thread pool queue vô hạn** (`newFixedThreadPool`) | Tải cao thì hàng đợi phình, độ trễ tăng vô hạn rồi **OOM**, không có tín hiệu quá tải → queue có giới hạn + rejection policy |
+| **`@Transactional` gọi nội bộ** (`this.method()`) | Không có transaction; ghi một nửa khi lỗi, dữ liệu dở dang → tách bean hoặc TransactionTemplate |
+| **N+1 trong vòng lặp** | Dev 10 dòng nhanh, production 10.000 dòng thành 10.000 query, API chậm vài giây, DB tăng tải → query theo lô, JOIN |
+| **Không đóng tài nguyên** (connection, stream, response HTTP) | Cạn pool, rò rỉ file descriptor, `CLOSE_WAIT` chồng chất → try-with-resources |
+| **Giữ lock (hoặc transaction) khi gọi I/O** | Một dependency chậm làm mọi thread khác chờ khóa, cạn pool, sập dây chuyền → lấy dữ liệu, nhả khóa, rồi mới gọi ngoài |
+| **Retry thao tác không idempotent** | Trừ tiền hai lần, gửi hai SMS, tạo hai đơn → idempotency key, unique constraint |
+
+Ngoài ra em hay bắt: nuốt exception, log lộ dữ liệu nhạy cảm, thiếu timeout khi gọi ra ngoài, SQL ghép chuỗi (`${}` trong MyBatis), thiếu index cho cột lọc mới, so sánh `Integer` bằng `==`.
+
+Cách em review: đọc **mô tả và test trước**, rồi code; bình luận theo mức (chặn merge / nên sửa / gợi ý), nêu **tác động** chứ không chỉ “sai”.
+@fu `Integer == Integer` sai ở đâu?
+Java cache Integer từ −128 tới 127, nên `==` đúng với số nhỏ và sai với số lớn hơn (so tham chiếu). Dùng `equals` hoặc kiểu nguyên thủy.
+
+@q 146
+@time khoảng 90 giây
+@ans
+Em không trả lời “được” hay “không được”, mà đưa ra **lựa chọn có số**.
+
+1. **Hiểu mục tiêu thật:** vì sao 2 tuần? Có sự kiện, khách hàng, hay chỉ mong muốn? Tính năng nào là cốt lõi cho mục tiêu đó?
+2. **Chia thiết kế 5 tuần thành phần:** phần nào bắt buộc cho người dùng thấy, phần nào để chịu tải, phần nào để vận hành.
+3. **Đưa ba phương án:**
+   - **Cắt phạm vi:** 2 tuần làm luồng chính cho một nhóm người dùng (ví dụ chỉ một loại media, bật bằng feature flag cho 5% người dùng).
+   - **Giải pháp tạm có kiểm soát:** dùng cách đơn giản hơn (bảng DB + job thay vì Kafka) với **giới hạn rõ** (chịu được tới X request/giây), có ticket và hạn để làm phần còn lại.
+   - **Giữ phạm vi, lùi ngày** hoặc thêm người (và nói thật thêm người không nhanh gấp đôi).
+4. **Nêu rủi ro bằng số:** “Nếu ra bản tạm, khi tải vượt 500 rps thì p99 sẽ vượt 1 giây; xác suất xảy ra trong tháng đầu là thấp vì lượng người dùng dự kiến 100 rps.”
+5. **Để người có quyền quyết định**, ghi lại quyết định và rủi ro đã chấp nhận, rồi cam kết làm.
+
+Điều em không làm: lặng lẽ cắt test hay bỏ phần xử lý lỗi để kịp hạn mà không ai biết.
+
+@q 147
+@time khoảng 75 giây
+@ans
+Em đưa về **dữ liệu và chi phí**, không tranh luận theo sở thích.
+
+1. **Hỏi lý do của đồng đội** trước: có thể bạn ấy thấy nhu cầu em chưa thấy (nhiều bên cần nghe cùng sự kiện, cần replay).
+2. **Số tải thật:** luồng này bao nhiêu sự kiện/giây, cao điểm bao nhiêu? Ví dụ 50 sự kiện/giây thì một bảng `job` với worker `FOR UPDATE SKIP LOCKED` dư sức.
+3. **Chi phí vận hành:** Kafka cần cụm 3 broker, giám sát lag, quản lý schema, DLQ, người biết vận hành khi sự cố lúc 3 giờ sáng. Thêm **dual write** cần outbox. Bảng DB thì nằm trong giao dịch sẵn có, nhất quán tự nhiên, dễ debug bằng SQL.
+4. **Điều kiện đổi quyết định**, nói rõ để không thành thắng-thua: “Khi tải vượt khoảng 1.000 sự kiện/giây, hoặc có từ 3 service cần nghe cùng sự kiện, hoặc cần replay lịch sử, thì mình chuyển sang Kafka. Em sẽ thiết kế interface để chuyển dễ.”
+5. Nếu team vẫn chọn Kafka, em **cam kết** làm cho tốt (disagree and commit).
+
+Thú vị là chính em dùng Kafka ở Notification Hub vì mục tiêu học, nên em biết rõ chi phí của nó.
+
+@q 148
+@time khoảng 75 giây
+@ans
+1. **Đo trước:** kích thước response (KB, sau nén), thời gian server, số request mỗi màn hình, mạng di động thật (3G/4G). Thường thấy: một màn hình gọi 6 API nối tiếp, mỗi response 400 KB vì trả cả object lồng nhau.
+2. **Xử lý theo nguyên nhân:**
+   - **Chỉ trả trường cần:** DTO riêng cho màn hình, hoặc tham số `fields=` / sparse fieldsets; không trả entity nguyên khối.
+   - **Phân trang** (cursor) thay vì trả cả danh sách.
+   - **Nén** gzip/brotli; ảnh trả URL kèm kích thước phù hợp thay vì ảnh gốc.
+   - **Gộp request:** một endpoint tổng hợp cho màn hình (BFF – backend for frontend) để giảm số vòng mạng trên mạng di động có RTT cao.
+   - **Cache:** ETag / `If-None-Match` trả 304, `Cache-Control` cho dữ liệu ít đổi.
+   - Server chậm thì tối ưu query, gọi song song các nguồn.
+3. **Thống nhất hợp đồng** với team Mobile: OpenAPI spec, quy ước phân trang và lỗi, **không phá tương thích** (app cũ vẫn chạy vì người dùng không cập nhật ngay), version khi cần.
+4. Đo lại sau khi sửa và chia sẻ số trước/sau.
+
+@q 149
+@time khoảng 60 giây
+@ans
+**Sát deadline thì không sửa ngay**, trừ khi rủi ro cao và gần.
+
+1. **Đánh giá rủi ro:** đoạn đó lỗi thì ảnh hưởng gì (tiền, dữ liệu, hay chỉ hiển thị)? Có đường nào làm nó lỗi trong tính năng sắp ra không? Tần suất?
+2. Nếu **thấp hoặc không liên quan**: tạo **ticket nợ kỹ thuật** mô tả rõ vấn đề, cách tái hiện, mức rủi ro, đề xuất sửa; báo tech lead để xếp vào sprint sau. Không lén sửa trong PR tính năng (khó review, tăng rủi ro).
+3. Nếu **cao** (có thể làm sai dữ liệu tồn kho, tiền): báo ngay, đề xuất sửa tối thiểu hoặc chặn đường dẫn tới lỗi, dù phải dời hạn một chút.
+4. **Khi sửa:** viết **test bao quanh hành vi hiện tại** trước (characterization test), rồi mới refactor, để chắc không phá thứ đang chạy.
+
+Câu chốt: “Code đang chạy ổn là có giá trị; sửa nó cũng là một rủi ro. Em sửa khi có test bảo vệ và có thời gian để kiểm tra.”
+
+@q 150
+@time khoảng 60 giây
+@ans
+**Báo ngay khi biết**, không đợi tới tuần cuối. Báo cho **tech lead / người quản lý dự án** trước, rồi PO nếu cần, theo cấu trúc:
+
+1. **Tình hình bằng số:** đã xong gì, còn gì, ước lượng lại là trễ khoảng **bao nhiêu** (ví dụ 1 tuần).
+2. **Nguyên nhân**, không đổ lỗi: “Phần tích hợp với hệ thống X phức tạp hơn dự tính vì Y; em đánh giá thấp phần migration dữ liệu.”
+3. **Các lựa chọn:**
+   - **Cắt phạm vi:** ra đúng hạn với luồng chính, phần báo cáo làm ở bản sau.
+   - **Thêm thời gian:** 1 tuần, giữ đủ phạm vi.
+   - **Thêm người** cho phần tách được (nói rõ cần thời gian bàn giao).
+4. **Đề xuất của em** và rủi ro của từng lựa chọn.
+5. Sau đó **cập nhật đều** (mỗi vài ngày) để không có bất ngờ lần hai.
+
+Bài học em rút ra: chia việc nhỏ để thấy trễ sớm, và luôn cộng thời gian cho phần chưa rõ.
+
+@cheat Cheat sheet D2 · Review & quyết định
+### Check-then-act
+- UPDATE … WHERE qty >= :n → kiểm rows
+- FOR UPDATE khi logic phức tạp; version khi tranh chấp thấp
+- CHECK ≥ 0; test đồng thời với DB thật
+### 8 lỗi review
+- HashMap chung · SimpleDateFormat static · queue vô hạn
+- @Transactional nội bộ · N+1 · không đóng tài nguyên
+- Giữ lock khi I/O · retry không idempotent
+- Nêu tác động production, không chỉ “sai”
+### Con người
+- Ép tiến độ: mục tiêu thật → 3 phương án → rủi ro bằng số → người có quyền chọn
+- Không dùng Kafka: tải thật, chi phí vận hành, điều kiện đổi quyết định, disagree & commit
+- Mobile: đo → DTO/fields, phân trang, nén, BFF, ETag → hợp đồng OpenAPI
+- Code cũ: đánh giá rủi ro → ticket → characterization test rồi mới sửa
+- Trễ: báo sớm, số, nguyên nhân, lựa chọn, đề xuất, cập nhật đều

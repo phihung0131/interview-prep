@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>A1 · Giới thiệu bản thân</title><meta name="description" content="Giới thiệu 90 giây, vì sao backend thay vì AI/ML, điểm khác biệt có bằng chứng."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">A · Câu hỏi theo CV</p><h1>A1 · Giới thiệu bản thân</h1><p class="lede">Ba câu mở màn quyết định ấn tượng đầu. Mỗi câu phải có <b>bằng chứng cụ thể</b> (con số, tình huống) thay vì tính từ. Bản giới thiệu 2 phút cho vòng HR nằm ở trang F (câu 163); bản tiếng Anh ở trang G (câu 176).</p><div class="mast-meta"><span>3 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q1">1</a><a href="#q2">2</a><a href="#q3">3</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q1" data-q="q1">
+<div class="qa-h"><span class="qa-n">1</span><h3>Hãy giới thiệu bản thân trong 90 giây.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> một dòng ai bạn là, 2 năm backend, 2–3 điểm nổi bật liên quan JD (Java, PostgreSQL, Kafka, concurrency), vì sao ứng tuyển Zalo.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Dạ, em là Hưng, <b>backend engineer khoảng 2 năm kinh nghiệm</b>, chủ yếu Java, Spring Boot và PostgreSQL.</p>
+<p>Hiện em ở <b>FPT Software</b>, làm hệ thống quản lý kho cho một hãng thời trang toàn cầu, chạy ở khoảng 15 kho. Hai điểm em muốn nhấn, vì khớp với JD:</p>
+<ul><li><b>Xử lý đồng thời:</b> em sửa lỗi hai trạm cùng ghi vào một khay robot làm khay vượt giới hạn 30 ký, bằng cách gộp kiểm tra và ghi thành một câu UPDATE có điều kiện, và chứng minh bằng test đồng thời trên DB thật.</li><li><b>Tối ưu PostgreSQL:</b> API quét thùng trên bảng khoảng 10 triệu dòng đi từ cỡ 1–2 giây xuống <b>dưới 1 mili giây</b> ở DB nhờ partial index, có đo cả tác động lên ghi.</li></ul>
+<p>Ngoài công việc, em tự xây <b>Notification Hub</b> với <b>Kafka</b>, gRPC, consumer idempotent và DLQ, để học hệ phân tán bằng tay.</p>
+<p>Em ứng tuyển Zalo vì muốn đưa nền đó vào <b>hệ thống hàng triệu người dùng</b>, nơi throughput, cache và độ trễ là bài toán hằng ngày.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Nếu họ ngắt và hỏi “WMS là gì”?</summary><div class="a"><p>Trả lời một câu: “Hệ thống điều phối hàng trong kho: nhận hàng từ nhà máy, cất lên kệ, nhặt và xuất cho cửa hàng.” Rồi quay lại mạch chính. Chi tiết ở trang A2.</p></div></details></div>
+<div class="mini">Ai em là → 2 điểm nổi bật có số (concurrency, PostgreSQL) → 1 câu Kafka → vì sao Zalo.</div>
+<div class="trap">Kể theo thứ tự thời gian từ đại học, hoặc liệt kê công nghệ không có ví dụ.</div>
+</article>
+<article class="qa" id="q2" data-q="q2">
+<div class="qa-h"><span class="qa-n">2</span><h3>Vì sao bạn chọn backend thay vì AI/ML, dù CV có nhiều dự án AI?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> AI là công cụ tăng năng suất, nền tảng backend mới là cốt lõi; các dự án đều có phần backend nặng.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Vì em thấy <b>giá trị lõi của mọi dự án em làm nằm ở backend</b>, còn AI là công cụ.</p>
+<p>Ngay cả các dự án “AI” trên CV, phần nặng nhất vẫn là backend: Kestrel có crawl định kỳ, chống trùng, pgvector, auth, billing với webhook idempotent; lớp LLM của em thực chất là bài toán <b>timeout, retry, fallback và kiểm soát chi phí</b> khi gọi dịch vụ ngoài. Nền tảng AI ở FPT là tích hợp Jira, Confluence, GitHub và kiểm soát quyền truy cập dữ liệu.</p>
+<p>Em không làm nghiên cứu mô hình hay huấn luyện ML; em dùng AI để <b>làm backend nhanh hơn và review kỹ hơn</b>. Điều em muốn đào sâu tiếp là hệ thống quy mô lớn: dữ liệu, đồng thời, hệ phân tán. Đó cũng là lý do em chọn vị trí backend ở Zalo Media.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Vậy sau này em có muốn chuyển sang AI không?</summary><div class="a"><p>Em muốn là kỹ sư backend giỏi dùng AI làm công cụ, ví dụ xây hạ tầng phục vụ tính năng AI ở quy mô lớn. Nhưng nền của em vẫn là backend.</p></div></details></div>
+<div class="trap">Nói “vì AI khó xin việc” hoặc tỏ ra coi nhẹ AI.</div>
+</article>
+<article class="qa" id="q3" data-q="q3">
+<div class="qa-h"><span class="qa-n">3</span><h3>Điểm khác biệt của bạn so với ứng viên 2 năm kinh nghiệm khác là gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> bằng chứng cụ thể (tuning query, đồng thời, hệ sự kiện), không dùng tính từ chung chung.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Em nghĩ điểm khác của em là <b>em chứng minh bằng đo đạc, không bằng cảm giác</b>, và có ba ví dụ cụ thể:</p>
+<ol><li><b>Tuning query có số:</b> đọc EXPLAIN ANALYZE, thấy truy vấn quét 10 triệu dòng để lấy 1, thêm partial index tạo bằng CONCURRENTLY, đo cả trước–sau lẫn tác động lên ghi.</li><li><b>Xử lý đồng thời có tái hiện:</b> lỗi hiếm khay vượt tải, em biến nó thành lỗi chắc chắn bằng test hai thread trên DB thật trước khi sửa, sau khi sửa chạy lặp hàng trăm lần không lỗi.</li><li><b>Tự xây hệ sự kiện:</b> Notification Hub với Kafka, idempotency bằng upsert, DLQ, Saga cơ bản; em cố ý kill consumer để thấy tin bị giao lại và xử lý.</li></ol>
+<p>Thêm một điểm: em <b>chủ động cải tiến quy trình</b> – xây nền tảng AI mà cả team dùng trên dự án thật.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Nhiều người 2 năm cũng tối ưu query, em khác gì?</summary><div class="a"><p>Em không chỉ thêm index: em giải thích được vì sao chọn partial thay vì composite, thứ tự cột, tác động lên ghi và cách tạo an toàn trên hệ thống đang chạy. Anh/chị có thể hỏi sâu bất kỳ chỗ nào.</p></div></details></div>
+<div class="trap">“Em chăm chỉ, ham học hỏi, chịu áp lực tốt.”</div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet A1 · Mở màn</h2><span>A1</span></div><div class="cheat-b"><div><h4>Giới thiệu 90 giây</h4>
+<ul><li>2 năm backend · Java, Spring, PostgreSQL</li><li>WMS 15 kho: khay 30 ký (concurrency) · quét thùng 1–2 s → &lt;1 ms (partial index)</li><li>Notification Hub: Kafka, idempotent, DLQ</li><li>Vì sao Zalo: hàng triệu người dùng</li></ul></div><div><h4>Vì sao backend</h4>
+<ul><li>Phần nặng của dự án AI vẫn là backend</li><li>AI = công cụ; không làm nghiên cứu ML</li></ul></div><div><h4>Khác biệt</h4>
+<ul><li>Đo thay vì đoán · tái hiện trước khi sửa · tự xây hệ sự kiện · chủ động cải tiến quy trình</li></ul></div></div></section>
+</main>
+</body></html>

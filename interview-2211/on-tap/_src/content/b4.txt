@@ -1,0 +1,189 @@
+@page b4
+@file b4-redis-cache-nosql.html
+@code B4
+@group B
+@title Redis, cache và NoSQL
+@desc Kiểu dữ liệu, đơn luồng, các mẫu cache, penetration/stampede/avalanche, hot key, lệch cache, persistence, khóa phân tán, NoSQL.
+@lede Zalo Media đọc rất nhiều nên cache là chủ đề chắc chắn bị hỏi. Neo câu trả lời vào Redis rate limit và cache ở Notification Hub, cache ở WMS (A2 · câu 15).
+
+@q 73
+@time khoảng 60 giây
+@ans
+| Kiểu | Bài toán | Lệnh |
+|---|---|---|
+| String | Cache object dạng JSON, bộ đếm, khóa | `GET/SET EX`, `INCR`, `SET NX PX` |
+| Hash | Object nhiều trường, sửa từng trường | `HSET`, `HINCRBY` |
+| List | Hàng đợi đơn giản, N bản ghi mới nhất | `LPUSH` + `LTRIM`, `BRPOP` |
+| Set | Tập duy nhất: ai đã like, tag | `SADD`, `SISMEMBER`, `SINTER` |
+| Sorted Set | **Xếp hạng**, timeline theo thời gian, cửa sổ trượt | `ZINCRBY`, `ZREVRANGE`, `ZRANGEBYSCORE` |
+
+Thêm: **Bitmap** (điểm danh, đánh dấu người dùng hoạt động theo ngày rất tiết kiệm), **HyperLogLog** (đếm phần tử duy nhất gần đúng với 12 KB, ví dụ số người xem duy nhất), **Stream** (log sự kiện có consumer group), **Geo**.
+
+Ví dụ: bảng xếp hạng top video dùng ZSet, `ZINCRBY views 1 video:42` và `ZREVRANGE views 0 9 WITHSCORES`. Rate limiting cửa sổ trượt ở Notification Hub dùng ZSet lưu thời điểm request.
+@fu Vì sao Hash tốt hơn nhiều key String cho một object?
+Hash nhỏ được mã hóa gọn (listpack) nên tiết kiệm bộ nhớ, và sửa được một trường mà không phải đọc/ghi cả JSON. Nhưng không đặt TTL riêng cho từng trường được (bản mới có HEXPIRE).
+
+@q 74
+@time khoảng 60 giây
+@ans
+Redis xử lý lệnh trên **một luồng chính** nhưng vẫn nhanh vì:
+- Dữ liệu **trong RAM**, mỗi lệnh chỉ vài micro giây.
+- **I/O multiplexing** (epoll): một luồng phục vụ hàng chục nghìn kết nối, không chặn khi chờ mạng.
+- **Không có khóa**, không chuyển ngữ cảnh giữa các luồng; mỗi lệnh tự nhiên là atomic.
+- Cấu trúc dữ liệu tối ưu. Redis 6+ còn có luồng I/O riêng để đọc ghi socket.
+
+Mặt trái: **một lệnh chậm chặn tất cả**. Các lệnh nguy hiểm:
+- `KEYS *` quét toàn bộ key → dùng `SCAN` theo từng đợt.
+- **Big key:** `HGETALL`, `SMEMBERS`, `LRANGE 0 -1` trên key hàng triệu phần tử; `DEL` big key (dùng `UNLINK` xóa nền).
+- **Lua script chạy lâu**, `FLUSHALL` đồng bộ.
+- `SORT`, `ZUNIONSTORE` trên tập lớn.
+
+Phát hiện bằng `SLOWLOG GET`, `redis-cli --bigkeys`, `LATENCY DOCTOR`.
+@fu Pipeline khác transaction (MULTI) thế nào?
+Pipeline gửi nhiều lệnh một lượt để giảm số vòng mạng, không đảm bảo atomic. MULTI/EXEC đảm bảo chạy liền nhau không bị chen, nhưng không rollback nếu một lệnh lỗi. Muốn logic điều kiện atomic thì dùng Lua.
+
+@q 75
+@time khoảng 75 giây
+@ans
+- **Cache-aside (lazy loading):** đọc cache, không có thì đọc DB rồi ghi vào cache với TTL. Ghi thì **cập nhật DB rồi xóa cache**. Ứng dụng tự quản. Phổ biến nhất, Redis chết vẫn chạy được (chậm hơn). Rủi ro: lần đọc đầu chậm, có cửa sổ lệch nhỏ.
+- **Write-through:** ghi qua cache, cache ghi đồng bộ xuống DB. Cache luôn mới; ghi chậm hơn và cache chứa cả dữ liệu ít đọc.
+- **Write-behind (write-back):** ghi vào cache, **xuống DB sau theo lô**. Ghi rất nhanh, gộp được nhiều lần ghi; **rủi ro mất dữ liệu** nếu cache chết trước khi xả, và DB trễ hơn thực tế.
+
+Em dùng **cache-aside**: ở Notification Hub để cache cấu hình tenant và quota (đọc mỗi request, đổi hiếm), TTL vài phút và xóa cache khi admin sửa. Kiểu gần **write-behind** hợp với bộ đếm lượt xem: `INCR` trong Redis rồi định kỳ gộp ghi xuống DB, chấp nhận lệch nhỏ và có đối soát.
+@fu Khi nào không nên cache?
+Dữ liệu đổi liên tục và phải chính xác tuyệt đối (số dư, tồn kho khi trừ), dữ liệu ít đọc lại, hoặc khi DB đã đủ nhanh. Cache thêm một nguồn lệch và một hệ thống phải vận hành.
+
+@q 76
+@time khoảng 75 giây
+@ans
+| | Hiện tượng | Phòng |
+|---|---|---|
+| **Penetration** | Hỏi key **không tồn tại** (id rác, bị tấn công), cache không bao giờ có, mọi request xuống DB | Cache cả **giá trị rỗng** với TTL ngắn; **Bloom filter** loại id chắc chắn không có; validate đầu vào, rate limit |
+| **Breakdown / stampede** | **Một key nóng hết hạn**, hàng nghìn request cùng lúc miss và cùng đi DB dựng lại | **Khóa dựng lại** (chỉ một request lấy `SET NX` để đọc DB, còn lại chờ ngắn hoặc trả bản cũ); làm mới sớm trước khi hết hạn; key cực nóng thì không đặt hết hạn mà làm mới nền |
+| **Avalanche** | **Nhiều key hết hạn cùng lúc** (cùng nạp lúc deploy, cùng TTL) hoặc Redis chết, DB bị dồn tải | **TTL ngẫu nhiên (jitter)** ví dụ 600 ± 60 giây; Redis cluster có bản sao; circuit breaker và rate limit trước DB; cache cục bộ nhiều tầng |
+
+Một câu dễ nhớ: penetration là **key không có**, breakdown là **một key nóng**, avalanche là **nhiều key cùng lúc**.
+@fu Bloom filter có sai không?
+Có thể báo “có thể có” với key không tồn tại (dương tính giả), nhưng không bao giờ báo “không có” với key có thật. Nên dùng để loại chắc chắn, phần còn lại vẫn kiểm tra DB.
+@fu Request chờ khóa dựng lại bao lâu?
+Ngắn, vài chục tới vài trăm mili giây rồi đọc lại cache; hoặc trả dữ liệu cũ (stale-while-revalidate) nếu nghiệp vụ chấp nhận.
+
+@q 77
+@time khoảng 60 giây
+@ans
+**Hot key:** một key bị đọc cực nhiều, ví dụ bài viết của người nổi tiếng hoặc video đang viral, dồn hết vào **một node Redis** (vì một key chỉ nằm trên một shard), node đó nghẽn CPU hoặc băng thông dù cụm còn rảnh.
+
+Xử lý theo tầng:
+1. **Cache cục bộ trong ứng dụng** (Caffeine) với TTL ngắn vài giây: mỗi instance tự giữ một bản, phần lớn request không tới Redis nữa. Đổi lại lệch vài giây, chấp nhận được với dữ liệu hiển thị.
+2. **Nhân bản key:** lưu thành `post:42#0` … `post:42#9` trên nhiều shard, đọc ngẫu nhiên một bản; ghi thì cập nhật hoặc xóa cả nhóm.
+3. Với key **ghi** nóng như bộ đếm like, **tách bộ đếm** thành nhiều key con rồi cộng lại khi đọc, hoặc gộp trong bộ nhớ rồi `INCRBY` theo lô.
+4. Đọc từ **replica**.
+
+Phát hiện: `redis-cli --hotkeys` (cần chính sách LFU), theo dõi tải từng node, hoặc thống kê phía client.
+@fu Phát hiện hot key tự động rồi làm gì?
+Client đếm tần suất key trong cửa sổ ngắn; key vượt ngưỡng thì tự đưa vào cache cục bộ. Một số hệ thống lớn làm theo hướng này.
+
+@q 78
+@time khoảng 90 giây
+@ans
+Lệch xảy ra vì **cập nhật DB và cache là hai thao tác riêng**, không cùng giao dịch.
+
+**Nên xóa cache, không cập nhật cache.** Cập nhật cache khi hai request ghi đồng thời có thể ghi đè theo thứ tự sai (ghi DB A rồi B, nhưng ghi cache B rồi A → cache giữ A cũ mãi). Xóa thì lần đọc sau tự nạp đúng.
+
+**Thứ tự: cập nhật DB trước, rồi xóa cache.** Nếu xóa cache trước: request đọc chen vào giữa, miss, đọc DB **cũ** và nạp lại cache cũ, rồi DB mới được ghi → cache lệch tới khi hết TTL.
+
+Cập nhật DB rồi xóa vẫn còn một khe hiếm: request đọc miss, đọc DB cũ, **chậm**; trong lúc đó ghi DB mới và xóa cache; rồi request đọc mới ghi giá trị cũ vào cache. Khả năng thấp vì đọc thường nhanh hơn ghi.
+
+Lưới an toàn:
+- **Delayed double delete:** xóa, rồi xóa thêm lần nữa sau vài trăm mili giây.
+- **TTL** luôn có, để lệch tự lành.
+- Xóa cache **dựa trên CDC** (Debezium đọc WAL) hoặc outbox, để xóa thất bại thì có retry.
+- Dữ liệu cần đúng tuyệt đối thì **đọc DB**, không đọc cache.
+@fu Xóa cache thất bại thì sao?
+Retry, hoặc đẩy vào hàng đợi để xóa lại; không thì dựa vào TTL. Đây là lý do xóa qua CDC/outbox đáng tin hơn gọi xóa trực tiếp.
+
+@q 79
+@time khoảng 75 giây
+@ans
+**Persistence:**
+- **RDB:** chụp snapshot định kỳ (fork process con). Khởi động nhanh, file gọn, nhưng mất dữ liệu từ lần chụp cuối.
+- **AOF:** ghi log mọi lệnh ghi, `appendfsync everysec` thì mất tối đa khoảng 1 giây. File lớn hơn, có rewrite để gọn lại. Thực tế thường bật cả hai.
+
+**Sẵn sàng cao:**
+- **Sentinel:** một master, nhiều replica; Sentinel theo dõi và **tự chuyển replica lên master** khi master chết. Dữ liệu không chia nhỏ, giới hạn bởi RAM một máy.
+- **Cluster:** **chia dữ liệu** thành 16.384 slot trên nhiều master, mỗi master có replica. Mở rộng ngang được; đổi lại lệnh nhiều key phải cùng slot (dùng hash tag `{user:1}`), không có SELECT db.
+
+Replication là **bất đồng bộ** nên failover có thể mất vài ghi cuối.
+
+**Khi Redis chết, hệ thống của em:**
+- **Cache:** **fail-open**, đọc thẳng DB, nhưng có circuit breaker và rate limit để DB không bị dồn sập; timeout Redis ngắn (50–100 ms) để không treo request.
+- **Rate limit:** tùy mục đích. Chống spam người dùng thì fail-open (cho qua, kèm giới hạn cục bộ thô trong instance); bảo vệ nhà cung cấp tính tiền theo lượt thì fail-closed.
+- **Khóa phân tán, idempotency:** không dựa duy nhất vào Redis; Notification Hub có lớp idempotency cuối ở PostgreSQL (upsert), Redis mất thì vẫn không gửi trùng.
+@fu Fork khi chụp RDB có vấn đề gì?
+Với RAM lớn, fork mất thời gian và copy-on-write làm tăng bộ nhớ khi ghi nhiều; cần chừa RAM và tắt transparent huge pages.
+
+@q 80
+@time khoảng 90 giây
+@ans
+Cách cơ bản: `SET lock:job123 <token-ngẫu-nhiên> NX PX 30000`. Nhả khóa bằng **Lua so token rồi mới xóa**, để không xóa nhầm khóa của người khác.
+
+Rủi ro:
+1. **Khóa hết hạn khi đang xử lý:** việc chạy lâu hơn 30 giây (hoặc **GC pause** dài, mạng chậm), khóa tự mất, client B lấy được khóa; giờ **hai client cùng nghĩ mình giữ khóa**. A tỉnh lại vẫn ghi tiếp.
+2. **Failover:** master nhận khóa rồi chết trước khi đồng bộ sang replica; replica lên master không biết khóa đó, client khác lấy được.
+3. Đồng hồ lệch ảnh hưởng thuật toán Redlock.
+
+**Fencing token:** mỗi lần cấp khóa kèm một **số tăng dần** (33, 34…). Khi ghi vào tài nguyên, client gửi kèm token, và **tầng lưu trữ từ chối token nhỏ hơn token đã thấy**. A cầm token 33 tỉnh dậy ghi muộn sẽ bị từ chối vì B đã ghi với 34. Nghĩa là **kiểm tra cuối cùng phải ở tầng dưới**, ví dụ `UPDATE … WHERE fence < :token`.
+
+Vì vậy em dùng khóa Redis cho **hiệu quả** (tránh hai worker làm trùng việc tốn kém), còn **tính đúng** đặt ở DB: unique constraint, conditional update, version. Ở WMS, khóa chống batch chạy chồng em dùng advisory lock hoặc dòng khóa trong PostgreSQL vì dữ liệu đã ở đó.
+@fu Gia hạn khóa (watchdog) có giải quyết được không?
+Giảm khả năng hết hạn (Redisson tự gia hạn mỗi 1/3 TTL khi client còn sống), nhưng GC pause dài hoặc mất mạng vẫn làm khóa hết hạn. Vẫn cần fencing cho tính đúng.
+@fu Redlock thì sao?
+Lấy khóa trên đa số N node độc lập. Giảm rủi ro failover nhưng vẫn phụ thuộc thời gian; có tranh luận nổi tiếng giữa Martin Kleppmann và antirez. Cần đúng tuyệt đối thì dùng hệ đồng thuận (etcd, ZooKeeper) kèm fencing.
+
+@q 81
+@time khoảng 75 giây
+@ans
+Em bắt đầu từ **mẫu truy vấn** chứ không từ công nghệ. PostgreSQL là mặc định; chọn NoSQL khi:
+
+- **Ghi cực lớn, dữ liệu theo thời gian, truy vấn theo khóa đã biết trước:** tin nhắn, log, timeline, sự kiện. **Cassandra/ScyllaDB**: ghi nhanh (LSM tree), mở rộng ngang tuyến tính, nhiều datacenter; thiết kế bảng theo truy vấn, ví dụ partition key `conversation_id`, clustering key `message_id`.
+- **Truy cập theo khóa, độ trễ thấp, quản lý sẵn:** **DynamoDB**, phải biết trước partition key và mẫu truy cập.
+- **Document schema linh hoạt**, mỗi bản ghi cấu trúc khác nhau, đọc cả khối: **MongoDB**, ví dụ cấu hình, hồ sơ sản phẩm nhiều thuộc tính.
+
+Đổi lại mất:
+- **JOIN** và truy vấn tùy ý: muốn truy vấn kiểu mới thường phải tạo bảng mới (phi chuẩn hóa).
+- **Giao dịch nhiều dòng** (có nhưng hạn chế), ràng buộc khóa ngoại.
+- Thường là **nhất quán cuối cùng** hoặc phải chọn mức nhất quán mỗi lần đọc ghi.
+
+Tiền, tồn kho, quan hệ phức tạp: giữ SQL. Tin nhắn hàng tỉ dòng ghi liên tục: cân nhắc Cassandra.
+@fu Cassandra chọn partition key sai thì sao?
+Partition quá lớn (một nhóm chat cực đông, nhiều năm tin nhắn) gây hot partition và đọc chậm. Thêm “bucket thời gian” vào partition key, ví dụ `(conversation_id, tháng)`.
+
+@cheat Cheat sheet B4 · Redis & cache
+### Kiểu dữ liệu
+- String: cache, INCR, SET NX PX
+- Hash: object; ZSet: xếp hạng, cửa sổ trượt
+- Set: unique; HyperLogLog: đếm duy nhất 12 KB; Bitmap: điểm danh
+### Đơn luồng
+- RAM + epoll + không khóa
+- Cấm: KEYS (dùng SCAN), big key, Lua dài; DEL → UNLINK
+- SLOWLOG, --bigkeys
+### Mẫu cache
+- Cache-aside (mặc định): DB rồi xóa cache
+- Write-through: cache luôn mới, ghi chậm
+- Write-behind: nhanh, có rủi ro mất
+### 3 sự cố
+- Penetration: key không có → cache rỗng, Bloom filter
+- Breakdown: 1 key nóng hết hạn → khóa dựng lại, làm mới sớm
+- Avalanche: nhiều key cùng lúc → TTL jitter, HA, breaker
+### Lệch cache
+- Xóa, không cập nhật; DB trước, xóa sau
+- Double delete, TTL, xóa qua CDC/outbox
+- Hot key: Caffeine cục bộ, nhân bản key, tách bộ đếm
+### HA & khóa
+- RDB + AOF everysec; Sentinel (failover) vs Cluster (16.384 slot)
+- Redis chết: cache fail-open + breaker; rate limit tùy mục đích
+- Khóa: SET NX PX + token, nhả bằng Lua
+- Hết hạn khi GC pause → fencing token, kiểm tra ở DB
+### NoSQL
+- Từ mẫu truy vấn; Cassandra cho ghi lớn theo khóa
+- Mất JOIN, giao dịch; nhất quán cuối cùng

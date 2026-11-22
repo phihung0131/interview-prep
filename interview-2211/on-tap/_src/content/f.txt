@@ -1,0 +1,163 @@
+@page f
+@file f-hr.html
+@code F
+@group F
+@title HR
+@desc Giới thiệu, vì sao Zalo, vì sao rời FPT, khoảng cách quy mô, điểm mạnh/yếu, 3–5 năm, OT, lương, offer, môi trường, 30-60-90, lo ngại.
+@lede Vòng HR chấm **sự nhất quán**: động lực, lý do rời đi và kế hoạch phải khớp nhau và khớp với các câu kỹ thuật. Chỗ **tô vàng** (lương, ngày bắt đầu, offer khác…) là giả định, bắt buộc sửa theo thực tế của bạn.
+@intro
+**Một mạch xuyên suốt cho cả vòng:** “Em có nền backend chắc ở dữ liệu và xử lý đồng thời từ WMS; em muốn đưa nền đó vào bài toán **quy mô hàng triệu người dùng** – đó là lý do em chọn Zalo Media; kế hoạch của em là thành kỹ sư thiết kế được hệ thống lớn.” Mọi câu bên dưới quay về mạch này.
+
+@q 163
+@time khoảng 2 phút
+@ans
+Dạ, em là Hưng, **Backend Software Engineer** với khoảng **2 năm** kinh nghiệm tính cả thực tập, tốt nghiệp Khoa học Máy tính ở Bách khoa TP.HCM.
+
+Hiện em làm ở **FPT Software**, dự án **WMS** – hệ thống quản lý kho cho một hãng thời trang bán lẻ toàn cầu, chạy ở khoảng 15 kho. Em làm API và batch job bằng Spring Boot, MyBatis, PostgreSQL, Redis. Phần em tự hào nhất là xử lý **các lỗi đồng thời** như hai trạm cùng ghi một khay, và **tối ưu truy vấn** trên bảng hàng chục triệu dòng, ví dụ đưa API quét thùng từ cỡ giây xuống dưới mili giây ở DB. Em cũng góp phần xây **nền tảng AI nội bộ** mà cả team dùng để giảm thời gian chờ và lỗi đơn giản.
+
+Trước đó em thực tập ở **Apollogix** làm TMS cho cảng. Ngoài giờ em làm hai dự án: **Notification Hub** – hệ thống thông báo event-driven với Kafka, gRPC, idempotency, DLQ; và **Kestrel** – nền tảng tìm việc dùng AI có auth và billing.
+
+Em ứng tuyển Zalo Media vì muốn đưa nền tảng đó vào **bài toán hàng triệu người dùng mỗi ngày**: throughput cao, độ trễ thấp, cache và hệ phân tán – những thứ em đã học và làm ở quy mô nhỏ hơn và muốn làm thật ở quy mô lớn.
+@fu Bản 60 giây?
+Bỏ phần Apollogix và chi tiết dự án cá nhân, giữ: ai em là, WMS với hai điểm nổi bật có số, một câu dự án cá nhân, một câu vì sao Zalo.
+
+@q 164
+@time khoảng 75 giây
+@ans
+Có ba lý do cụ thể:
+
+1. **Bài toán quy mô:** Zalo là ứng dụng nhắn tin hàng chục triệu người dùng ở Việt Nam; phần Media – ảnh, video, file – là nơi có **lưu lượng đọc ghi và băng thông lớn nhất**, đòi hỏi đúng những thứ JD ghi: cache, CDN, hàng đợi, hệ phân tán, tối ưu độ trễ. Đó là những thứ em đang học sâu nhưng chưa có cơ hội làm ở quy mô thật.
+2. **Khớp kỹ năng:** JD dùng **Java**, SQL, Redis, message queue, microservices; đó là nền em đã làm hằng ngày ở WMS và trong Notification Hub. Em nghĩ em có thể đóng góp sớm ở phần backend service và tối ưu truy vấn.
+3. **Môi trường kỹ thuật:** [[em tìm hiểu qua các bài chia sẻ kỹ thuật của đội Zalo/VNG]] và thấy các bạn tự xây nhiều thành phần lõi, có văn hóa đo đạc và vận hành hệ thống thật. Em muốn học từ những người đã giải các bài toán đó.
+
+Ngắn gọn: em muốn chuyển từ hệ thống nghiệp vụ phức tạp nhưng tải vừa sang hệ thống **tải rất lớn**, và Zalo Media là nơi phù hợp nhất cho bước đó.
+@honest Trước buổi phỏng vấn, đọc 1–2 bài kỹ thuật thật của Zalo/VNG để thay câu tô vàng bằng chi tiết cụ thể; câu chung chung sẽ bị hỏi “bài nào?”.
+@trap “Zalo là công ty lớn, môi trường tốt, lương tốt.”
+
+@q 165
+@time khoảng 60 giây
+@ans
+Em học được rất nhiều ở FPT: làm dự án cho khách hàng nước ngoài với quy trình chặt (coverage 90%, review theo design), nghiệp vụ kho phức tạp, và có cơ hội chủ động xây nền tảng AI cho team. Em trân trọng điều đó.
+
+Lý do em tìm cơ hội mới là **hướng phát triển**: hệ thống WMS mỗi kho có DB riêng, tải mỗi kho ở mức vừa; bài toán của em chủ yếu là **đúng nghiệp vụ và nhất quán dữ liệu**. Em muốn bước tiếp theo là **hệ thống sản phẩm có lượng người dùng rất lớn**, nơi throughput, độ trễ và hệ phân tán là bài toán hằng ngày. Ở mô hình outsourcing, thiết kế thường đến từ phía khách hàng/vendor; em muốn được tham gia nhiều hơn vào **quyết định thiết kế và vận hành** sản phẩm của chính công ty.
+
+Em sẽ bàn giao đầy đủ và làm hết thời gian báo trước theo hợp đồng.
+@fu Chưa tới hai năm đã đổi việc, có phải em hay nhảy việc?
+Em hiểu lo ngại đó. Em ở FPT đủ lâu để hoàn thành các phần việc của mình và xây xong nền tảng AI đang được dùng. Lần chuyển này là có chủ đích về hướng đi, và em tìm một nơi để gắn bó lâu dài với bài toán quy mô lớn.
+@trap Than lương thấp, sếp không tốt, OT nhiều.
+
+@q 166
+@time khoảng 60 giây
+@ans
+Em nói thật: **em chưa vận hành hệ thống hàng triệu người dùng**, và đó là khoảng cách lớn nhất của em.
+
+Nhưng em có ba thứ chuyển được sang:
+1. **Nền dữ liệu và đồng thời:** các lỗi race condition, khóa, idempotency, tối ưu truy vấn ở WMS là cùng loại bài toán, chỉ khác quy mô.
+2. **Đã làm các mẫu của hệ phân tán ở dự án cá nhân:** Kafka, DLQ, idempotency, rate limit bằng Redis, gRPC – em biết chúng hoạt động thế nào và hỏng ở đâu.
+3. **Thói quen đo trước khi sửa:** EXPLAIN, metric, thread dump.
+
+**Kế hoạch lấp khoảng cách:** tháng đầu đọc kiến trúc, dashboard, các postmortem cũ để hiểu hệ thống thật hỏng thế nào; nhận việc nhỏ có mentor review; tham gia on-call cùng người có kinh nghiệm khi team cho phép; và tiếp tục tự học system design ở quy mô lớn.
+
+@q 167
+@time khoảng 75 giây
+@ans
+**Điểm mạnh: đào tới gốc lỗi và đo trước khi sửa.** Ví dụ lỗi khay vượt 30 ký: lỗi hiếm, không tái hiện bằng unit test; em viết test đồng thời với DB thật, chèn độ trễ để biến lỗi hiếm thành chắc chắn, rồi mới sửa bằng conditional update. Hay API quét thùng: em đọc EXPLAIN thấy quét 10 triệu dòng để lấy 1, rồi thêm partial index và đo cả tác động lên ghi.
+
+**Điểm yếu: [[ước lượng thời gian cho phần việc chưa rõ thường bị thấp]].** Ví dụ ở Kestrel, phần billing em ước một tháng mà mất gần gấp đôi vì đánh giá thấp tích hợp thanh toán và webhook. **Cách em khắc phục:** chia việc thành phần 1–2 ngày, làm bản thử nhỏ trước cho phần tích hợp bên ngoài, cộng dư cho phần chưa rõ, và báo sớm khi thấy lệch. Gần đây ước lượng của em sát hơn nhiều.
+
+(Một điểm yếu khác nói được nếu hỏi thêm: chưa có kinh nghiệm vận hành hệ thống quy mô lớn – xem câu 166.)
+@honest Điểm yếu phải thật và có hành động khắc phục. Nếu ước lượng không phải điểm yếu của bạn, chọn cái thật khác: ngại hỏi sớm, PR quá lớn, nói trước đám đông…
+@trap “Em quá cầu toàn / làm việc quá chăm.”
+
+@q 168
+@time khoảng 45 giây
+@ans
+Trong **3–5 năm** em muốn trở thành **kỹ sư backend senior** có thể **tự thiết kế và chịu trách nhiệm** một hệ thống lớn từ đầu tới cuối: chọn kiến trúc, ước lượng tải, vận hành khi có sự cố, và hướng dẫn được người mới.
+
+Cụ thể với Zalo Media: năm đầu em muốn nắm chắc hệ thống hiện có và đóng góp ổn định; sau đó sở hữu một phần quan trọng như pipeline xử lý media hoặc lớp cache/phân phối nội dung, rồi tham gia vào các quyết định thiết kế lớn hơn.
+
+Em định hướng **chuyên sâu kỹ thuật** trước; việc dẫn dắt team em sẽ cân nhắc khi đã đủ sâu về hệ thống.
+
+@q 169
+@time khoảng 60 giây
+@ans
+**Áp lực:** em xử lý bằng cách **chia nhỏ và ưu tiên**: việc gì ảnh hưởng người dùng hoặc dữ liệu làm trước, báo sớm cho người liên quan khi thấy không kịp, và không bỏ qua test hay review chỉ vì gấp. Ví dụ đợt sửa lỗi tồn kho trước release (câu 162): em ưu tiên lỗi dữ liệu, xin dời phần không gấp, nhờ đồng nghiệp review song song.
+
+**OT:** em **sẵn sàng làm thêm khi có sự cố production, đợt release quan trọng hay sự kiện lớn** – với hệ thống hàng triệu người dùng, chuyện đó là bình thường và em coi đó là trách nhiệm. Nhưng nếu OT kéo dài liên tục thì em nghĩ đó là tín hiệu cần sửa **quy trình hoặc ước lượng**, vì người mệt sẽ làm ra lỗi. Em muốn hiểu thêm về chế độ on-call của team để chuẩn bị.
+
+@q 170
+@time khoảng 60 giây
+@ans
+Dạ, mức em mong muốn là **[[khoảng X–Y triệu đồng gross/tháng]]**.
+
+**Căn cứ của em:**
+- Mặt bằng thị trường cho backend Java khoảng 2 năm kinh nghiệm ở các công ty sản phẩm lớn tại TP.HCM, em tham khảo [[báo cáo lương của TopDev/ITviec và bạn bè cùng ngành]].
+- Kỹ năng khớp trực tiếp JD: Java, PostgreSQL tuning, Redis, Kafka, xử lý đồng thời.
+- Mức hiện tại của em là [[…]] (chỉ nói nếu được hỏi và nếu bạn muốn nói).
+
+Em **linh hoạt theo tổng thu nhập**: thưởng, tháng lương thêm, bảo hiểm, cơ hội học và lộ trình tăng lương cũng quan trọng với em. Anh/chị có thể chia sẻ khung lương cho vị trí này để em cân nhắc không ạ?
+@honest Tìm số thật trước khi đi: khoảng bạn đưa ra nên có cận dưới là mức bạn vẫn vui vẻ nhận. Đưa khoảng, đừng đưa một con số.
+@trap Nói “tùy công ty” (không có căn cứ) hoặc đưa số mà không giải thích.
+
+@q 171
+@time khoảng 45 giây
+@ans
+Em cảm ơn đề nghị và rất muốn làm ở đây. Em xin hỏi thêm để hiểu đầy đủ:
+1. **Cấu trúc tổng thu nhập:** lương tháng 13, thưởng theo hiệu suất, cổ phiếu/ESOP nếu có, phụ cấp, bảo hiểm.
+2. **Chu kỳ đánh giá và tăng lương:** bao lâu một lần, dựa trên gì.
+
+Nếu sau đó vẫn thấp hơn mức em kỳ vọng, em sẽ đề xuất: **giữ mức hiện tại nhưng đánh giá lại sau 6 tháng** dựa trên các mục tiêu cụ thể hai bên thống nhất; hoặc điều chỉnh một phần (thưởng ký hợp đồng, phụ cấp). Em sẽ phản hồi trong [[vài ngày]] sau khi cân nhắc.
+@trap Ra tối hậu thư (“không tăng thì em không nhận”) hoặc nhận ngay mà không hỏi gì.
+
+@q 172
+@time khoảng 30 giây
+@ans
+- **Offer khác:** [[Hiện em đang trong quá trình phỏng vấn ở một vài công ty khác, chưa có offer chính thức]] / [[Em có một offer từ một công ty khác, nhưng Zalo là lựa chọn ưu tiên của em vì bài toán Media]]. Em nói thật để hai bên sắp xếp thời gian phù hợp.
+- **Ngày bắt đầu:** theo hợp đồng em cần báo trước **[[30 ngày]]** để bàn giao đầy đủ, nên em có thể bắt đầu khoảng **[[ngày …]]** sau khi nhận offer.
+@honest Không bịa offer để ép giá. Nếu có offer thật thì nói chung chung, không cần nêu tên hay số trừ khi bạn muốn.
+
+@q 173
+@time khoảng 45 giây
+@ans
+Với em, môi trường lý tưởng có ba thứ:
+1. **Học được từ người giỏi hơn và từ hệ thống thật:** có tài liệu, postmortem, người sẵn sàng giải thích.
+2. **Phản hồi thường xuyên và thẳng thắn:** biết mình làm tốt gì, cần cải thiện gì.
+3. **Trách nhiệm rõ ràng:** biết ai sở hữu phần nào, được giao quyền và chịu trách nhiệm với phần của mình.
+
+**Quy trình review code em mong muốn:** PR nhỏ, có mô tả và test; review trong ngày; bình luận nêu **lý do và tác động**, phân biệt “bắt buộc sửa” với “gợi ý”; có CI chạy lint, test tự động để người review tập trung vào thiết kế và logic thay vì định dạng. Em thích văn hóa mà junior cũng được review code của senior.
+
+@q 174
+@time khoảng 60 giây
+@ans
+- **30 ngày đầu – học:** dựng môi trường, đọc kiến trúc hệ thống Media, luồng dữ liệu chính, dashboard và alert, các postmortem gần đây. Làm **1–2 việc nhỏ** (sửa lỗi, thêm test, tối ưu nhỏ) để quen quy trình review, deploy. Gặp các người liên quan (PO, Mobile, SRE).
+- **60 ngày – đóng góp:** nhận một **tính năng hoặc cải tiến cỡ vừa** từ thiết kế tới production, tự viết test và theo dõi sau khi ra. Tham gia on-call cùng người có kinh nghiệm nếu team cho phép.
+- **90 ngày – sở hữu:** chịu trách nhiệm một phần nhỏ của hệ thống (một service hoặc một luồng), đề xuất được ít nhất một cải tiến **có số đo** (độ trễ, chi phí, độ ổn định), và tự xử lý được sự cố cơ bản ở phần đó.
+
+Mỗi mốc em sẽ xin phản hồi từ mentor hoặc quản lý để điều chỉnh.
+
+@q 175
+@time khoảng 45 giây
+@ans
+Có một điều em muốn chuẩn bị kỹ: **nhịp làm việc với hệ thống quy mô lớn** – on-call, xử lý sự cố khi tải lớn – là điều em chưa trải qua. Em không lo theo kiểu ngại, mà muốn biết trước để chuẩn bị: em sẽ học từ postmortem cũ, runbook, và đi on-call cùng người có kinh nghiệm trước khi tự trực.
+
+Ngoài ra em muốn hiểu thêm về **lộ trình onboarding** cho kỹ sư mới của team để tận dụng tốt mấy tháng đầu. Anh/chị có thể chia sẻ thêm về điều đó không ạ?
+@trap Nói “em không lo gì cả” (thiếu tự nhận thức) hoặc kể nhiều nỗi lo (thiếu tự tin).
+
+@cheat Cheat sheet F · HR
+### Mạch xuyên suốt
+- Nền dữ liệu + đồng thời từ WMS → muốn quy mô hàng triệu → Zalo Media → senior thiết kế hệ thống lớn
+### Câu dễ hỏng
+- Vì sao Zalo: quy mô Media + khớp JD + 1 chi tiết kỹ thuật thật của Zalo
+- Rời FPT: hướng phát triển, không than phiền
+- Khoảng cách quy mô: thừa nhận + 3 thứ chuyển được + kế hoạch
+- Điểm yếu: thật + hành động + tiến bộ
+### Lương & offer
+- Đưa khoảng có căn cứ, linh hoạt tổng thu nhập, hỏi khung
+- Offer thấp: hỏi cấu trúc → đề xuất xem lại sau 6 tháng
+- Offer khác: nói thật; báo nghỉ theo hợp đồng
+### Tương lai
+- 3–5 năm: senior, sở hữu hệ thống, chuyên sâu trước
+- 30-60-90: học → đóng góp → sở hữu + 1 cải tiến có số
+- OT: sẵn sàng khi sự cố; OT liên tục là vấn đề quy trình
+### !Điền trước khi đi
+- [[Mức lương X–Y]] · [[ngày bắt đầu]] · [[tình trạng offer]] · [[1 bài kỹ thuật của Zalo/VNG]] · [[điểm yếu thật]]

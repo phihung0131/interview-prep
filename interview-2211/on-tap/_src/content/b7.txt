@@ -1,0 +1,159 @@
+@page b7
+@file b7-dsa.html
+@code B7
+@group B
+@title Cấu trúc dữ liệu và giải thuật
+@desc Độ phức tạp collection, chọn cấu trúc cho LRU/Top-K/rate limiter/interval/đếm duy nhất, 8 bài code mẫu.
+@lede Vòng code thường là bài mức dễ đến trung bình. Điểm được chấm là cách bạn **nói to**: làm rõ đề → brute force → tối ưu → độ phức tạp → test biên. Câu 103 có lời giải Java ngắn cho 8 bài.
+
+@q 101
+@time khoảng 60 giây
+@ans
+| Cấu trúc | get / tìm | thêm | xóa | Ghi chú |
+|---|---|---|---|---|
+| HashMap | O(1) TB | O(1) TB | O(1) TB | Xấu nhất O(log n) nhờ treeify; không thứ tự |
+| TreeMap | O(log n) | O(log n) | O(log n) | Cây đỏ-đen, có thứ tự, `floorKey`, `ceilingKey`, khoảng |
+| PriorityQueue | peek O(1) | O(log n) | poll O(log n); remove(x) O(n) | Heap nhị phân trên mảng |
+| ArrayList | theo index O(1) | cuối O(1) khấu hao; giữa O(n) | O(n) | Liền bộ nhớ |
+| LinkedList | theo index O(n) | đầu/cuối O(1) | O(1) nếu đã có node | Mỗi phần tử một node |
+
+**Vì sao LinkedList hiếm khi nhanh hơn:** về lý thuyết chèn giữa là O(1), nhưng phải **đi tới vị trí đó mất O(n)** trước. Mỗi node là một object riêng (thêm khoảng 24 byte và hai con trỏ), nằm rải rác trong bộ nhớ nên **cache CPU kém**; ArrayList dời phần tử bằng `System.arraycopy` liền khối nên rất nhanh. Cần hàng đợi hai đầu thì dùng **ArrayDeque**, không dùng LinkedList.
+@fu HashSet dựa trên gì?
+Một HashMap bên trong, phần tử làm key, value là một object hằng.
+
+@q 102
+@time khoảng 75 giây
+@ans
+| Bài toán | Cấu trúc | Độ phức tạp |
+|---|---|---|
+| **LRU cache** | HashMap + danh sách liên kết đôi (hoặc `LinkedHashMap(accessOrder=true)` + `removeEldestEntry`) | get/put O(1) |
+| **Top-K** phần tử lớn nhất | **Min-heap kích thước K**: đầy thì so với đỉnh, lớn hơn thì thay | O(n log K), bộ nhớ O(K) |
+| **Top-K tần suất** | HashMap đếm + min-heap K (hoặc bucket theo tần suất O(n)) | O(n log K) |
+| **Rate limiter cửa sổ trượt** | **Deque** chứa thời điểm request: bỏ đầu những cái quá cửa sổ, kích thước < giới hạn thì cho qua | O(1) khấu hao mỗi request |
+| **Gộp khoảng thời gian** | **Sắp xếp theo điểm bắt đầu + quét** một lượt | O(n log n) |
+| **Kiểm tra chồng lịch** (tài xế TMS) | TreeMap theo giờ bắt đầu: kiểm `floorEntry` và `ceilingEntry` | O(log n) mỗi lần |
+| **Đếm phần tử duy nhất** | HashSet (chính xác); **HyperLogLog** khi hàng tỉ phần tử (sai số ~1%) | O(n) |
+| Sliding window max | Deque đơn điệu | O(n) |
+
+Câu chuyện thật để kể: tính năng phân công tài xế ở Apollogix kiểm tra chồng lịch chính là bài **hai khoảng giao nhau** khi `start1 < end2 && start2 < end1`.
+@fu Phân tán thì Top-K làm thế nào?
+Mỗi node tính top-K cục bộ (hoặc dùng Count-Min Sketch), gộp ở node tổng. Với bảng xếp hạng thời gian thực thì dùng Redis ZSet.
+
+@q 103
+@time luyện mỗi bài 15–25 phút
+@ans
+**Khung nói to cho mọi bài:**
+1. Nhắc lại đề, hỏi ràng buộc: kích thước n, có số âm không, có trùng không, input rỗng?
+2. Nêu **brute force** và độ phức tạp.
+3. Tìm điểm lặp lại hoặc tính chất để tối ưu, nói ý tưởng trước khi code.
+4. Code, đặt tên rõ.
+5. Chạy tay một ví dụ, rồi **test biên**: rỗng, một phần tử, toàn trùng, số lớn.
+6. Nêu độ phức tạp thời gian và bộ nhớ.
+
+**Two Sum** · HashMap lưu giá trị → chỉ số. O(n).
+```
+Map<Integer,Integer> seen = new HashMap<>();
+for (int i = 0; i < a.length; i++) {
+  Integer j = seen.get(target - a[i]);
+  if (j != null) return new int[]{j, i};
+  seen.put(a[i], i);
+}
+```
+
+**Valid parentheses** · Stack (ArrayDeque). O(n).
+```
+Deque<Character> st = new ArrayDeque<>();
+for (char c : s.toCharArray()) {
+  if (c=='(') st.push(')'); else if (c=='[') st.push(']'); else if (c=='{') st.push('}');
+  else if (st.isEmpty() || st.pop() != c) return false;
+}
+return st.isEmpty();
+```
+
+**Merge intervals** · sắp xếp theo start, nối nếu chồng. O(n log n).
+```
+Arrays.sort(iv, (x, y) -> Integer.compare(x[0], y[0]));
+List<int[]> out = new ArrayList<>();
+for (int[] cur : iv) {
+  if (out.isEmpty() || out.get(out.size()-1)[1] < cur[0]) out.add(cur);
+  else out.get(out.size()-1)[1] = Math.max(out.get(out.size()-1)[1], cur[1]);
+}
+```
+
+**LRU cache** · LinkedHashMap. O(1).
+```
+class LRU<K,V> extends LinkedHashMap<K,V> {
+  private final int cap;
+  LRU(int cap) { super(16, 0.75f, true); this.cap = cap; }
+  protected boolean removeEldestEntry(Map.Entry<K,V> e) { return size() > cap; }
+}
+```
+Người phỏng vấn có thể yêu cầu tự viết HashMap + danh sách đôi với node đầu/cuối giả.
+
+**Top K frequent** · đếm + min-heap K. O(n log k).
+```
+Map<Integer,Integer> cnt = new HashMap<>();
+for (int x : nums) cnt.merge(x, 1, Integer::sum);
+PriorityQueue<Integer> pq = new PriorityQueue<>(Comparator.comparingInt(cnt::get));
+for (int x : cnt.keySet()) { pq.offer(x); if (pq.size() > k) pq.poll(); }
+```
+
+**Sliding window maximum** · deque chỉ số, giá trị giảm dần. O(n).
+```
+Deque<Integer> dq = new ArrayDeque<>();
+for (int i = 0; i < a.length; i++) {
+  while (!dq.isEmpty() && dq.peekFirst() <= i - k) dq.pollFirst();
+  while (!dq.isEmpty() && a[dq.peekLast()] <= a[i]) dq.pollLast();
+  dq.offerLast(i);
+  if (i >= k - 1) res[i - k + 1] = a[dq.peekFirst()];
+}
+```
+
+**Binary search biến thể** · tìm vị trí đầu tiên thỏa điều kiện. O(log n).
+```
+int lo = 0, hi = n;            // [lo, hi)
+while (lo < hi) {
+  int mid = lo + (hi - lo) / 2; // tránh tràn số
+  if (ok(mid)) hi = mid; else lo = mid + 1;
+}
+return lo;                      // n nếu không có
+```
+Dùng cho: lower bound, mảng xoay, tìm đáp án nhỏ nhất thỏa (tốc độ ăn chuối, sức chứa tàu).
+
+**BFS / DFS trên đồ thị** · BFS cho đường ngắn nhất không trọng số, DFS cho đếm thành phần. O(V + E).
+```
+Deque<Integer> q = new ArrayDeque<>(List.of(src));
+boolean[] seen = new boolean[n]; seen[src] = true;
+while (!q.isEmpty()) {
+  int u = q.poll();
+  for (int v : adj.get(u)) if (!seen[v]) { seen[v] = true; q.offer(v); }
+}
+```
+Lưới 2D (số đảo): DFS/BFS 4 hướng, đánh dấu đã thăm.
+@fu Em không nghĩ ra lời giải tối ưu thì làm sao?
+Nói brute force và code nó cho đúng trước, nói rõ chỗ chậm, rồi thử các hướng: HashMap đổi bộ nhớ lấy thời gian, sắp xếp, hai con trỏ, heap. Người phỏng vấn thường gợi ý nếu thấy bạn suy nghĩ có hệ thống.
+@fu `mid = (lo + hi) / 2` có vấn đề gì?
+Tràn số khi lo + hi vượt Integer.MAX_VALUE. Dùng `lo + (hi - lo) / 2` hoặc `(lo + hi) >>> 1`.
+@trap Im lặng code 10 phút. Hãy nói to từng bước, kể cả khi đang bí.
+
+@cheat Cheat sheet B7 · DSA
+### Độ phức tạp
+- HashMap O(1) TB; TreeMap O(log n) có thứ tự
+- PriorityQueue: offer/poll O(log n), peek O(1)
+- ArrayList get O(1), chèn giữa O(n); LinkedList hiếm khi tốt hơn → ArrayDeque
+### Chọn cấu trúc
+- LRU: LinkedHashMap(accessOrder) / map + list đôi
+- Top-K: min-heap K → O(n log K)
+- Rate limiter: deque thời điểm
+- Interval: sort + quét; chồng lịch: TreeMap floor/ceiling
+- Duy nhất: HashSet / HyperLogLog
+- Window max: deque đơn điệu
+### Mẫu tư duy
+- Cần tra nhanh → HashMap
+- Mảng đã sắp → hai con trỏ / binary search
+- Khoảng liên tiếp → sliding window
+- K lớn/nhỏ nhất → heap
+- Đường ngắn nhất không trọng số → BFS
+### Nói to
+- Làm rõ → brute force → tối ưu → code → chạy tay → biên → độ phức tạp
+- Biên: rỗng, 1 phần tử, trùng, âm, tràn số

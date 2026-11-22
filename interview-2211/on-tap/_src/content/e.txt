@@ -1,0 +1,211 @@
+@page e
+@file e-behavioral.html
+@code E
+@group E
+@title Behavioral
+@desc 12 câu STAR: dự án tự hào, gây lỗi, bất đồng, yêu cầu mơ hồ, coverage vs deadline, cải tiến quy trình, học nhanh, phản hồi, hướng dẫn, thiếu thông tin, thất bại, áp lực.
+@lede Mỗi câu là một câu chuyện **STAR** khoảng 90 giây: **Situation** (bối cảnh 1–2 câu) · **Task** (việc của em) · **Action** (em làm gì, dùng “em”) · **Result** (kết quả có số + bài học). Các chi tiết **tô vàng** là giả định để câu chuyện trọn vẹn: thay bằng chuyện thật của bạn trước khi đi phỏng vấn.
+@intro
+**5 câu chuyện gốc dùng lại cho nhiều câu hỏi:** (1) Khay 30 ký – lỗi concurrency ở API đổ khay · (2) Quét thùng chậm – thêm partial index · (3) Nền tảng AI nội bộ – cải tiến quy trình · (4) Notification Hub – tự học và thiết kế · (5) Một lỗi/bài học của chính em. Mỗi câu dưới đây ghi rõ dùng chuyện nào.
+
+@q 151
+@time khoảng 90 giây
+@ans
+*(Chuyện 3 – nền tảng AI nội bộ)*
+
+**S:** Ở dự án WMS, team em phụ thuộc vào một vendor thiết kế bên ngoài. Mỗi khi spec chưa rõ, bọn em phải hỏi và chờ, có lúc [[hai, ba ngày]]; thêm nữa là các lỗi đơn giản và code lệch nghiệp vụ hay bị bắt muộn ở vòng review.
+
+**T:** Em [[đề xuất và là một trong những người xây chính]] nền tảng AI nội bộ để giảm thời gian bị chặn và lỗi lặt vặt.
+
+**A:** Em dùng Claude Code SDK nối với Jira, Confluence và GitHub để tự động hóa pipeline: đọc yêu cầu và chỉ ra chỗ mơ hồ, sinh test scenario, sinh code và unit test theo quy ước của team, tạo PR, và **AI review theo design trước khi người review**. Em xây thêm knowledge base từ Confluence để hỏi đáp nghiệp vụ và điều tra bug. Em làm thử với [[một module nhỏ]] trước, đo, rồi mới mở rộng cho cả team.
+
+**R:** Cả team dùng trên dự án thật; theo ước tính của team, thời gian phát triển giảm khoảng **một nửa**, thời gian chờ vendor và lỗi đơn giản giảm rõ. Điều em sẽ làm khác: **đo bài bản từ đầu** (thời gian từ ticket tới PR, số comment review) thay vì ước tính sau.
+@fu Phần nào là của riêng em?
+Nói đúng ranh giới như câu 18 (trang A3): phần em xây, phần dùng công cụ có sẵn, phần của đồng đội.
+@trap Dùng “chúng em” cho mọi thứ, người nghe không biết em làm gì.
+
+@q 152
+@time khoảng 90 giây
+@ans
+*(Chuyện 5 – lỗi của em)*
+
+**S:** [[Ở WMS, em viết một thay đổi cho batch tạo lệnh nhặt, đổi cách lọc các việc đang chờ.]]
+
+**T:** Thay đổi qua review và unit test, deploy lên staging.
+
+**A → lỗi:** [[Trên staging, tester báo một số đơn không được tạo lệnh nhặt. Em kiểm tra log và thấy điều kiện lọc mới của em bỏ sót các dòng có trạng thái cũ còn tồn trong dữ liệu thật – dữ liệu test của em không có trường hợp đó.]] Em **báo ngay** với tech lead và tester rằng lỗi do thay đổi của em, revert trong buổi đó để không chặn người khác, rồi sửa: thêm trường hợp đó vào điều kiện, thêm **test với dữ liệu lấy mẫu từ staging** và test cho từng giá trị trạng thái.
+
+**R:** Lỗi không lên production. Bài học của em: unit test xanh và coverage cao không có nghĩa là đúng với **dữ liệu thật**; từ đó, với thay đổi đụng tới điều kiện lọc, em luôn chạy thử truy vấn trên bản sao dữ liệu staging và liệt kê đủ các giá trị trạng thái có trong bảng trước khi viết điều kiện.
+@honest Hãy dùng một lỗi thật của bạn. Lỗi trên staging là đủ, không cần lỗi production lớn. Điểm được chấm là: nhận trách nhiệm, xử lý nhanh, rút ra thay đổi cụ thể.
+@trap Kể lỗi “do người khác” hoặc lỗi không có hậu quả gì.
+
+@q 153
+@time khoảng 90 giây
+@ans
+*(Chuyện 1 – khay 30 ký)*
+
+**S:** Khi sửa lỗi khay vượt 30 ký ở API đổ khay, [[một đồng nghiệp đề xuất dùng Redis lock bao quanh cả đoạn xử lý]].
+
+**T:** Em cần chọn cơ chế sửa và thống nhất với team.
+
+**A:** Em không bác ngay mà **liệt kê các phương án lên bàn** với tiêu chí: đúng khi nhiều instance, thời gian giữ khóa, thêm hạ tầng, độ khó test. Redis lock đúng nhưng thêm một điểm hỏng, phải xử lý hết hạn khóa, trong khi dữ liệu đã ở PostgreSQL. Em đề xuất **conditional update** và viết **test đồng thời** chạy được cho cả hai cách để so. Em cũng lắng nghe lý do của bạn ấy: bạn lo một câu UPDATE không đủ cho quy tắc phức tạp sau này; em đồng ý ghi lại rằng khi quy tắc vượt khỏi một câu WHERE thì chuyển sang `SELECT FOR UPDATE`.
+
+**R:** Tech lead chọn conditional update; test đồng thời chạy lặp không còn lỗi. Bài học: tranh luận bằng **tiêu chí và dữ liệu**, nói rõ điều kiện đổi quyết định, và nếu team chọn khác thì em vẫn cam kết làm tốt.
+@fu Nếu tech lead chọn cách của đồng nghiệp?
+Em làm theo, và đề xuất thêm phần em lo (timeout khóa, test đồng thời) để giảm rủi ro. Disagree and commit.
+
+@q 154
+@time khoảng 75 giây
+@ans
+**S:** Ở WMS, spec do vendor thiết kế bên ngoài viết, hay có chỗ mơ hồ và phản hồi chậm [[2–3 ngày]].
+
+**A:** Em không ngồi chờ:
+1. Đọc spec và gom **danh sách câu hỏi** một lần, mỗi câu kèm **phương án em đề xuất** để vendor chỉ cần chọn, thay vì hỏi mở.
+2. Với chỗ chưa được trả lời, em **chọn giả định hợp lý**, **ghi rõ giả định trong ticket và trong code** (cấu hình hoặc một chỗ dễ đổi), rồi làm tiếp phần chắc chắn.
+3. Làm trước những phần không phụ thuộc chỗ mơ hồ: khung API, test, migration.
+4. Đây cũng là động lực cho nền tảng AI: AI đọc spec và Confluence để **chỉ ra chỗ mơ hồ sớm** và tìm câu trả lời trong tài liệu cũ trước khi phải hỏi vendor.
+
+**R:** Thời gian bị chặn giảm, và khi vendor trả lời, phần lớn giả định của em đúng; chỗ sai thì sửa nhanh vì đã khoanh vùng sẵn.
+
+@q 155
+@time khoảng 75 giây
+@ans
+**S:** Ở WMS, cổng coverage 90% là bắt buộc để merge và release. [[Có lần tính năng gấp, còn hai ngày mà coverage của phần mới mới khoảng 70%.]]
+
+**A:** Em **không hạ chất lượng** và không viết test rỗng chỉ để tăng số. Em:
+1. **Ưu tiên test chỗ quan trọng trước**: nhánh nghiệp vụ chính, điều kiện biên (khay đúng 30 ký, số lượng 0), nhánh lỗi, chỗ đồng thời.
+2. Tách code khó test (gọi ngoài) ra sau interface để mock gọn, viết test nhanh hơn.
+3. **Báo sớm** cho tech lead tình hình bằng số, đề xuất **cắt một phần phạm vi** không cần trong lần release này (ví dụ một màn hình báo cáo phụ) để giữ chất lượng phần chính.
+
+**R:** Phần chính release đúng hạn với coverage đạt và test có giá trị; phần cắt ra vào sprint sau. Em hiểu coverage là **điều kiện cần, không đủ**: điều em quan tâm là test có bắt được lỗi thật không.
+
+@q 156
+@time khoảng 90 giây
+@ans
+*(Chuyện 3 – nền tảng AI, góc độ cải tiến quy trình)*
+
+**Vì sao làm:** em thấy hai điểm đau lặp lại hằng tuần: chờ vendor làm rõ spec và lỗi đơn giản lọt tới review. Cả hai tốn thời gian của cả team, không chỉ của em.
+
+**Thuyết phục team:**
+1. **Bắt đầu nhỏ:** làm thử trên [[một ticket/một module]] của chính em, không đòi cả team đổi cách làm.
+2. **Cho xem kết quả cụ thể:** PR sinh ra, lỗi AI review bắt được, thời gian tiết kiệm.
+3. **Giảm rủi ro:** người vẫn review cuối cùng; AI chỉ là bước trước; dữ liệu nhạy cảm có kiểm soát quyền.
+4. Lắng nghe phản hồi của đồng nghiệp để chỉnh quy ước và prompt cho hợp cách team làm.
+
+**Đo:** theo ước tính của team, thời gian phát triển giảm khoảng một nửa; số lần phải hỏi vendor và số lỗi đơn giản ở review giảm.
+
+**Bài học:** cải tiến quy trình thành công khi **giải quyết đau thật của người khác** và **làm cho việc dùng thử thật dễ**; và nên đo chặt từ đầu để có số đáng tin.
+
+@q 157
+@time khoảng 75 giây
+@ans
+*(Chuyện 4 – Kafka cho Notification Hub, hoặc MyBatis khi vào WMS)*
+
+**S:** Khi bắt đầu Notification Hub, em chưa từng dùng Kafka và gRPC thật.
+
+**A:** Cách học của em:
+1. **Đọc tài liệu gốc** trước (Kafka docs về partition, consumer group, delivery semantics), không bắt đầu bằng video tóm tắt.
+2. **Làm mẫu nhỏ** để kiểm chứng từng khái niệm: một producer, một consumer group hai instance, cố ý kill consumer để thấy rebalance và tin bị giao lại.
+3. **Gặp lỗi thật rồi mới hiểu sâu:** thấy thông báo trùng khi consumer restart → hiểu at-least-once → làm idempotency bằng upsert PostgreSQL.
+4. Ghi chú lại thành tài liệu ngắn để nhớ và giải thích lại được.
+
+**R:** Trong [[khoảng 3 tháng]] em hoàn thành hệ thống có Kafka, DLQ, Saga cơ bản, gRPC, và giải thích được trade-off của từng lựa chọn (như các câu ở trang A6).
+
+Với vị trí này, em sẽ học hệ thống của Zalo cùng cách: đọc tài liệu và code, làm việc nhỏ trước, hỏi đúng người.
+
+@q 158
+@time khoảng 75 giây
+@ans
+**Phản hồi:** [[Tech lead nhận xét PR của em quá lớn và mô tả quá ít: reviewer mất nhiều thời gian hiểu em đổi gì và vì sao, và một lần lỗi lọt qua vì PR quá dài.]]
+
+**Cảm nhận lúc đầu:** em hơi chột dạ vì nghĩ code của em ổn. Nhưng em nhìn lại thì thấy đúng: em tối ưu cho việc em viết nhanh, không cho người khác review nhanh.
+
+**Thay đổi cụ thể:**
+- Chia PR theo bước có ý nghĩa (migration riêng, refactor riêng, tính năng riêng), mục tiêu **dưới ~400 dòng**.
+- Mô tả PR theo mẫu: **vì sao, đổi gì, test thế nào, rủi ro**, kèm ảnh hoặc log nếu cần.
+- Tự review PR của mình trước khi gửi.
+
+**Kết quả:** PR của em được duyệt nhanh hơn, ít vòng sửa hơn. Em cũng bắt đầu dùng chính mẫu này khi review cho người khác.
+@honest Thay bằng phản hồi thật bạn từng nhận. Phản hồi về giao tiếp, ước lượng, hay review đều tốt; tránh “em quá cầu toàn”.
+
+@q 159
+@time khoảng 75 giây
+@ans
+**S:** [[Một bạn mới vào team WMS, chưa quen nghiệp vụ kho và cách team viết batch.]]
+
+**A:**
+1. Em giải thích **luồng nghiệp vụ bằng ví dụ thật** (một thùng hàng đi từ lúc nhà máy báo giao tới lúc nằm trên kệ), vẽ ra giấy, thay vì đưa tài liệu dài.
+2. Chọn cho bạn một **việc nhỏ có test sẵn** để làm quen codebase.
+3. **Review PR kỹ và giải thích lý do** (vì sao conditional update, vì sao chunk), không sửa hộ.
+4. Ghi lại những câu bạn hỏi thành trang hướng dẫn trên Confluence, sau này người mới khác dùng lại; phần này cũng đưa vào knowledge base AI.
+
+**R:** [[Sau khoảng hai tuần, bạn tự làm được ticket batch đầu tiên]]; trang hướng dẫn giảm số câu hỏi lặp lại cho cả team. Em cũng hiểu nghiệp vụ sâu hơn vì phải giải thích cho người khác.
+
+@q 160
+@time khoảng 75 giây
+@ans
+*(Chuyện 2 – quét thùng chậm)*
+
+**S:** API quét thùng ở bến nhận chậm vào giờ cao điểm. Em muốn thêm index, nhưng **không có số liệu production chính xác** về tần suất ghi và không được thử trực tiếp trên production.
+
+**A:**
+1. **Ghi rõ giả định:** bảng khoảng 10 triệu dòng, thùng đang chờ nhận chỉ vài phần trăm, batch nạp ASN 15 phút một lần nên ghi không dày.
+2. **Giảm rủi ro bằng thử nghiệm:** dựng bản sao staging cỡ thật, đo EXPLAIN trước/sau, đo tác động lên ghi bằng script chèn 100 nghìn dòng.
+3. **Chọn phương án lùi được:** partial index tạo bằng `CREATE INDEX CONCURRENTLY`, có kế hoạch `DROP INDEX CONCURRENTLY` nếu xấu.
+4. **Kiểm tra lại sau khi lên production:** p95 của API quét và của API ghi trong vài ngày.
+
+**R:** Truy vấn từ khoảng 1–2 giây xuống dưới 1 ms ở DB, ghi chậm thêm vài phần trăm như dự đoán. Bài học: thiếu thông tin thì **làm quyết định có thể đảo ngược, đo, rồi điều chỉnh**.
+
+@q 161
+@time khoảng 75 giây
+@ans
+**S:** [[Ở Kestrel, em đặt mục tiêu ra bản có billing cho người dùng trả phí trong một tháng, nhưng trễ gần gấp đôi.]]
+
+**Nguyên nhân (phân tích thật):**
+- Em **đánh giá thấp phần không phải code chính**: tích hợp cổng thanh toán, xử lý webhook trùng và đến muộn, các trường hợp hoàn tiền.
+- Em làm cùng lúc quá nhiều thứ (crawl, đánh giá chất lượng, billing) thay vì hoàn tất từng phần.
+- Không có mốc kiểm tra giữa chừng để thấy trễ sớm.
+
+**Thay đổi sau đó:**
+- Chia việc thành phần nhỏ **có thể hoàn tất trong 1–2 ngày**, mỗi tuần xem lại.
+- Với phần tích hợp bên ngoài, em **làm bản thử nhỏ trước** (spike) để ước lượng.
+- Cộng thêm thời gian cho phần chưa rõ.
+
+**R:** Billing cuối cùng chạy ổn, có idempotency cho webhook. Các phần sau em ước lượng sát hơn nhiều.
+@honest Chọn một thất bại thật, có hậu quả vừa phải, và nói được bạn đã đổi gì. Thất bại ở dự án cá nhân cũng được.
+
+@q 162
+@time khoảng 75 giây
+@ans
+**S:** [[Trước một đợt release WMS, có lỗi trên staging liên quan tồn kho cần sửa gấp trong khi em còn phải hoàn tất tính năng đã cam kết.]]
+
+**A:**
+1. **Ưu tiên rõ:** lỗi tồn kho ảnh hưởng dữ liệu → làm trước; báo tech lead để dời bớt phần tính năng không gấp.
+2. **Giữ chất lượng dù gấp:** vẫn tái hiện lỗi bằng test trước khi sửa, vẫn qua review; không sửa thẳng trên môi trường.
+3. **Giao tiếp:** cập nhật tình hình theo mốc cố định cho team và tester để không ai phải hỏi.
+4. **Không anh hùng cá nhân:** nhờ đồng nghiệp review song song và kiểm thử, thay vì một mình thức đêm.
+5. Sau đợt đó, em nghỉ ngơi lại sức và đề xuất một việc nhỏ để lần sau đỡ gấp ([[thêm kiểm tra tồn kho tự động trong bộ test hồi quy]]).
+
+**R:** Lỗi được sửa và kiểm chứng trước release, tính năng chính vẫn kịp. Em nghĩ áp lực là bình thường khi có sự cố, nhưng nếu tuần nào cũng như vậy thì đó là vấn đề quy trình cần sửa.
+
+@cheat Cheat sheet E · Behavioral
+### Khung STAR 90 giây
+- S: 1–2 câu bối cảnh · T: việc của em
+- A: 3–4 hành động, dùng “em”
+- R: số liệu + bài học + điều sẽ làm khác
+### 5 chuyện gốc
+- (1) Khay 30 ký: concurrency, conditional update, test đồng thời
+- (2) Quét thùng: partial index, 1–2 s → <1 ms
+- (3) Nền tảng AI: điểm đau, thử nhỏ, ~½ thời gian (ước tính)
+- (4) Notification Hub: tự học Kafka, idempotency
+- (5) Lỗi của em: dữ liệu thật khác dữ liệu test
+### Câu hỏi → chuyện
+- Tự hào, cải tiến quy trình → (3)
+- Lỗi do mình, thất bại → (5), Kestrel trễ
+- Bất đồng → (1); thiếu thông tin → (2)
+- Học nhanh → (4); mơ hồ → vendor + giả định ghi rõ
+### Tránh
+- “Chúng em” cho mọi thứ
+- Không có số, không có bài học
+- Đổ lỗi người khác, nói xấu công ty cũ
+- Điểm yếu giả (“quá cầu toàn”)

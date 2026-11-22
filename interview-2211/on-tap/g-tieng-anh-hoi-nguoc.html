@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>G · Tiếng Anh và câu hỏi ngược</title><meta name="description" content="10 câu trả lời tiếng Anh (kèm ghi chú tiếng Việt) và 7 câu nên hỏi lại nhà tuyển dụng."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">G · Tiếng Anh &amp; hỏi ngược</p><h1>G · Tiếng Anh và câu hỏi ngược</h1><p class="lede">Câu trả lời tiếng Anh viết ở mức <b>B1–B2</b>: câu ngắn, từ thông dụng, có cấu trúc rõ. Đọc to, ghi âm, nghe lại. Phần <b>G2</b> là câu bạn hỏi lại: mỗi câu kèm lý do nên hỏi và điều cần nghe trong câu trả lời.</p><div class="mast-meta"><span>17 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q176">176</a><a href="#q177">177</a><a href="#q178">178</a><a href="#q179">179</a><a href="#q180">180</a><a href="#q181">181</a><a href="#q182">182</a><a href="#q183">183</a><a href="#q184">184</a><a href="#q185">185</a><a href="#q186">186</a><a href="#q187">187</a><a href="#q188">188</a><a href="#q189">189</a><a href="#q190">190</a><a href="#q191">191</a><a href="#q192">192</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<div class="intro-box"><p><b>Mẹo nói:</b> dùng từ nối để giữ cấu trúc – <i>First… Second… Finally…</i>, <i>The reason is…</i>, <i>As a result…</i>, <i>To sum up…</i>. Kể chuyện quá khứ thì dùng <b>quá khứ đơn</b> (<i>I found, I added, it reduced</i>). Nghe không rõ thì hỏi lại: <i>“Sorry, could you repeat the question?”</i> hoặc <i>“Do you mean… ?”</i> – hoàn toàn bình thường.</p></div>
+<div class="sec-h"><h2>G1 · Câu hỏi tiếng Anh</h2></div>
+<article class="qa" id="q176" data-q="q176">
+<div class="qa-h"><span class="qa-n">176</span><h3>Please introduce yourself in about 90 seconds.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> present, past, future theo thứ tự: hiện tại, kinh nghiệm, vì sao Zalo.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 90 seconds</span></p><p>Hi, I'm Hung, a <b>backend software engineer</b> with about <b>two years of experience</b>, mainly with <b>Java, Spring Boot and PostgreSQL</b>.</p>
+<p><b>Currently</b>, I work at <b>FPT Software</b> on a <b>warehouse management system</b> for a global fashion retailer. It runs in about fifteen warehouses. I build APIs and batch jobs, and I focus on two things: <b>data consistency when many operations run at the same time</b>, and <b>query performance</b>. For example, I fixed a race condition where two stations could overload the same robot tote, and I reduced a scanning query from about one second to under one millisecond with the right index. I also helped build an <b>internal AI platform</b> that the whole team uses to review requirements and code.</p>
+<p><b>Before that</b>, I was an intern at Apollogix, working on a transportation system for a port. <b>In my free time</b>, I built <b>Notification Hub</b>, an event-driven system with Kafka, gRPC and idempotent consumers.</p>
+<p><b>I'm applying to Zalo</b> because I want to bring this foundation to a product with <b>millions of daily users</b>, where performance, caching and distributed systems are everyday problems. Thank you.</p></div>
+<div class="honest">Thứ tự <b>hiện tại → quá khứ → vì sao Zalo</b>. Nhấn vào các cụm in đậm. “Idempotent” đọc /aɪˈdɛmpətənt/. Nói chậm, dừng sau mỗi đoạn.</div>
+</article>
+<article class="qa" id="q177" data-q="q177">
+<div class="qa-h"><span class="qa-n">177</span><h3>Describe your Notification Hub project. What problem does it solve and how did you design it?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> problem → architecture → trade-off → result.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 90 seconds</span></p><p><b>The problem:</b> many services need to send notifications – push, email, SMS. If each service calls providers directly, we get duplicate code, no retry, and when a provider is slow, the caller becomes slow too.</p>
+<p><b>The design:</b> services send a request to a <b>gateway</b>, then to an intake service. The intake service checks the tenant's quota and puts an event into <b>Kafka</b>. Sender services consume the events and call the providers. I used <b>gRPC</b> between internal services, <b>Redis</b> for rate limiting and caching, and <b>PostgreSQL</b> to store the results.</p>
+<p><b>Key trade-offs:</b></p>
+<ul><li>Kafka gives <b>durability and replay</b>, but it delivers <b>at least once</b>, so I made the consumers <b>idempotent</b> with a PostgreSQL upsert on a unique key. Duplicate messages are simply ignored.</li><li>Messages that fail too many times go to a <b>dead letter queue</b>, so one bad message does not block the others.</li><li>I used a <b>basic saga</b>: if sending fails permanently, the quota is given back.</li></ul>
+<p><b>Result:</b> it is a personal project, so I don't have production traffic, but I tested failure cases like killing a consumer and confirmed there were <b>no lost and no duplicate</b> notifications.</p></div>
+<div class="honest">Khung <b>problem → architecture → trade-off → result</b>. Nói thật “personal project, no production traffic”. Xem câu 33–40 (trang A6) để trả lời các câu đào sâu bằng tiếng Việt trước.</div>
+</article>
+<article class="qa" id="q178" data-q="q178">
+<div class="qa-h"><span class="qa-n">178</span><h3>Explain to a non-technical person what a message queue is and why we need it.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> ví dụ đời thường (bưu chính, hàng chờ), không dùng thuật ngữ.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 60 seconds</span></p><p>Imagine a <b>busy restaurant</b>. Waiters take orders from customers, but they don't cook. They put the order tickets on a <b>rail in the kitchen</b>. The cooks take tickets one by one and cook at their own speed.</p>
+<p>A <b>message queue</b> is that rail. One part of the system leaves a message, and another part picks it up later.</p>
+<p><b>Why do we need it?</b></p>
+<ul><li><b>The waiter doesn't wait for the cook.</b> The customer gets a quick answer: “Your order is received.”</li><li><b>During rush hour</b>, tickets pile up on the rail instead of being lost. The cooks catch up later.</li><li><b>If one cook is sick</b>, the tickets are still there. Another cook can take them.</li><li>We can <b>add more cooks</b> when there are too many tickets.</li></ul>
+<p>So a message queue makes the system <b>faster for users, safer during peaks, and more reliable when something breaks</b>.</p></div>
+<div class="honest">Không dùng thuật ngữ (producer, consumer, broker). Ví dụ nhà hàng hoặc bưu điện đều được. Câu chốt tóm ba lợi ích.</div>
+</article>
+<article class="qa" id="q179" data-q="q179">
+<div class="qa-h"><span class="qa-n">179</span><h3>Tell me about a time you fixed a difficult production bug.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> STAR bằng thì quá khứ đơn.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 90 seconds</span></p><p><b>Situation:</b> In our warehouse system, the robot station sometimes <b>rejected totes</b> because they were heavier than the 30 kg limit, but our system said they were fine.</p>
+<p><b>Task:</b> I owned the API that records items put into totes, so I had to find the cause.</p>
+<p><b>Action:</b> I checked the logs and saw that two stations had written to <b>the same tote within a few hundred milliseconds</b>. The code <b>read the weight, checked the limit, then wrote</b> – three separate steps. So both requests read 22 kg, both added 6 kg, and the tote became 34 kg. I <b>reproduced it</b> with an integration test: two threads started at the same moment on a real PostgreSQL database. Then I <b>combined the check and the write into one conditional update</b>. If no row was updated, the API returned a clear “tote overloaded” error.</p>
+<p><b>Result:</b> The test ran hundreds of times without failing, and the problem <b>did not happen again</b> in production. I learned to look for <b>check-then-act</b> patterns whenever I see shared data.</p></div>
+<div class="honest">STAR, <b>quá khứ đơn</b> xuyên suốt (<i>checked, saw, reproduced, combined</i>). Con số 22 + 6 + 6 = 34 làm câu chuyện dễ nhớ.</div>
+</article>
+<article class="qa" id="q180" data-q="q180">
+<div class="qa-h"><span class="qa-n">180</span><h3>What is the difference between a cache and a database, and what is a risk of using a cache?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> stale data, invalidation, consistency.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 60 seconds</span></p><p>A <b>database</b> is the <b>source of truth</b>. It stores data durably on disk, it supports transactions, and it is the place we trust.</p>
+<p>A <b>cache</b> is a <b>fast copy</b> of some data, usually in memory, like Redis. We use it because reading from memory is much faster than querying the database, and it reduces load on the database.</p>
+<p><b>The main risk is stale data.</b> The database is updated, but the cache still has the old value, so users see wrong information. This happens because updating the database and the cache are <b>two separate steps</b>.</p>
+<p><b>How I handle it:</b> update the database first, <b>then delete the cache key</b>, so the next read loads fresh data. I always set a <b>TTL</b>, so even if something goes wrong, old data expires. And for data that must be exact, like money or stock, I read from the database, not the cache.</p>
+<p>Other risks: if the cache goes down, all traffic hits the database at once, so we need protection like rate limits or circuit breakers.</p></div>
+<div class="honest">Ba ý: <b>DB = nguồn sự thật</b>, <b>cache = bản sao nhanh</b>, <b>rủi ro = dữ liệu cũ</b> + cách xử lý. “Stale” đọc /steɪl/.</div>
+</article>
+<article class="qa" id="q181" data-q="q181">
+<div class="qa-h"><span class="qa-n">181</span><h3>How would you handle a disagreement with a teammate about a technical design?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> data-driven, listen, decide and commit.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 60 seconds</span></p><p>First, I <b>listen</b> and make sure I understand their idea and the reason behind it. Often they see a problem I didn't see.</p>
+<p>Then I try to <b>move the discussion to data</b>, not opinions. We agree on criteria – for example correctness, performance, complexity and cost to operate – and compare both options. If possible, we do a <b>small test</b> or a quick benchmark.</p>
+<p>For example, a teammate wanted to use a Redis lock to fix a race condition. I suggested a conditional update in PostgreSQL. We compared them: both were correct, but mine had no extra infrastructure and held the lock for only a few milliseconds. We also wrote down <b>when we would change the decision</b>.</p>
+<p>If we still disagree, we ask the tech lead to decide. <b>Once the decision is made, I commit to it</b> and help make it work, even if it wasn't my idea.</p></div>
+<div class="honest">Cụm khóa: <i>listen → criteria/data → small test → escalate → disagree and commit</i>.</div>
+</article>
+<article class="qa" id="q182" data-q="q182">
+<div class="qa-h"><span class="qa-n">182</span><h3>Why do you want to work at Zalo, and why this role?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> cụ thể, gắn với quy mô và bài toán media.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 60 seconds</span></p><p>I'm interested in Zalo for two reasons.</p>
+<p><b>First, the scale.</b> Zalo serves tens of millions of users in Vietnam, and Media – photos, videos, files – is where the traffic and data are the biggest. The problems in the job description, like <b>high throughput, low latency, caching and distributed systems</b>, are exactly what I want to work on next.</p>
+<p><b>Second, the fit.</b> The team uses <b>Java, SQL, Redis and message queues</b>, which I use every day. In my current project I solved concurrency and query performance problems, and in my side project I built an event-driven system with Kafka. I believe I can contribute quickly and also learn a lot from engineers who have solved these problems at real scale.</p>
+<p>In short, I want to move from a complex but <b>medium-traffic</b> system to a <b>very high-traffic</b> product, and this role is the best place for that step.</p></div>
+</article>
+<article class="qa" id="q183" data-q="q183">
+<div class="qa-h"><span class="qa-n">183</span><h3>How do you make sure your API is safe to retry?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> idempotency key, unique constraint, retry with backoff.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 60 seconds</span></p><p>I use <b>three layers of protection</b>.</p>
+<p><b>First, an idempotency key.</b> The client sends a unique key with each operation, for example in an <code>Idempotency-Key</code> header. When it retries, it sends <b>the same key</b>.</p>
+<p><b>Second, a unique constraint in the database.</b> The server stores the key with a unique constraint and saves the result. If the same key comes again, the server <b>returns the saved result instead of doing the work again</b>. I don't rely on “check first, then insert”, because two requests can pass the check at the same time.</p>
+<p><b>Third, the client retries correctly:</b> only for errors that are safe to retry, like timeouts or 503, not for 400 errors; with <b>exponential backoff and jitter</b>, so many clients don't retry at the same moment; and with a limit on the number of retries.</p>
+<p>In my Notification Hub, consumers are idempotent with a PostgreSQL upsert, so even if Kafka delivers a message twice, the user gets <b>only one notification</b>.</p></div>
+</article>
+<article class="qa" id="q184" data-q="q184">
+<div class="qa-h"><span class="qa-n">184</span><h3>Walk me through how you would find why an API became slow.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> metrics → traces → slow query → thread dump; nói theo các bước.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 90 seconds</span></p><p>I would go <b>step by step, from the big picture to the detail</b>.</p>
+<p><b>Step one, metrics.</b> When did it start? Is it all endpoints or only one? Did it start right after a deployment? I look at <b>p99 latency, error rate, and saturation</b> like CPU, memory and the database connection pool. If it started after a deploy, I would <b>roll back first</b> to protect users.</p>
+<p><b>Step two, traces.</b> I open a few slow requests in the tracing tool, like Datadog APM, and see <b>where the time goes</b>: the database, another service, or our own code.</p>
+<p><b>Step three, slow queries.</b> If it's the database, I find the query and run <b>EXPLAIN ANALYZE</b>. Usually I see a missing index, a bad join, or an N+1 problem.</p>
+<p><b>Step four, thread dumps.</b> If CPU is low but requests are slow, threads are probably <b>waiting</b> – for a lock or for a database connection. I take a few thread dumps with jstack and look for blocked threads.</p>
+<p>Then I fix the root cause, <b>measure again</b> to confirm, and add an alert or a test so it doesn't happen again.</p></div>
+<div class="honest">Thứ tự <b>metrics → traces → slow query → thread dump → fix → measure</b>. Dùng <i>Step one, step two…</i> để người nghe theo kịp.</div>
+</article>
+<article class="qa" id="q185" data-q="q185">
+<div class="qa-h"><span class="qa-n">185</span><h3>What are your strengths and weaknesses?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> bằng chứng, điểm yếu kèm cách khắc phục.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">about 60 seconds</span></p><p><b>My strength</b> is finding the <b>real root cause</b> and <b>measuring before I change things</b>. For example, when an API was slow, I didn't guess. I used EXPLAIN ANALYZE, saw the database was reading ten million rows to return one, added a partial index, and measured the impact on both reads and writes.</p>
+<p><b>My weakness</b> is that I used to <b>underestimate tasks that have many unknowns</b>, especially integrations with external systems. In my side project, the billing feature took almost twice as long as I planned. <b>To improve</b>, I now split work into small tasks of one or two days, I build a small prototype first for anything external, and I tell people early when I see a delay. My estimates are much more accurate now.</p></div>
+<div class="honest">Giữ nhất quán với câu 167 (bản tiếng Việt). Điểm yếu phải là thật của bạn.</div>
+</article>
+<div class="sec-h"><h2>G2 · Câu hỏi bạn nên hỏi lại nhà tuyển dụng</h2><p>Chuẩn bị ít nhất 5 câu; không hỏi những thứ có sẵn trên website.</p></div>
+<article class="qa" id="q186" data-q="q186">
+<div class="qa-h"><span class="qa-n">186</span><h3>Quy mô hệ thống Media hiện tại là bao nhiêu (QPS, dữ liệu) và thách thức kỹ thuật lớn nhất của team trong 6 tháng tới là gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu</p><p><b>Vì sao hỏi:</b> cho thấy bạn quan tâm bài toán thật, và giúp bạn biết mình sẽ làm gì.</p>
+<p><b>Nghe gì:</b> con số cụ thể (QPS, dung lượng, số người dùng), thách thức là kỹ thuật (độ trễ, chi phí lưu trữ, migration) hay tổ chức. Nếu họ nói về một dự án lớn sắp tới, hỏi tiếp: “Một kỹ sư mới có thể đóng góp vào phần nào của dự án đó?”</p>
+<p><b>Cách hỏi bằng tiếng Anh:</b> <i>“What is the current scale of the Media system, and what is the biggest technical challenge for the team in the next six months?”</i></p></div>
+</article>
+<article class="qa" id="q187" data-q="q187">
+<div class="qa-h"><span class="qa-n">187</span><h3>Một kỹ sư mới sẽ nhận phần việc nào trong 3 tháng đầu, và được hỗ trợ (mentor, onboarding) như thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu</p><p><b>Vì sao hỏi:</b> cho thấy bạn nghĩ tới việc đóng góp sớm và biết mình cần hỗ trợ.</p>
+<p><b>Nghe gì:</b> có mentor/buddy không, có tài liệu onboarding không, việc đầu tiên là việc thật hay chỉ đọc tài liệu. Câu trả lời mơ hồ (“tự tìm hiểu”) là tín hiệu onboarding yếu.</p>
+<p><b>Tiếng Anh:</b> <i>“What would a new engineer work on in the first three months, and how does the team support them?”</i></p></div>
+</article>
+<article class="qa" id="q188" data-q="q188">
+<div class="qa-h"><span class="qa-n">188</span><h3>Quy trình xử lý sự cố và trực on-call của team ra sao? Có postmortem không?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu</p><p><b>Vì sao hỏi:</b> hệ thống hàng triệu người dùng chắc chắn có sự cố; cách team xử lý cho thấy văn hóa kỹ thuật.</p>
+<p><b>Nghe gì:</b> có lịch on-call rõ, có runbook, postmortem <b>không đổ lỗi</b> và có hành động theo dõi. Tần suất bị gọi ban đêm. Người mới bao lâu thì vào on-call, có đi kèm người có kinh nghiệm không.</p>
+<p><b>Tiếng Anh:</b> <i>“How does the team handle incidents and on-call? Do you write postmortems?”</i></p></div>
+</article>
+<article class="qa" id="q189" data-q="q189">
+<div class="qa-h"><span class="qa-n">189</span><h3>Team đo chất lượng và hiệu năng bằng chỉ số nào (SLO, p99)? Quy trình review code và triển khai thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu</p><p><b>Vì sao hỏi:</b> cho thấy bạn quan tâm đo lường và chất lượng, đúng tinh thần JD.</p>
+<p><b>Nghe gì:</b> có SLO cụ thể (ví dụ p99 dưới bao nhiêu ms), dashboard, alert theo SLO; review bao nhiêu người, deploy bao lâu một lần, có canary/feature flag, có CI test tự động. Không có số đo nào là tín hiệu cần hỏi thêm.</p>
+<p><b>Tiếng Anh:</b> <i>“Which metrics does the team use for quality and performance, like SLOs or p99 latency? And what does the code review and deployment process look like?”</i></p></div>
+</article>
+<article class="qa" id="q190" data-q="q190">
+<div class="qa-h"><span class="qa-n">190</span><h3>Công nghệ nào team đang dùng cho lưu trữ, cache và message queue, và có kế hoạch thay đổi gì không?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu</p><p><b>Vì sao hỏi:</b> biết công nghệ thật để chuẩn bị, và thấy hướng phát triển của hệ thống.</p>
+<p><b>Nghe gì:</b> họ dùng gì cho lưu trữ (MySQL/PostgreSQL, Cassandra, hệ tự xây), cache, message queue (Kafka hay hệ riêng), object storage; có kế hoạch migration nào không. Nếu có hệ tự xây, đó là cơ hội học nhưng cần thời gian làm quen.</p>
+<p><b>Tiếng Anh:</b> <i>“What technologies does the team use for storage, caching and messaging, and are there any plans to change them?”</i></p></div>
+</article>
+<article class="qa" id="q191" data-q="q191">
+<div class="qa-h"><span class="qa-n">191</span><h3>Điều gì khến một kỹ sư thành công ở vị trí này sau 1 năm?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu</p><p><b>Vì sao hỏi:</b> biết rõ tiêu chí đánh giá, cho thấy bạn hướng tới kết quả.</p>
+<p><b>Nghe gì:</b> tiêu chí cụ thể – tự sở hữu một service, xử lý sự cố độc lập, đề xuất cải tiến có số đo – hay chung chung. Ghi lại để dùng cho kế hoạch 30-60-90 ngày.</p>
+<p><b>Tiếng Anh:</b> <i>“What does success look like for someone in this role after one year?”</i></p></div>
+</article>
+<article class="qa" id="q192" data-q="q192">
+<div class="qa-h"><span class="qa-n">192</span><h3>Sau buổi phỏng vấn hôm nay, anh/chị có lo ngại nào về hồ sơ của em không? (câu này cho thấy tự tin; nên chuẩn bị cách trả lời nếu họ nêu điểm yếu.)</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu</p><p><b>Vì sao hỏi:</b> cho bạn cơ hội <b>trả lời lo ngại ngay</b> thay vì để họ tự kết luận sau buổi phỏng vấn; cho thấy tự tin và cởi mở với phản hồi.</p>
+<p><b>Chuẩn bị cách trả lời</b> cho các lo ngại dễ gặp:</p>
+<ul><li><i>“Chưa làm hệ thống hàng triệu người dùng”</i> → thừa nhận + những gì chuyển được (đồng thời, tối ưu DB, Kafka/idempotency) + kế hoạch học (câu 166).</li><li><i>“Kinh nghiệm phần lớn là outsourcing”</i> → em vẫn sở hữu API/batch, điều tra sự cố production, và chủ động xây nền tảng AI cho team.</li><li><i>“Nhiều dự án AI, có thật muốn backend?”</i> → AI là công cụ; nền và phần nặng của mọi dự án là backend (câu 2).</li></ul>
+<p>Trả lời ngắn, không phòng thủ, cảm ơn họ đã chia sẻ.</p>
+<p><b>Tiếng Anh:</b> <i>“Is there anything in my background that makes you hesitate? I'd be happy to clarify.”</i></p></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet G · Tiếng Anh &amp; hỏi ngược</h2><span>G</span></div><div class="cheat-b"><div><h4>Khung trả lời tiếng Anh</h4>
+<ul><li>Intro: now → before → why Zalo</li><li>Project: problem → design → trade-off → result</li><li>Story: STAR, past simple</li><li>Debug: metrics → traces → slow query → thread dump → fix → measure</li></ul></div><div><h4>Cụm dùng lại</h4>
+<ul><li><i>The reason is…</i> · <i>For example…</i> · <i>As a result…</i> · <i>To sum up…</i></li><li><i>source of truth</i> · <i>stale data</i> · <i>idempotent</i> · <i>at least once</i></li><li><i>check-then-act</i> · <i>conditional update</i> · <i>root cause</i> · <i>roll back</i></li><li><i>Sorry, could you repeat the question?</i></li></ul></div><div><h4>Câu hỏi ngược (chọn 3–5)</h4>
+<ul><li>Scale + biggest challenge in 6 months</li><li>First 3 months + support</li><li>Incidents, on-call, postmortems</li><li>SLO/p99, review, deploy</li><li>Storage/cache/messaging tech</li><li>Success after one year</li><li><i>Anything that makes you hesitate?</i></li></ul></div><div><h4>Tránh hỏi</h4>
+<ul><li>Thứ có trên website, lương/thưởng ở vòng kỹ thuật</li><li>Không hỏi gì cả</li></ul></div></div></section>
+</main>
+</body></html>

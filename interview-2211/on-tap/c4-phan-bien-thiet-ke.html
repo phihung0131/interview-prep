@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>C4 · Phản biện thiết kế của chính bạn</title><meta name="description" content="SPOF, mất AZ/datacenter, chi phí, triển khai theo giai đoạn với đội 5 người."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">C · Use case &amp; system design</p><h1>C4 · Phản biện thiết kế của chính bạn</h1><p class="lede">Cuối buổi thiết kế, người phỏng vấn thường hỏi ngược. Chủ động tự phản biện trước khi bị hỏi là điểm cộng lớn: nó cho thấy bạn nghĩ như người vận hành hệ thống.</p><div class="mast-meta"><span>4 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q129">129</a><a href="#q130">130</a><a href="#q131">131</a><a href="#q132">132</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q129" data-q="q129">
+<div class="qa-h"><span class="qa-n">129</span><h3>Thiết kế của bạn có single point of failure ở đâu?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> từng thành phần, nhân bản, failover.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Em đi qua <b>từng thành phần trên sơ đồ</b> và hỏi “nó chết thì sao”:</p>
+<div class="tw"><table><thead><tr><th>Thành phần</th><th>Nếu chết</th><th>Cách chống</th></tr></thead><tbody><tr><td>Load balancer / gateway</td><td>Mất toàn bộ traffic</td><td>Nhiều instance, LB quản lý của cloud, DNS trỏ nhiều IP</td></tr><tr><td>Service không trạng thái</td><td>Giảm năng lực</td><td>Nhiều instance trên nhiều AZ, health check, autoscale</td></tr><tr><td><b>DB primary</b></td><td>Không ghi được</td><td>Replica đồng bộ/bán đồng bộ + <b>failover tự động</b> (Patroni, RDS Multi-AZ); thử failover định kỳ</td></tr><tr><td>Redis</td><td>Cache miss dồn DB, mất rate limit</td><td>Sentinel/Cluster có replica; ứng dụng fail-open có breaker</td></tr><tr><td>Kafka</td><td>Không nhận sự kiện</td><td>3 broker, replication factor 3, <code>min.insync.replicas=2</code>; producer có buffer và outbox</td></tr><tr><td>Bộ điều phối, job scheduler chạy một instance</td><td>Job không chạy</td><td>Leader election, khóa có hạn</td></tr><tr><td>Nhà cung cấp bên ngoài (SMS, push)</td><td>Không gửi được</td><td>Nhiều nhà cung cấp, fallback</td></tr><tr><td>Cấu hình, DNS, chứng chỉ, secret</td><td>Lỗi lan toàn hệ thống</td><td>Thay đổi có kiểm soát, cảnh báo hết hạn chứng chỉ</td></tr></tbody></table></div>
+<p>SPOF hay bị bỏ sót: <b>DB primary</b>, <b>một job chạy đơn lẻ</b>, <b>một người duy nhất biết vận hành</b>, và <b>cấu hình dùng chung</b> (một thay đổi cấu hình sai đánh sập mọi thứ cùng lúc).</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Nhân bản mọi thứ có tốn không?</summary><div class="a"><p>Có. Ưu tiên theo tác động: thứ gì chết là người dùng không dùng được (DB, gateway) thì nhân bản trước; thứ chỉ làm chậm tính năng phụ thì chấp nhận khôi phục trong vài phút.</p></div></details></div>
+</article>
+<article class="qa" id="q130" data-q="q130">
+<div class="qa-h"><span class="qa-n">130</span><h3>Nếu một Availability Zone/datacenter mất thì sao?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> multi-AZ, RPO và RTO, dữ liệu nào chấp nhận mất.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Trước tiên em chốt hai con số với nghiệp vụ:</p>
+<ul><li><b>RPO</b> (mất tối đa bao nhiêu dữ liệu): 0, vài giây, hay vài phút?</li><li><b>RTO</b> (bao lâu phải chạy lại): vài phút hay vài giờ?</li></ul>
+<p><b>Mất một AZ</b> (một trung tâm dữ liệu trong cùng vùng):</p>
+<ul><li>Service chạy <b>ít nhất 3 AZ</b>, LB tự bỏ AZ chết; đủ năng lực dư để 2 AZ còn lại gánh (mỗi AZ chạy ở ~66% công suất tối đa).</li><li>DB: replica ở AZ khác, <b>sao chép đồng bộ hoặc bán đồng bộ</b> → RPO gần 0, failover tự động trong 30–60 giây.</li><li>Kafka, Redis: replica rải trên các AZ (rack awareness).</li></ul>
+<p><b>Mất cả vùng/datacenter:</b></p>
+<ul><li><b>Active-passive:</b> vùng dự phòng nhận sao chép bất đồng bộ → RPO vài giây (mất vài giây dữ liệu cuối), RTO vài phút tới vài chục phút, chuyển DNS. Rẻ hơn.</li><li><b>Active-active:</b> cả hai vùng phục vụ, phải giải xung đột ghi; đắt và phức tạp, chỉ cho phần thật sự cần.</li></ul>
+<p><b>Dữ liệu chấp nhận mất:</b> số lượt xem, bộ đếm, cache, trạng thái online → chấp nhận mất vài giây. Tin nhắn, giao dịch tiền, tồn kho → không chấp nhận, cần sao chép đồng bộ hoặc client gửi lại được (idempotent).</p>
+<p>Và quan trọng nhất: <b>diễn tập</b> chuyển vùng định kỳ; kế hoạch chưa từng chạy thử thì coi như không có.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Backup khác replica thế nào?</summary><div class="a"><p>Replica sao chép cả lỗi (lỡ DELETE nhầm thì replica cũng mất ngay). Backup và PITR (khôi phục tới thời điểm) mới cứu được lỗi người hoặc lỗi phần mềm. Cần cả hai, và phải thử khôi phục.</p></div></details></div>
+</article>
+<article class="qa" id="q131" data-q="q131">
+<div class="qa-h"><span class="qa-n">131</span><h3>Chi phí lớn nhất của thiết kế là gì? Có cách rẻ hơn mà vẫn đủ dùng?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> nhận biết độ phức tạp không cần thiết, bản đơn giản trước.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Em chỉ ra chi phí lớn nhất theo thứ tự thường gặp với hệ thống media:</p>
+<ol><li><b>Băng thông ra và CDN</b> (xem video, ảnh).</li><li><b>Lưu trữ</b> (nhiều bản transcode, nhân bản, giữ mãi).</li><li><b>Compute</b> cho transcode và cụm DB/Kafka/Redis luôn chạy.</li><li><b>Chi phí con người</b> vận hành nhiều thành phần.</li></ol>
+<p><b>Cách rẻ hơn mà vẫn đủ:</b></p>
+<ul><li>Lưu trữ theo lớp nóng/lạnh, xóa bản transcode ít xem, chỉ tạo độ phân giải cao khi video có lượt xem.</li><li>Nén tốt hơn (AV1/HEVC cho video phổ biến), ảnh WebP/AVIF.</li><li>Bỏ thành phần chưa cần: <b>chưa cần Kafka</b> nếu bảng DB + job đủ; chưa cần Elasticsearch nếu <code>pg_trgm</code> đủ; chưa cần microservices nếu một service đủ.</li><li>Autoscale theo tải, máy giá rẻ (spot) cho worker transcode có thể làm lại.</li></ul>
+<p>Em sẽ nói: “Thiết kế em vẽ là cho quy mô mục tiêu. <b>Bản đầu tiên</b> em sẽ làm đơn giản hơn nhiều, và đặt các <b>mốc số đo</b> để biết lúc nào thêm phức tạp.”</p></div>
+</article>
+<article class="qa" id="q132" data-q="q132">
+<div class="qa-h"><span class="qa-n">132</span><h3>Thiết kế có đúng với đội 5 người không? Bạn triển khai theo giai đoạn như thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> MVP đơn giản, điểm thêm phức tạp theo số đo.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Không, nếu làm hết ngay. Đội 5 người không vận hành nổi 10 service, Kafka, Cassandra, Elasticsearch cùng lúc. Em chia giai đoạn theo <b>số đo</b>:</p>
+<p><b>Giai đoạn 1 (MVP, vài tuần):</b> một <b>modular monolith</b> Spring Boot, PostgreSQL có replica, Redis làm cache, object storage + CDN cho media, hàng đợi đơn giản (bảng DB + worker, <code>SKIP LOCKED</code>). CI/CD, metrics, log, alert cơ bản ngay từ đầu.</p>
+<p><b>Giai đoạn 2 (khi đo thấy):</b></p>
+<ul><li>DB đọc nặng → thêm cache, replica, tối ưu query.</li><li>Việc bất đồng bộ nhiều, cần replay, nhiều bên nghe cùng sự kiện → <b>Kafka</b> + outbox.</li><li>Một phần tải khác hẳn (transcode, gửi thông báo) → <b>tách service</b> đó ra trước.</li></ul>
+<p><b>Giai đoạn 3:</b> ghi vượt một DB → shard hoặc chuyển phần dữ liệu đó sang NoSQL; nhiều vùng.</p>
+<p>Mỗi lần thêm phức tạp đều có <b>lý do bằng số</b> (p99 vượt SLO, CPU DB 70% lúc đỉnh, lag tăng) và có người chịu trách nhiệm vận hành.</p>
+<p>Đây cũng là cách em làm Notification Hub ngược lại: em dùng nhiều thành phần vì mục tiêu học, nhưng em biết sản phẩm thật nên bắt đầu đơn giản hơn.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Làm sao biết đến lúc tách service?</summary><div class="a"><p>Khi một module có nhịp deploy riêng, tải hoặc tài nguyên khác hẳn, hoặc lỗi của nó thường kéo sập phần còn lại; và ranh giới dữ liệu của nó đã rõ.</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet C4 · Tự phản biện</h2><span>C4</span></div><div class="cheat-b"><div><h4>SPOF</h4>
+<ul><li>LB, DB primary, Redis, Kafka, job đơn lẻ, nhà cung cấp, cấu hình chung, một người duy nhất biết</li><li>Nhân bản theo tác động; thử failover</li></ul></div><div><h4>Mất AZ / vùng</h4>
+<ul><li>Chốt RPO, RTO trước</li><li>3 AZ, dư công suất ~1/3; DB replica đồng bộ ở AZ khác</li><li>Vùng: active-passive (rẻ) vs active-active (đắt)</li><li>Backup + PITR ≠ replica; diễn tập</li></ul></div><div><h4>Chi phí</h4>
+<ul><li>Băng thông/CDN &gt; lưu trữ &gt; compute &gt; con người</li><li>Lớp lạnh, nén, bỏ thành phần chưa cần, spot cho worker</li></ul></div><div><h4>Đội 5 người</h4>
+<ul><li>Modular monolith + PG + Redis + object storage + CDN</li><li>Thêm Kafka/tách service/shard khi số đo yêu cầu</li><li>Câu chốt: “bản đầu đơn giản, có mốc số đo để thêm phức tạp”</li></ul></div></div></section>
+</main>
+</body></html>

@@ -1,0 +1,93 @@
+@page a4
+@file a4-tms-apollogix.html
+@code A4
+@group A
+@title Apollogix · TMS (intern)
+@desc Phân công tài xế và phát hiện xung đột lịch, race condition khi phân công, tối ưu Hibernate bằng view/function, mặt trái của logic trong DB.
+@lede Đây là kỳ thực tập, nên nói đúng mức “intern”: em làm trong phạm vi được giao, có người hướng dẫn. Câu chuyện mạnh nhất là phát hiện xung đột lịch (bài toán khoảng thời gian) và tối ưu truy vấn Hibernate.
+
+@q 22
+@time khoảng 75 giây
+@ans
+TMS phục vụ giao nhận container tại cảng: mỗi **chuyến** (trip) cần một **tài xế** và một **xe đầu kéo** trong một khoảng thời gian. Tính năng tự động phân công đề xuất tài xế và xe phù hợp cho chuyến mới.
+
+**Luật phân công** [[(phiên bản em làm)]]:
+1. Lọc tài xế và xe **đang hoạt động**, có giấy phép và loại xe phù hợp loại container.
+2. Loại những ai **bị chồng lịch** trong khoảng thời gian của chuyến (cộng thời gian đệm di chuyển).
+3. Xếp hạng theo tiêu chí đơn giản: [[ít chuyến trong ngày hơn, ở gần điểm lấy hàng hơn]].
+
+**Phát hiện chồng lịch:** hai khoảng `[s1, e1)` và `[s2, e2)` chồng nhau khi **`s1 < e2 AND s2 < e1`**. Truy vấn tìm chuyến xung đột:
+```
+SELECT 1 FROM trip
+ WHERE driver_id = :driver
+   AND status <> 'CANCELLED'
+   AND start_time < :new_end
+   AND end_time   > :new_start
+ LIMIT 1;
+```
+Có index `(driver_id, start_time)` nên mỗi lần kiểm tra chỉ đọc vài dòng. Làm tương tự cho xe.
+
+**Trường hợp biên:** chuyến kết thúc đúng lúc chuyến khác bắt đầu (dùng nửa mở `[s, e)` nên không tính là chồng), chuyến qua đêm, múi giờ (lưu UTC), chuyến bị hủy, chuyến kéo dài hơn dự kiến.
+@fu Độ phức tạp?
+Kiểm tra một ứng viên là O(log n) nhờ index. Với k ứng viên là O(k log n). Nếu làm trong bộ nhớ thì sắp xếp lịch theo giờ bắt đầu và dùng TreeMap `floorEntry`/`ceilingEntry`.
+@honest Sửa phần tô vàng theo luật thật bạn đã làm; nếu luật xếp hạng không phải của bạn thì nói “phần xếp hạng do team quyết định”.
+
+@q 23
+@time khoảng 60 giây
+@ans
+Nếu chỉ **kiểm tra rồi ghi** ở ứng dụng thì có **race condition check-then-act**: hai yêu cầu cùng kiểm tra tài xế A, cả hai thấy rảnh, cả hai gán → A có hai chuyến chồng giờ.
+
+Cách xử lý ở tầng DB:
+1. **Khóa theo tài xế:** trong transaction, `SELECT … FROM driver WHERE id = :id FOR UPDATE` trước khi kiểm tra chồng lịch và gán. Hai yêu cầu cho cùng tài xế sẽ xếp hàng; yêu cầu sau kiểm tra lại và thấy đã bận. Yêu cầu cho tài xế khác không bị ảnh hưởng.
+2. **Ràng buộc ở DB (chặt nhất):** PostgreSQL có **exclusion constraint** chặn hai khoảng chồng nhau cho cùng tài xế, kể cả khi code có lỗi:
+```
+ALTER TABLE trip ADD CONSTRAINT no_overlap
+  EXCLUDE USING gist (driver_id WITH =, tstzrange(start_time, end_time) WITH &&)
+  WHERE (status <> 'CANCELLED');   -- cần extension btree_gist
+```
+Vi phạm thì DB trả lỗi, API chuyển thành 409 “tài xế đã có lịch”.
+
+[[Ở dự án em làm cách 1 (khóa dòng tài xế)]]; cách 2 là cách em sẽ dùng nếu làm lại vì nó bảo vệ cả những đường ghi khác.
+@fu Sao không dùng synchronized?
+Ứng dụng có nhiều instance, synchronized chỉ khóa trong một JVM.
+
+@q 24
+@time khoảng 75 giây
+@ans
+**Phát hiện:** màn hình danh sách chuyến [[tải chậm vài giây]], response rất lớn. Em bật log SQL của Hibernate và thấy một request sinh **câu JOIN rất nhiều bảng** (chuyến, tài xế, xe, container, cảng, lịch sử trạng thái) do quan hệ `@OneToMany`/`@ManyToOne` fetch eager, kèm các câu N+1, trong khi màn hình chỉ cần vài cột. Response trả **nguyên cây entity**.
+
+**Tối ưu:**
+1. Tạo **PostgreSQL view** chỉ chứa đúng các cột màn hình cần, đã JOIN và tổng hợp sẵn (ví dụ trạng thái mới nhất của chuyến); những logic tính toán phức tạp viết thành **function**.
+2. Map view vào một **DTO/entity chỉ đọc**, phân trang ở DB.
+3. Quản lý view/function bằng **Flyway migration** để có phiên bản và triển khai cùng code.
+
+**Kết quả đo:** [[thời gian query giảm từ khoảng X ms xuống Y ms, kích thước response từ khoảng A KB xuống B KB]], đo bằng log thời gian query, EXPLAIN ANALYZE và kích thước response trong tab Network.
+@honest Điền số thật nếu có; nếu không nhớ chính xác, nói “giảm rõ rệt, em nhớ cỡ vài lần” và mô tả cách đo.
+@fu Sao không chỉ sửa fetch type và dùng DTO projection trong JPA?
+Cũng là hướng đúng và nhẹ hơn (`JOIN FETCH`, `@EntityGraph`, projection). Với màn hình này phần tổng hợp phức tạp nên view gọn hơn; nếu làm lại em sẽ thử projection trước.
+
+@q 25
+@time khoảng 60 giây
+@ans
+Có, và em nói rõ khi nào không nên:
+- **Test khó hơn:** logic trong SQL function không unit test bằng JUnit được, cần test tích hợp với DB thật (Testcontainers).
+- **Logic rải rác:** một phần nghiệp vụ ở Java, một phần ở DB; người đọc code Java không thấy toàn bộ.
+- **Version và triển khai:** phải đồng bộ phiên bản view/function với code. **Flyway** giải phần này: mỗi thay đổi là một migration có số phiên bản, chạy tự động khi deploy, nhưng sửa view phụ thuộc nhau vẫn phức tạp.
+- **Khó scale ngang:** DB là chỗ khó mở rộng nhất; đẩy tính toán vào DB làm DB gánh thêm CPU, trong khi tầng ứng dụng scale dễ.
+- **Gắn chặt với PostgreSQL**, khó đổi DB.
+
+Em dùng view cho **đọc và tổng hợp** – việc DB làm giỏi nhất – và giữ **quy tắc nghiệp vụ** ở tầng ứng dụng.
+
+@cheat Cheat sheet A4 · TMS
+### Chồng lịch
+- `s1 < e2 AND s2 < e1`, khoảng nửa mở [s, e)
+- Index (driver_id, start_time); biên: qua đêm, UTC, hủy
+### Phân công đồng thời
+- FOR UPDATE dòng tài xế, kiểm tra lại trong transaction
+- Exclusion constraint gist `&&` (btree_gist) chặn ở DB
+### Hibernate chậm
+- Log SQL: JOIN nhiều bảng + N+1 + trả cả cây entity
+- View chỉ cột cần + function + Flyway; DTO, phân trang ở DB
+### Mặt trái logic trong DB
+- Khó test, logic rải rác, version, DB khó scale, gắn PostgreSQL
+- View cho đọc/tổng hợp; quy tắc nghiệp vụ ở app

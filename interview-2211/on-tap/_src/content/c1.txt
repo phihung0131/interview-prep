@@ -1,0 +1,270 @@
+@page c1
+@file c1-use-case.html
+@code C1
+@group C
+@title Mười hai use case hay gặp
+@desc Đếm like/view, feed, lưu chat, upload media, CDN, flash sale, outbox, push, replica lag, rate limit, typeahead.
+@lede Mỗi use case luyện theo nhịp: **làm rõ → ước lượng → thiết kế ban đầu → điểm nghẽn → trade-off → đo và vận hành**. Bản dưới đây là “phiên bản nói 2 phút”; khi được hỏi sâu thì mở follow-up.
+@intro
+**Câu mở đầu dùng cho mọi bài:** “Trước khi thiết kế, em xin hỏi vài câu để chốt phạm vi: quy mô người dùng và tải đọc/ghi, yêu cầu nhất quán, độ trễ chấp nhận được.” Sau đó nói giả định bằng số rồi mới vẽ.
+
+@q 104
+@time khoảng 2 phút
+@ans
+**Làm rõ:** đếm like và view cho video; số hiển thị chấp nhận trễ vài giây; like phải đúng mỗi người một lần, view thì đếm gần đúng được.
+
+**Like (cần đúng từng người):**
+- Bảng nguồn sự thật `video_like(user_id, video_id, created_at)` với **unique (video_id, user_id)**. Like = `INSERT … ON CONFLICT DO NOTHING`; chèn được mới tính, nên bấm hai lần hoặc retry không đếm trùng. Unlike = DELETE, xóa được mới trừ.
+- Bảng này shard theo `video_id`, ghi được hàng chục nghìn mỗi giây trên nhiều shard.
+
+**Bộ đếm (đọc cực nhiều):**
+- Sau khi like thành công, phát sự kiện lên **Kafka**; consumer **gộp theo lô** vài giây (video 42: +137) rồi `INCRBY` vào **Redis** và cập nhật cột `like_count` trong DB một lần. Thay vì 10.000 lần UPDATE một dòng nóng chỉ còn 1.
+- Đọc số like từ Redis, miss thì đọc DB.
+
+**View:** không cần đúng từng người, nên đếm thẳng bằng `INCR` trong Redis (hoặc gộp ở ứng dụng rồi đẩy), định kỳ xả xuống DB. Cần số người xem duy nhất thì **HyperLogLog**.
+
+**Hot key** (video viral): **tách bộ đếm** thành N key con `views:42:{0..15}`, ghi ngẫu nhiên vào một key, đọc thì cộng lại (cache kết quả vài giây).
+
+**Đối soát:** job định kỳ so `like_count` với `COUNT(*)` từ bảng nguồn cho các video thay đổi gần đây; lệch thì sửa. Mất dữ liệu Redis thì dựng lại từ bảng nguồn hoặc **replay sự kiện Kafka** (câu 105).
+@fu Tại sao không `UPDATE video SET like_count = like_count + 1` mỗi lần?
+Video viral nhận hàng nghìn like/giây; mọi UPDATE tranh khóa **một dòng**, xếp hàng tuần tự, DB nghẽn và các truy vấn khác bị kéo theo. Gộp theo lô biến hàng nghìn lần ghi thành một.
+@fu Người dùng like xong reload không thấy số tăng thì sao?
+Phía client cập nhật lạc quan ngay (optimistic UI), và trạng thái “mình đã like” đọc từ bảng nguồn hoặc cache theo user, không phụ thuộc bộ đếm tổng.
+@fu Sao không chỉ dùng Redis Set lưu ai đã like?
+Được cho kiểm tra nhanh, nhưng Redis không phải nguồn sự thật bền vững, và hàng triệu video × hàng triệu người tốn RAM. Giữ nguồn sự thật ở DB, Redis làm cache.
+@mini Like: bảng unique (nguồn sự thật) → Kafka → gộp lô → Redis/DB counter. View: INCR + xả định kỳ. Hot key: shard counter. Đối soát định kỳ.
+
+@q 105
+@time khoảng 90 giây
+@ans
+**Phát hiện:**
+- Job đối soát **theo mẫu**: mỗi giờ lấy ngẫu nhiên vài nghìn video và các video có hoạt động gần đây, so số trong Redis với số đếm từ nguồn (bảng like, hoặc tổng từ log sự kiện). Vượt ngưỡng lệch thì cảnh báo.
+- Theo dõi sự kiện hạ tầng: Redis failover, restart, `evicted_keys` tăng, số key giảm đột ngột.
+
+**Xác định khoảng lệch:** thời điểm Redis mất dữ liệu (log failover) và mốc dữ liệu cuối còn đúng (snapshot RDB cuối, lần xả xuống DB gần nhất).
+
+**Sửa:**
+1. **Like:** dựng lại từ bảng nguồn (`COUNT(*)` theo video, chạy theo lô cho các video bị ảnh hưởng). Đây là lý do phải có nguồn sự thật.
+2. **View:** không có bảng từng lượt, nên lấy số đã xả xuống DB làm mốc, rồi **replay sự kiện từ Kafka**: tạo consumer group mới, `seek` tới **offset tương ứng thời điểm mốc** (`offsetsForTimes`), đếm lại và cộng vào. Kafka giữ log đủ lâu (retention vài ngày) chính là để làm việc này.
+3. Trong lúc sửa, ghi mới vẫn tiếp tục; dùng phép **cộng thêm** (INCRBY phần thiếu) chứ không ghi đè, để không mất các lượt mới.
+
+**Ngăn tái diễn:** bật AOF, xả xuống DB thường xuyên hơn, và đối soát tự động sửa luôn với lệch nhỏ.
+@fu Replay có đếm trùng không?
+Có thể, nếu khoảng replay chồng với phần đã xả. Ghi kèm “offset cuối đã xả” trong DB cùng lần xả, replay bắt đầu đúng từ offset đó là khớp.
+
+@q 106
+@time khoảng 2 phút
+@ans
+- **Fan-out on write (push):** khi A đăng bài, ghi id bài vào **hộp feed** của từng follower (Redis list/ZSet hoặc bảng feed). Đọc feed rất nhanh, chỉ đọc hộp của mình. Ghi tốn: người có 10 triệu follower thì một bài thành 10 triệu lần ghi, mất nhiều phút và tốn chỗ cho cả người không bao giờ online.
+- **Fan-out on read (pull):** khi mở feed, lấy danh sách người mình follow, gom bài mới nhất của từng người rồi trộn. Ghi rẻ, đọc đắt: follow 500 người là 500 nguồn phải gộp mỗi lần mở.
+- **Hybrid** (cách các mạng xã hội lớn làm): người bình thường dùng **push**; **người nổi tiếng** (trên ngưỡng, ví dụ 100 nghìn follower) **không push**, bài của họ được **kéo khi đọc** rồi trộn với hộp feed đã push sẵn.
+
+Cho người có 10 triệu follower: chọn hybrid. Thêm:
+- Chỉ push cho follower **hoạt động gần đây**; người lâu không vào thì dựng feed khi họ quay lại.
+- Hộp feed chỉ giữ **id bài** và giới hạn vài trăm mục mới nhất; nội dung bài lấy qua cache bài viết.
+- **Thứ tự:** theo thời gian thì dùng ZSet với score là thời điểm hoặc id tăng theo thời gian (Snowflake); có xếp hạng thì thêm bước chấm điểm sau khi gom ứng viên.
+- Phân trang bằng cursor (score cuối).
+@fu Người dùng unfollow thì xử lý bài đã push thế nào?
+Lọc khi đọc (kiểm tra còn follow không) và dọn hộp feed bất đồng bộ; không cần xóa ngay.
+@fu Fan-out bằng gì?
+Sự kiện “bài mới” vào Kafka, worker fan-out đọc danh sách follower theo trang và ghi theo lô; ưu tiên follower đang online trước.
+
+@q 107
+@time khoảng 90 giây
+@ans
+**Shard key: `conversation_id`.** Truy vấn chính là “lấy 20 tin gần nhất của cuộc trò chuyện X” và “tin cũ hơn tin Y”. Mọi tin của một cuộc trò chuyện nằm **cùng một shard/partition**, đọc một nơi, **giữ được thứ tự**.
+
+**Vì sao không `user_id`:** một tin nhắn thuộc về cuộc trò chuyện, không thuộc riêng ai. Shard theo người gửi thì tin của hai người trong cùng cuộc chat nằm hai shard, đọc phải gộp; nhóm 200 người thì tệ hơn. Shard theo người nhận thì tin nhóm phải nhân bản cho mọi thành viên.
+
+**Thiết kế bảng** (ví dụ Cassandra):
+- Partition key `(conversation_id, bucket)` với `bucket` là tháng, để nhóm chat lâu năm không thành partition khổng lồ.
+- Clustering key `message_id DESC`, với `message_id` tăng theo thời gian (Snowflake: thời gian + máy + số thứ tự) để sắp xếp và phá trùng.
+- Đọc tin gần nhất: `WHERE conversation_id = ? AND bucket = ? AND message_id < :cursor LIMIT 20` (keyset).
+
+**Danh sách cuộc trò chuyện** của mỗi người là bảng khác, khóa theo `user_id`, sắp theo thời điểm tin cuối, phi chuẩn hóa preview tin cuối.
+
+**Dữ liệu cũ:** tin quá vài tháng chuyển sang lưu trữ rẻ hơn (nóng/lạnh), vì người dùng chủ yếu đọc tin gần.
+@fu Đồng bộ đa thiết bị thế nào?
+Mỗi thiết bị nhớ `message_id` cuối đã nhận cho từng cuộc trò chuyện (hoặc một số thứ tự đồng bộ theo user), khi online lại xin “mọi tin sau mốc này”.
+@fu Thứ tự tin khi hai người gửi cùng lúc?
+Server gán `message_id` khi nhận (không tin đồng hồ client), thứ tự là thứ tự server nhận. Client sinh `client_msg_id` để chống gửi trùng khi retry.
+
+@q 108
+@time khoảng 2 phút
+@ans
+1. **Xin upload:** client gọi API `POST /uploads` (kèm kích thước, loại file). Server kiểm quyền, hạn mức, tạo bản ghi `media(status=UPLOADING)` và trả **presigned URL** (hoặc nhiều URL cho **multipart upload**).
+2. **Upload thẳng lên object storage** (S3 hoặc tương đương), không đi qua server ứng dụng, nên server không tốn băng thông và không giữ kết nối lâu. File lớn chia **phần 5–10 MB**, upload song song, **đứt mạng thì gửi lại phần lỗi** (resumable).
+3. **Hoàn tất:** client báo complete; hoặc storage phát sự kiện “object created”. Server chuyển `status=PROCESSING`, đẩy job vào hàng đợi.
+4. **Xử lý bất đồng bộ:** worker kiểm tra file (định dạng thật, virus, nội dung cấm), **transcode** video ra nhiều độ phân giải (360p, 720p, 1080p) dạng HLS/DASH để phát thích ứng theo mạng, tạo thumbnail; ảnh thì nén, đổi kích thước, WebP/AVIF.
+5. **Sẵn sàng:** lưu URL các bản, chuyển `status=READY`, thông báo client (push/websocket hoặc client hỏi lại).
+6. **Xem:** qua **CDN**, URL có ký hoặc token nếu nội dung riêng tư.
+
+**Dọn rác:** upload dở hoặc không bao giờ complete: job xóa bản ghi `UPLOADING` quá 24 giờ, và **lifecycle rule** của storage tự hủy multipart dở dang. File bị xóa thì xóa cả các bản transcode.
+@fu Vì sao không upload qua server ứng dụng?
+Video vài trăm MB giữ kết nối và băng thông của server, chiếm thread, scale đắt. Presigned URL đẩy phần nặng sang storage vốn được thiết kế cho việc đó.
+@fu Transcode lỗi thì sao?
+Retry có giới hạn, lỗi vĩnh viễn (file hỏng) thì `status=FAILED` báo người dùng; job transcode phải idempotent theo `media_id`.
+@fu Chống upload trùng?
+Băm nội dung (hash), trùng thì dùng lại file đã có (dedup), tiết kiệm lưu trữ.
+
+@q 109
+@time khoảng 90 giây
+@ans
+**Cache nhiều tầng**, từ gần người dùng vào trong:
+1. **Trình duyệt / app:** `Cache-Control` cho file tĩnh.
+2. **CDN edge:** ảnh, video, JS/CSS, thậm chí response API công khai ngắn hạn. Người dùng lấy từ máy chủ gần nhất, origin chỉ nhận phần miss.
+3. **Cache cục bộ trong ứng dụng** (Caffeine): dữ liệu cực nóng, TTL vài giây.
+4. **Redis:** cache dùng chung giữa các instance.
+5. **DB** (và bộ đệm của DB).
+
+**Làm mới khi sửa nội dung:**
+- **Versioned URL** cho tài nguyên tĩnh: `avatar_42_v7.jpg` hoặc `app.3f9a1c.js` (hash nội dung). Sửa là ra URL mới, nên đặt cache rất dài (`max-age=31536000, immutable`) mà không bao giờ phục vụ bản cũ. Đây là cách tốt nhất.
+- Nội dung URL cố định: **TTL ngắn** + `stale-while-revalidate`, hoặc gọi **API purge** của CDN theo URL/tag khi sửa (purge chậm vài giây tới vài phút và có giới hạn).
+- Tầng ứng dụng: sửa DB rồi **xóa key Redis**, phát sự kiện để các instance xóa cache cục bộ.
+
+Nội dung riêng tư qua CDN: URL có chữ ký và hạn dùng, cache key không lẫn giữa người dùng.
+@fu Cache hit ratio CDN thấp thì xem gì?
+Cache key có lẫn query string ngẫu nhiên hoặc cookie không; header `Cache-Control` có `no-store`/`private` không; TTL quá ngắn; nội dung quá phân tán (đuôi dài).
+
+@q 110
+@time khoảng 2 phút
+@ans
+**Mục tiêu:** chịu hàng chục nghìn request/giây và **không bán quá** số lượng.
+
+1. **Chặn từ ngoài vào:** CDN cho trang tĩnh; rate limit theo user/IP; **hàng đợi ảo** hoặc phát “vé vào” để chỉ một lượng người vừa phải vào bước mua; chống bot (captcha, token).
+2. **Trừ tồn nguyên tử trong Redis** bằng **Lua**: kiểm tra còn hàng và user chưa mua, rồi trừ, trong một bước không bị chen:
+
+```
+-- KEYS[1]=stock:sku, KEYS[2]=buyers:sku, ARGV[1]=userId
+if redis.call('SISMEMBER', KEYS[2], ARGV[1]) == 1 then return -2 end
+local s = tonumber(redis.call('GET', KEYS[1]) or '0')
+if s <= 0 then return -1 end
+redis.call('DECR', KEYS[1])
+redis.call('SADD', KEYS[2], ARGV[1])
+return s - 1
+```
+
+3. **Tạo đơn bất đồng bộ:** trừ Redis thành công thì đẩy sự kiện vào Kafka, trả “đang xử lý”; consumer tạo đơn trong DB.
+4. **Lớp bảo vệ thứ hai ở DB:** `UPDATE stock SET qty = qty - 1 WHERE sku = ? AND qty > 0` kiểm số dòng; **unique (user_id, campaign_id)** chặn mua hai lần; constraint `CHECK (qty >= 0)`. Redis có sai (failover mất dữ liệu) thì DB vẫn không cho âm.
+5. **Hết hạn thanh toán:** đơn giữ chỗ 10 phút, không trả tiền thì hoàn tồn cả Redis và DB (idempotent).
+
+**Không dùng `synchronized`:** chỉ khóa trong một JVM, nhiều instance vẫn bán quá; và nó làm mọi request xếp hàng một chỗ. Không dùng `SELECT FOR UPDATE` thẳng trên một dòng tồn kho cho hàng chục nghìn request: một dòng nóng, mọi người chờ khóa.
+
+Đây chính là bài khay 30 ký của em ở WMS ở quy mô lớn hơn: **gộp kiểm và trừ vào một thao tác nguyên tử**.
+@fu Redis và DB lệch nhau thì sao?
+DB là nguồn sự thật. Job đối soát so số bán được trong DB với Redis; Redis chỉ là tầng chặn nhanh. Nếu Redis báo còn mà DB hết thì DB từ chối, trả “hết hàng”.
+@fu Một SKU quá nóng làm nghẽn một node Redis?
+Chia tồn thành nhiều “xô” trên nhiều key (100 xô × 10 sản phẩm), mỗi request vào một xô ngẫu nhiên, xô hết thì thử xô khác.
+
+@q 111
+@time khoảng 75 giây
+@ans
+Bài toán: tạo đơn trong DB **và** phát sự kiện `OrderCreated` lên Kafka. Ghi DB rồi gửi Kafka trực tiếp (dual write) có thể lệch: DB có đơn mà không có sự kiện, hoặc ngược lại.
+
+**Giải: Outbox + consumer idempotent.**
+1. Trong **một transaction**: `INSERT orders …` và `INSERT outbox(event_id, aggregate_id, type, payload)`.
+2. **Relay** (polling hoặc Debezium CDC) đọc outbox, publish lên Kafka với key là `order_id`, đánh dấu đã gửi.
+3. Relay có thể gửi trùng → consumer lưu `event_id` đã xử lý (unique) cùng transaction với tác dụng của nó.
+
+**So sánh:**
+- **Saga** giải bài khác: một nghiệp vụ trải **nhiều service**, mỗi bước cần bù trừ. Saga dùng outbox ở từng bước để phát sự kiện tin cậy. Tức outbox là viên gạch, Saga là quy trình.
+- **Khóa phân tán** không giải được: khóa chỉ ngăn hai bên cùng làm, không làm cho “ghi DB + gửi Kafka” thành nguyên tử. App chết giữa hai bước thì vẫn lệch.
+- **Kafka transaction** chỉ bao Kafka, không bao DB.
+- **2PC** giữa DB và Kafka: Kafka không hỗ trợ XA.
+@fu Độ trễ của outbox?
+Polling vài trăm ms tới 1 giây; CDC thường dưới 1 giây. Với thông báo, cập nhật số liệu thì chấp nhận được.
+
+@q 112
+@time khoảng 2 phút
+@ans
+Đây gần như là Notification Hub của em ở quy mô lớn.
+
+**Luồng:** service nghiệp vụ gọi API gửi (kèm **idempotency key**) → kiểm tra và ghi nhận → đẩy vào **Kafka theo mức ưu tiên** → worker theo kênh (push, SMS, email) → nhà cung cấp (APNs, FCM, nhà mạng).
+
+- **Ưu tiên:** topic riêng `high` (OTP, tin nhắn), `normal`, `low` (marketing), worker riêng cho từng topic; marketing tràn không làm chậm OTP.
+- **Giới hạn tốc độ:** theo **người nhận** (không spam quá N thông báo/giờ, gộp “bạn có 5 tin mới”), theo **tenant**, và theo **nhà cung cấp** (tôn trọng hạn mức của APNs/FCM, nhà mạng). Token bucket trong Redis.
+- **Gửi lại:** lỗi tạm thời (timeout, 503, 429) retry với backoff + jitter qua **topic retry có độ trễ** (5 giây, 1 phút, 10 phút) để không chặn partition chính; hết lượt thì **DLQ**. Lỗi vĩnh viễn (token thiết bị không còn hợp lệ) thì không retry, đánh dấu token hỏng.
+- **Không gửi trùng:** consumer at-least-once + bảng ghi nhận `(notification_id, device_id)` unique; gửi idempotency key cho nhà cung cấp nếu họ hỗ trợ.
+- **Nhà cung cấp chết:** **circuit breaker** theo nhà cung cấp; mở mạch thì tin chờ trong hàng đợi (không mất), hoặc **fallback kênh**: OTP push không được thì SMS, SMS nhà mạng A lỗi thì sang nhà mạng B.
+- **Theo dõi:** tỉ lệ gửi thành công theo kênh, độ trễ từ lúc nhận tới lúc gửi, độ dài hàng đợi, DLQ.
+@fu Gửi cho 50 triệu thiết bị cùng lúc (broadcast)?
+Không fan-out bằng từng request API: một job chia danh sách người nhận theo trang, đẩy theo lô vào topic low, giới hạn tốc độ để không vượt hạn mức nhà cung cấp; với FCM có thể dùng topic messaging của họ.
+@fu Người dùng tắt nhận thông báo?
+Kiểm tra cài đặt ở bước ghi nhận (cache cài đặt người dùng), và kiểm tra lại ngay trước khi gửi đối với tin đã nằm trong hàng đợi lâu.
+
+@q 113
+@time khoảng 75 giây
+@ans
+Nguyên nhân: ghi vào **primary**, đọc từ **replica**, mà replica **trễ** vài trăm ms tới vài giây. Người dùng đăng bài xong tải lại trang, request đọc rơi vào replica chưa có bài.
+
+Mục tiêu là **read-your-writes**: người viết thấy ngay thứ mình viết; người khác thấy trễ vài giây không sao.
+
+Cách làm:
+1. **Đọc primary trong cửa sổ ngắn:** sau khi user ghi, đánh dấu (cookie hoặc Redis `last_write:{user}`) trong vài giây; các request đọc của **chính user đó** trong cửa sổ này đi primary.
+2. **Theo version / LSN:** khi ghi, trả về vị trí WAL (LSN) hoặc version; request đọc sau gửi kèm, chỉ đọc replica nào **đã bắt kịp** mốc đó, chưa thì đọc primary hoặc chờ ngắn.
+3. **Sticky session:** gắn user vào một replica để ít nhất không thấy dữ liệu “đi lùi” giữa hai lần tải (monotonic reads).
+4. **Client:** thêm bài vừa đăng vào danh sách hiển thị ngay (optimistic), không chờ server.
+
+Đồng thời theo dõi **replica lag** và rút replica trễ quá ngưỡng khỏi nhóm đọc.
+@fu Bài hiện rồi biến mất rồi lại hiện là sao?
+Hai lần tải rơi vào hai replica có độ trễ khác nhau: lần đầu replica mới, lần sau replica cũ. Giải bằng sticky theo user hoặc đọc theo version (monotonic reads). Đây là câu 139 ở phần D.
+
+@q 114
+@time khoảng 75 giây
+@ans
+**Thuật toán:** **token bucket** cho API công khai (cho phép burst nhỏ, giữ tốc độ trung bình), hoặc **sliding window counter** khi cần giới hạn đều. Tránh fixed window vì burst gấp đôi ở biên cửa sổ.
+
+**Nhiều node:** trạng thái chung trong **Redis**, đọc-tính-ghi bằng **Lua** cho nguyên tử; key `rl:{api_key}:{endpoint}`, `rl:ip:{ip}`. Tải rất lớn thì mỗi node giữ hạn mức cục bộ và đồng bộ định kỳ (chấp nhận sai số vài phần trăm), hoặc dùng Redis cluster theo key.
+
+**Key theo gì:** đã đăng nhập thì **user/API key** (công bằng, khó lách); chưa đăng nhập thì **IP** (cẩn thận NAT: cả công ty chung IP, nên ngưỡng IP cao hơn); thêm giới hạn theo endpoint đắt (đăng nhập, gửi OTP, tìm kiếm).
+
+**Phản hồi:** **429 Too Many Requests** + `Retry-After` + header `RateLimit-Remaining` để client lịch sự tự giảm.
+
+**Chống lạm dụng ngoài rate limit:** captcha khi nghi ngờ, chặn theo hành vi (nhiều tài khoản cùng thiết bị), danh sách chặn IP, giới hạn kích thước request.
+
+Redis lỗi: **fail-open** kèm giới hạn cục bộ thô trong từng node, để sự cố Redis không biến thành sự cố toàn bộ API.
+@fu Đặt ở gateway hay service?
+Cả hai: gateway chặn thô theo IP/API key để bảo vệ hạ tầng; service giới hạn theo nghiệp vụ (mỗi tài khoản 5 OTP/giờ).
+
+@q 115
+@time khoảng 90 giây
+@ans
+**Làm rõ:** tìm theo tên (người dùng, bài hát, sản phẩm…), gợi ý khi gõ phải dưới 100 ms, dữ liệu mới xuất hiện trong vài giây là được.
+
+**Công nghệ:** **Elasticsearch/OpenSearch** dùng **chỉ mục ngược** (từ → danh sách tài liệu), hỗ trợ tách từ tiếng Việt, bỏ dấu (`asciifolding` để gõ “nguyen” ra “Nguyễn”), sai chính tả nhẹ (fuzzy), chấm điểm liên quan. PostgreSQL `LIKE '%x%'` không dùng index thường; `pg_trgm` hoặc full-text của PG đủ cho vài triệu bản ghi và tải vừa.
+
+**Typeahead:**
+- Trường được index bằng **edge n-gram** (“ngu”, “nguy”, “nguye”…) hoặc **completion suggester** để tra tiền tố cực nhanh.
+- **Xếp hạng** theo độ phổ biến (lượt tìm, lượt theo dõi) cộng mức khớp.
+- **Cache** các tiền tố phổ biến (1–3 ký tự) trong Redis/CDN; client **debounce** 150–300 ms và hủy request cũ.
+
+**Cập nhật chỉ mục:** DB là nguồn sự thật; thay đổi đi qua **CDC (Debezium) hoặc outbox → Kafka → indexer** ghi vào Elasticsearch theo lô. Trễ vài giây chấp nhận được. Có job **reindex** toàn bộ vào chỉ mục mới rồi chuyển **alias** (không downtime) khi đổi cấu hình phân tích.
+@fu Tìm kiếm phải tôn trọng quyền riêng tư (chặn, ẩn hồ sơ)?
+Lọc theo quyền ngay trong truy vấn (trường visibility trong document), và lọc lại phía service cho các quan hệ thay đổi nhanh như chặn.
+
+@cheat Cheat sheet C1 · 12 use case
+### Đếm like/view
+- Like: bảng unique (video,user) + ON CONFLICT → Kafka → gộp lô → Redis/DB
+- View: INCR + xả định kỳ; HLL cho duy nhất
+- Hot key: shard counter; đối soát; replay Kafka theo offsetsForTimes
+### Feed
+- Push (đọc nhanh) / pull (ghi rẻ) / hybrid: người nổi tiếng kéo khi đọc
+- Chỉ push follower hoạt động; hộp feed chỉ giữ id
+### Chat
+- Shard `conversation_id` (+ bucket tháng); message_id Snowflake
+- Keyset; bảng hội thoại theo user; client_msg_id chống trùng
+### Media & CDN
+- Presigned + multipart → hàng đợi → transcode HLS → CDN
+- Trạng thái UPLOADING/PROCESSING/READY; lifecycle dọn rác
+- Versioned URL + immutable; purge khi URL cố định
+### Flash sale
+- Rate limit, hàng đợi ảo → Lua trừ nguyên tử → Kafka tạo đơn
+- DB: UPDATE … WHERE qty>0, unique (user,campaign), CHECK ≥ 0
+- Không synchronized, không FOR UPDATE một dòng nóng
+### Nhất quán & thông báo
+- Outbox + consumer idempotent; Saga dùng outbox
+- Push: topic theo ưu tiên, retry topic có trễ, DLQ, breaker, fallback kênh
+### Đọc
+- Replica lag: read-your-writes (primary trong cửa sổ, LSN), sticky
+- Rate limit: token bucket + Lua; 429 + Retry-After
+- Typeahead: ES edge n-gram, asciifolding, CDC → indexer, alias

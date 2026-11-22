@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>A4 · Apollogix · TMS (intern)</title><meta name="description" content="Phân công tài xế và phát hiện xung đột lịch, race condition khi phân công, tối ưu Hibernate bằng view/function, mặt trái của logic trong DB."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">A · Câu hỏi theo CV</p><h1>A4 · Apollogix · TMS (intern)</h1><p class="lede">Đây là kỳ thực tập, nên nói đúng mức “intern”: em làm trong phạm vi được giao, có người hướng dẫn. Câu chuyện mạnh nhất là phát hiện xung đột lịch (bài toán khoảng thời gian) và tối ưu truy vấn Hibernate.</p><div class="mast-meta"><span>4 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q22">22</a><a href="#q23">23</a><a href="#q24">24</a><a href="#q25">25</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q22" data-q="q22">
+<div class="qa-h"><span class="qa-n">22</span><h3>Tính năng tự động phân công tài xế: thuật toán/luật là gì, phát hiện xung đột lịch (tài xế/xe) làm ra sao?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> so sánh khoảng thời gian chồng nhau, độ phức tạp, trường hợp biên.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>TMS phục vụ giao nhận container tại cảng: mỗi <b>chuyến</b> (trip) cần một <b>tài xế</b> và một <b>xe đầu kéo</b> trong một khoảng thời gian. Tính năng tự động phân công đề xuất tài xế và xe phù hợp cho chuyến mới.</p>
+<p><b>Luật phân công</b> <mark>(phiên bản em làm)</mark>:</p>
+<ol><li>Lọc tài xế và xe <b>đang hoạt động</b>, có giấy phép và loại xe phù hợp loại container.</li><li>Loại những ai <b>bị chồng lịch</b> trong khoảng thời gian của chuyến (cộng thời gian đệm di chuyển).</li><li>Xếp hạng theo tiêu chí đơn giản: <mark>ít chuyến trong ngày hơn, ở gần điểm lấy hàng hơn</mark>.</li></ol>
+<p><b>Phát hiện chồng lịch:</b> hai khoảng <code>[s1, e1)</code> và <code>[s2, e2)</code> chồng nhau khi <b><code>s1 &lt; e2 AND s2 &lt; e1</code></b>. Truy vấn tìm chuyến xung đột:</p>
+<pre><code>SELECT 1 FROM trip
+ WHERE driver_id = :driver
+   AND status &lt;&gt; 'CANCELLED'
+   AND start_time &lt; :new_end
+   AND end_time   &gt; :new_start
+ LIMIT 1;</code></pre>
+<p>Có index <code>(driver_id, start_time)</code> nên mỗi lần kiểm tra chỉ đọc vài dòng. Làm tương tự cho xe.</p>
+<p><b>Trường hợp biên:</b> chuyến kết thúc đúng lúc chuyến khác bắt đầu (dùng nửa mở <code>[s, e)</code> nên không tính là chồng), chuyến qua đêm, múi giờ (lưu UTC), chuyến bị hủy, chuyến kéo dài hơn dự kiến.</p></div>
+<div class="honest">Sửa phần tô vàng theo luật thật bạn đã làm; nếu luật xếp hạng không phải của bạn thì nói “phần xếp hạng do team quyết định”.</div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Độ phức tạp?</summary><div class="a"><p>Kiểm tra một ứng viên là O(log n) nhờ index. Với k ứng viên là O(k log n). Nếu làm trong bộ nhớ thì sắp xếp lịch theo giờ bắt đầu và dùng TreeMap <code>floorEntry</code>/<code>ceilingEntry</code>.</p></div></details></div>
+</article>
+<article class="qa" id="q23" data-q="q23">
+<div class="qa-h"><span class="qa-n">23</span><h3>Nếu hai yêu cầu phân công cùng lúc cho cùng một tài xế thì điều gì xảy ra, bạn xử lý như thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> race condition, lock/constraint ở DB.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Nếu chỉ <b>kiểm tra rồi ghi</b> ở ứng dụng thì có <b>race condition check-then-act</b>: hai yêu cầu cùng kiểm tra tài xế A, cả hai thấy rảnh, cả hai gán → A có hai chuyến chồng giờ.</p>
+<p>Cách xử lý ở tầng DB:</p>
+<ol><li><b>Khóa theo tài xế:</b> trong transaction, <code>SELECT … FROM driver WHERE id = :id FOR UPDATE</code> trước khi kiểm tra chồng lịch và gán. Hai yêu cầu cho cùng tài xế sẽ xếp hàng; yêu cầu sau kiểm tra lại và thấy đã bận. Yêu cầu cho tài xế khác không bị ảnh hưởng.</li><li><b>Ràng buộc ở DB (chặt nhất):</b> PostgreSQL có <b>exclusion constraint</b> chặn hai khoảng chồng nhau cho cùng tài xế, kể cả khi code có lỗi: ``<code> ALTER TABLE trip ADD CONSTRAINT no_overlap EXCLUDE USING gist (driver_id WITH =, tstzrange(start_time, end_time) WITH &amp;&amp;) WHERE (status &lt;&gt; 'CANCELLED');   -- cần extension btree_gist </code>`` Vi phạm thì DB trả lỗi, API chuyển thành 409 “tài xế đã có lịch”.</li></ol>
+<p><mark>Ở dự án em làm cách 1 (khóa dòng tài xế)</mark>; cách 2 là cách em sẽ dùng nếu làm lại vì nó bảo vệ cả những đường ghi khác.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Sao không dùng synchronized?</summary><div class="a"><p>Ứng dụng có nhiều instance, synchronized chỉ khóa trong một JVM.</p></div></details></div>
+</article>
+<article class="qa" id="q24" data-q="q24">
+<div class="qa-h"><span class="qa-n">24</span><h3>Vấn đề hiệu năng do Hibernate join phức tạp: bạn phát hiện bằng cách nào, tối ưu sang PostgreSQL view/function thế nào, kết quả đo bằng gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> số trước–sau (thời gian query, kích thước response).</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Phát hiện:</b> màn hình danh sách chuyến <mark>tải chậm vài giây</mark>, response rất lớn. Em bật log SQL của Hibernate và thấy một request sinh <b>câu JOIN rất nhiều bảng</b> (chuyến, tài xế, xe, container, cảng, lịch sử trạng thái) do quan hệ <code>@OneToMany</code>/<code>@ManyToOne</code> fetch eager, kèm các câu N+1, trong khi màn hình chỉ cần vài cột. Response trả <b>nguyên cây entity</b>.</p>
+<p><b>Tối ưu:</b></p>
+<ol><li>Tạo <b>PostgreSQL view</b> chỉ chứa đúng các cột màn hình cần, đã JOIN và tổng hợp sẵn (ví dụ trạng thái mới nhất của chuyến); những logic tính toán phức tạp viết thành <b>function</b>.</li><li>Map view vào một <b>DTO/entity chỉ đọc</b>, phân trang ở DB.</li><li>Quản lý view/function bằng <b>Flyway migration</b> để có phiên bản và triển khai cùng code.</li></ol>
+<p><b>Kết quả đo:</b> <mark>thời gian query giảm từ khoảng X ms xuống Y ms, kích thước response từ khoảng A KB xuống B KB</mark>, đo bằng log thời gian query, EXPLAIN ANALYZE và kích thước response trong tab Network.</p></div>
+<div class="honest">Điền số thật nếu có; nếu không nhớ chính xác, nói “giảm rõ rệt, em nhớ cỡ vài lần” và mô tả cách đo.</div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Sao không chỉ sửa fetch type và dùng DTO projection trong JPA?</summary><div class="a"><p>Cũng là hướng đúng và nhẹ hơn (<code>JOIN FETCH</code>, <code>@EntityGraph</code>, projection). Với màn hình này phần tổng hợp phức tạp nên view gọn hơn; nếu làm lại em sẽ thử projection trước.</p></div></details></div>
+</article>
+<article class="qa" id="q25" data-q="q25">
+<div class="qa-h"><span class="qa-n">25</span><h3>Đưa logic vào DB function/view có mặt trái gì (test, version, khó scale)?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> Flyway để quản phiên bản, nhưng logic rải rác và khó scale ngang.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Có, và em nói rõ khi nào không nên:</p>
+<ul><li><b>Test khó hơn:</b> logic trong SQL function không unit test bằng JUnit được, cần test tích hợp với DB thật (Testcontainers).</li><li><b>Logic rải rác:</b> một phần nghiệp vụ ở Java, một phần ở DB; người đọc code Java không thấy toàn bộ.</li><li><b>Version và triển khai:</b> phải đồng bộ phiên bản view/function với code. <b>Flyway</b> giải phần này: mỗi thay đổi là một migration có số phiên bản, chạy tự động khi deploy, nhưng sửa view phụ thuộc nhau vẫn phức tạp.</li><li><b>Khó scale ngang:</b> DB là chỗ khó mở rộng nhất; đẩy tính toán vào DB làm DB gánh thêm CPU, trong khi tầng ứng dụng scale dễ.</li><li><b>Gắn chặt với PostgreSQL</b>, khó đổi DB.</li></ul>
+<p>Em dùng view cho <b>đọc và tổng hợp</b> – việc DB làm giỏi nhất – và giữ <b>quy tắc nghiệp vụ</b> ở tầng ứng dụng.</p></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet A4 · TMS</h2><span>A4</span></div><div class="cheat-b"><div><h4>Chồng lịch</h4>
+<ul><li><code>s1 &lt; e2 AND s2 &lt; e1</code>, khoảng nửa mở [s, e)</li><li>Index (driver_id, start_time); biên: qua đêm, UTC, hủy</li></ul></div><div><h4>Phân công đồng thời</h4>
+<ul><li>FOR UPDATE dòng tài xế, kiểm tra lại trong transaction</li><li>Exclusion constraint gist <code>&amp;&amp;</code> (btree_gist) chặn ở DB</li></ul></div><div><h4>Hibernate chậm</h4>
+<ul><li>Log SQL: JOIN nhiều bảng + N+1 + trả cả cây entity</li><li>View chỉ cột cần + function + Flyway; DTO, phân trang ở DB</li></ul></div><div><h4>Mặt trái logic trong DB</h4>
+<ul><li>Khó test, logic rải rác, version, DB khó scale, gắn PostgreSQL</li><li>View cho đọc/tổng hợp; quy tắc nghiệp vụ ở app</li></ul></div></div></section>
+</main>
+</body></html>

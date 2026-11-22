@@ -1,0 +1,66 @@
+/* Notification Hub – CSS viết lại theo design system chung (token ở assets/site.css) */
+:root{--warn:var(--hi-ink);--warn-soft:var(--hi-soft);--code-bg:var(--sunken)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.68 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right,0px)) 30px max(16px,env(safe-area-inset-left,0px))}
+header.top{padding:30px 0 14px;border-bottom:1px solid var(--line)}
+h1{font:700 clamp(30px,5.6vw,52px)/1.05 var(--f-display);text-transform:uppercase;margin:0 0 10px;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:72ch;font-size:16.5px}
+nav.tabs{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:4px;padding:0;margin-top:0;flex-wrap:wrap}
+nav.tabs button{font:600 16px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;border:0;border-bottom:3px solid transparent;background:none;color:var(--muted);padding:14px 12px 11px;cursor:pointer;border-radius:0}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--hi);background:none}
+nav.tabs .spacer{flex:1}
+nav.tabs .theme{display:none}
+section.panel{display:none}
+section.panel.on{display:block}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0 8px}
+.toc a{font:600 13px/1.2 var(--f-body);text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);padding:6px 10px;border-radius:4px}
+.toc a:hover{border-color:var(--ink)}
+article.q{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px 22px 10px;margin:22px 0;scroll-margin-top:70px;border-top:4px solid var(--accent)}
+article.q h2{font:600 26px/1.15 var(--f-display);margin:0 0 6px;text-wrap:balance}
+article.q h2 .n{display:inline-grid;place-items:center;min-width:42px;height:32px;border:2px solid var(--ink);border-radius:3px;margin-right:10px;font:700 20px/1 var(--f-display);color:var(--ink);vertical-align:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
+.chip{font:600 11.5px/1 var(--f-mono);background:var(--accent-soft);color:var(--accent);padding:5px 8px;border-radius:3px;letter-spacing:.02em}
+h3{font:700 12px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 8px}
+p{margin:8px 0}
+ul,ol{margin:6px 0 10px;padding-left:22px}
+li{margin:3px 0}
+code{background:var(--sunken);border:1px solid var(--line);padding:0 5px;border-radius:3px;font:500 .86em var(--f-mono)}
+.box{border-radius:4px;padding:10px 14px;margin:12px 0;font-size:15px}
+.box.code{background:var(--ok-soft);border-left:4px solid var(--ok)}
+.box.warn{background:var(--hi-soft);border:1px solid var(--hi);border-left-width:4px}
+.box b.t{display:block;font:700 11.5px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.box.code b.t{color:var(--ok)}.box.warn b.t{color:var(--hi-ink)}
+details{border-top:1px solid var(--line);padding:2px 0}
+details summary{cursor:pointer;font-weight:600;padding:10px 0;list-style:none;display:flex;gap:10px}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"＋";color:var(--accent);font-weight:700;flex:none}
+details[open] summary::before{content:"－"}
+details .a{padding:0 0 12px 26px;color:var(--ink)}
+pre{background:var(--sunken);border:1px solid var(--line);padding:12px 14px;border-radius:4px;overflow-x:auto;font:12.5px/1.5 var(--f-mono);margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:10px 0}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--sunken);font:700 12px/1.3 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.scroll{overflow-x:auto;background:var(--sunken);border:1px solid var(--line);border-radius:6px;padding:8px}
+svg{max-width:100%;height:auto}
+@media (max-width:700px){.scroll svg{max-width:none;width:700px}}
+svg text{fill:var(--ink);font:12px var(--f-body)}
+svg .bx{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+svg .hot{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+svg .ar{stroke:var(--muted);stroke-width:1.5;fill:none}
+svg .lbl{fill:var(--muted);font-size:10.5px}
+.cheat-grid{display:grid;grid-template-columns:1fr;gap:14px;margin:18px 0}
+@media(min-width:760px){.cheat-grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;border-top:4px solid var(--accent)}
+.card h4{margin:0 0 6px;font:600 20px/1.15 var(--f-display)}
+.card h4 .n{color:var(--accent);font-family:var(--f-mono);font-size:15px;margin-right:4px}
+.card .one{font-weight:600;margin:4px 0 8px}
+.card ul{padding-left:18px;font-size:14.5px;margin:4px 0}
+.card .trap{font-size:13.5px;color:var(--bad);background:var(--bad-soft);border-radius:3px;padding:6px 10px;margin-top:10px}
+.card .trap::before{content:"⚠ "}
+h2.sec{font:700 26px/1.1 var(--f-display);text-transform:uppercase;margin:32px 0 6px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.flash{border:1px solid var(--line);border-radius:4px;margin:8px 0;background:var(--surface);padding:0 14px}
+.flash summary{padding:10px 0}
+.kbd{font:600 12px var(--f-mono);color:var(--muted)}

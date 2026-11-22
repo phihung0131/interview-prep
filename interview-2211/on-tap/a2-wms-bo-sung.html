@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>A2+ · WMS · câu bổ sung</title><meta name="description" content="Phần việc riêng, index, viết lại join, MyBatis vs JPA, Redis trong WMS."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">A · Câu hỏi theo CV</p><h1>A2+ · WMS · câu bổ sung</h1><p class="lede">Năm câu trong nhóm A2 chưa có trong trang “WMS · 8 câu trả lời chính”. Số liệu dùng chung với trang đó: 15 kho, mỗi kho một DB, bảng kiện ASN 5–10 triệu dòng, khay robot 30 ký, lượt nhặt 150 ký.</p><div class="mast-meta"><span>5 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q5">5</a><a href="#q7">7</a><a href="#q8">8</a><a href="#q14">14</a><a href="#q15">15</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q5" data-q="q5">
+<div class="qa-h"><span class="qa-n">5</span><h3>Phần việc riêng của bạn trong WMS là gì, so với cả team?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> module/API/batch job cụ thể bạn sở hữu.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Team WMS <mark>khoảng 8–10 người</mark> chia theo khâu. Phần <b>em trực tiếp sở hữu</b> là hai thành phần:</p>
+<ol><li><b>API ghi kết quả đổ khay</b> ở khâu cất hàng: nhân viên đổ hàng từ thùng sang khay robot, API ghi số lượng, trừ thùng, cộng khay, kiểm giới hạn 30 ký. Đây là nơi em sửa lỗi đồng thời hai trạm cùng ghi một khay.</li><li><b>Batch tạo lệnh nhặt</b> ở khâu xuất: gom việc nhặt theo dãy kệ, không quá 150 ký mỗi lượt, chạy đồng thời với API ghi kết quả nhặt. Đây là nơi em áp dụng chunk, thứ tự khóa và <code>SKIP LOCKED</code>.</li></ol>
+<p>Với hai thành phần đó em làm trọn: làm rõ yêu cầu với vendor, implement, unit test đạt cổng 90%, review PR, và điều tra sự cố. <b>Thiết kế tổng thể</b> do tech lead và vendor chốt; phần em quyết định là <b>cơ chế xử lý đồng thời</b> và <b>cách tối ưu truy vấn</b> trên hai thành phần này.</p>
+<p>Ngoài ra em tham gia sửa lỗi ở các khâu khác khi được phân công, và tối ưu API quét thùng ở bến nhận.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Có phần nào em quyết định mà người khác phản đối?</summary><div class="a"><p>Chọn conditional update thay vì Redis lock cho bài khay 30 ký (câu chuyện bất đồng ở câu 153).</p></div></details></div>
+<div class="trap">“Em làm tất cả các khâu” – không ai tin, và bị hỏi sâu là lộ.</div>
+</article>
+<article class="qa" id="q7" data-q="q7">
+<div class="qa-h"><span class="qa-n">7</span><h3>Bạn đã thêm index như thế nào? Index có mặt trái gì? Khi nào index không được dùng?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> chi phí ghi, composite index, thứ tự cột, selectivity.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Cách em thêm index</b> (ví dụ API quét thùng):</p>
+<ol><li>Lấy đúng câu truy vấn, chạy <code>EXPLAIN (ANALYZE, BUFFERS)</code> trên bản sao cỡ thật → thấy Seq Scan bỏ ~10 triệu dòng.</li><li>Chọn loại index: mã thùng chọn lọc rất cao, trạng thái chỉ vài giá trị → <b>partial index</b> <code>ON asn_carton (carton_code) WHERE status = 'EXPECTED'</code>, nhỏ và chỉ chứa thùng đang chờ.</li><li>Đo tác động lên ghi trên staging (script chèn 100 nghìn dòng): chậm thêm vài phần trăm.</li><li>Production: <code>CREATE INDEX CONCURRENTLY</code> ngoài giờ cao điểm, <code>lock_timeout</code> ngắn, kiểm index hợp lệ, <code>ANALYZE</code>, xác nhận lại bằng EXPLAIN, có đường lùi <code>DROP INDEX CONCURRENTLY</code>.</li></ol>
+<p><b>Mặt trái của index:</b> mỗi INSERT/UPDATE phải cập nhật thêm index (ghi chậm, WAL nhiều hơn), tốn đĩa và RAM cache, cột hay đổi giá trị còn làm mất HOT update và gây bloat.</p>
+<p><b>Composite và thứ tự cột:</b> cột so sánh bằng trước, cột khoảng sau; chỉ dùng được từ cột đầu (leftmost prefix); range ở cột giữa chặn các cột sau.</p>
+<p><b>Khi index không được dùng:</b> bọc cột trong hàm, <code>LIKE '%x'</code>, ép kiểu, selectivity thấp (lấy quá nhiều dòng), thống kê cũ, và partial index khi điều kiện truyền bằng tham số mà planner không chứng minh được bao hàm.</p>
+<p>Chi tiết và hoạt họa: trang <a href="case-mau-index-join.html">Case SQL: index &amp; JOIN</a> và câu 4 trang <a href="tra-loi-phong-van-wms.html#q4">WMS</a>.</p></div>
+</article>
+<article class="qa" id="q8" data-q="q8">
+<div class="qa-h"><span class="qa-n">8</span><h3>Viết lại join thành cách khác để nhanh hơn nghe như thế nào? Cho ví dụ.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> ví dụ thật (N+1, join thừa, subquery), kết quả.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Em kể <b>job phân bổ đơn cuối ngày</b> (chi tiết ở trang <a href="case-hieu-nang-phan-bo.html">Case job phân bổ chậm</a>).</p>
+<p><b>Triệu chứng:</b> job chạy cuối ngày để kịp giờ xe lấy hàng, thời gian chạy <b>tăng đều theo số đơn</b> qua từng tuần, có nguy cơ trễ giờ cắt đơn.</p>
+<p><b>Tìm nguyên nhân:</b> em bật log đo thời gian từng bước, thấy phần lớn thời gian ở bước tra thông tin khu vực kho, được viết thành <b>truy vấn con tương quan</b> lồng trong câu chính: với mỗi đơn, DB tính lại từ đầu, dù kết quả gần như giống nhau cả đợt.</p>
+<p><b>Viết lại:</b></p>
+<pre><code>-- Trước: subquery chạy lại cho từng dòng đơn
+SELECT o.order_id, (SELECT … FROM zone z JOIN location l … WHERE l.sku = o.sku) AS zone
+FROM order_line o WHERE o.batch_date = :d;
+
+-- Sau: tính một lần bằng CTE rồi JOIN
+WITH sku_zone AS (
+  SELECT l.sku, min(z.zone_code) AS zone
+  FROM location l JOIN zone z ON z.zone_id = l.zone_id
+  WHERE l.status = 'ACTIVE' GROUP BY l.sku)
+SELECT o.order_id, sz.zone
+FROM order_line o JOIN sku_zone sz ON sz.sku = o.sku
+WHERE o.batch_date = :d;</code></pre>
+<p>EXPLAIN sau khi sửa chuyển từ Nested Loop chạy subquery hàng chục nghìn lần sang một Hash Join. Kết quả: <mark>từ khoảng X phút xuống Y phút</mark>.</p>
+<p>Các kiểu viết lại join khác em hay dùng: bỏ <b>join thừa</b> (join bảng chỉ để lọc mà đã có cột ở bảng chính), đổi N+1 trong vòng lặp thành một query <code>= ANY(:ids)</code>, <code>EXISTS</code> thay <code>IN (subquery lớn)</code> hoặc <code>DISTINCT</code> sau join.</p></div>
+<div class="honest">Điền số trước/sau thật của bạn vào chỗ tô vàng (trang Case job phân bổ chậm có ô để điền và bấm giờ).</div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Vì sao không cache ở ứng dụng?</summary><div class="a"><p>Có cân nhắc, nhưng phải lo làm mới khi dữ liệu khu vực đổi giữa đợt; viết lại truy vấn xử lý đúng gốc, không thêm tầng phải quản lý.</p></div></details></div>
+</article>
+<article class="qa" id="q14" data-q="q14">
+<div class="qa-h"><span class="qa-n">14</span><h3>Tại sao dùng MyBatis thay vì JPA/Hibernate? Ưu nhược điểm?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> kiểm soát SQL, truy vấn phức tạp; mất tự động map, phải tự quản SQL.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>MyBatis là lựa chọn <b>có sẵn của dự án</b>, và em thấy nó hợp với WMS vì:</p>
+<ul><li><b>Kiểm soát SQL hoàn toàn:</b> truy vấn kho rất phức tạp (nhiều bảng lớn, CTE, <code>FOR UPDATE SKIP LOCKED</code>, <code>ON CONFLICT</code>, partial index cần điều kiện là hằng số). Viết SQL tay thì biết chính xác câu gì chạy, tối ưu và đọc EXPLAIN trực tiếp.</li><li><b>Không có hành vi ngầm:</b> không lazy loading bất ngờ, không N+1 ẩn, không dirty checking tự động flush.</li><li>Batch xử lý hàng trăm nghìn dòng: dễ dùng batch executor và cursor.</li></ul>
+<p><b>Nhược điểm:</b> phải tự viết và bảo trì nhiều SQL và <code>resultMap</code>; đổi cột phải sửa nhiều nơi; CRUD đơn giản cũng phải viết; không có cache cấp 1/2 hay quản lý trạng thái entity. Lỗi SQL chỉ phát hiện khi chạy, nên cần test tích hợp. Và phải cẩn thận <b><code>${}</code> gây SQL injection</b>, luôn dùng <code>#{}</code>.</p>
+<p><b>JPA/Hibernate</b> hợp với ứng dụng CRUD, mô hình domain phong phú, làm nhanh; nhưng truy vấn phức tạp dễ sinh SQL khó kiểm soát. Ở Apollogix em gặp đúng chuyện đó: join Hibernate phức tạp gây chậm, em phải chuyển sang PostgreSQL view/function (câu 24).</p>
+<p>Nếu chọn cho dự án mới, em sẽ dựa vào tỉ lệ CRUD so với truy vấn phức tạp; nhiều dự án dùng JPA cho CRUD và native query/jOOQ cho phần nặng.</p></div>
+</article>
+<article class="qa" id="q15" data-q="q15">
+<div class="qa-h"><span class="qa-n">15</span><h3>WMS có dùng Redis không? Để làm gì và xử lý dữ liệu cũ (invalidate) ra sao?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> dữ liệu cache, TTL, nhất quán giữa cache và DB.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Có, WMS dùng Redis nhưng <b>không làm nguồn sự thật cho tồn kho</b>. <mark>Các chỗ em biết:</mark></p>
+<ul><li><b>Cache dữ liệu tham chiếu</b> ít đổi và đọc nhiều: thông tin SKU, cấu hình kho, vị trí kệ, quy tắc khu vực. TTL vài phút tới vài giờ.</li><li><b>Khóa ngắn hạn</b> cho một số thao tác của người dùng trên trạm, ví dụ một nhân viên đang thao tác trên một lô thì người khác không mở được.</li><li><mark>Lưu phiên hoặc token tạm của thiết bị quét.</mark></li></ul>
+<p><b>Invalidate:</b> theo <b>cache-aside</b>: cập nhật DB trước rồi <b>xóa key</b>, lần đọc sau tự nạp lại; luôn đặt <b>TTL</b> làm lưới an toàn. Dữ liệu cấu hình sửa qua màn hình quản trị thì màn hình đó xóa cache ngay. Dữ liệu cần chính xác như <b>tồn kho, trọng lượng khay</b> thì <b>luôn đọc DB</b> và kiểm tra bằng conditional update, không tin cache.</p>
+<p><b>Nhất quán:</b> chấp nhận cache tham chiếu lệch tối đa bằng TTL; nếu cần đổi gấp thì có thao tác xóa cache thủ công cho vận hành.</p></div>
+<div class="honest">Phần tô vàng là giả định về cách dự án dùng Redis. Hãy kiểm tra lại với code thật của dự án và chỉ nói những gì bạn đã thấy.</div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Mỗi kho một DB, Redis có chung không?</summary><div class="a"><p>Nói theo thực tế dự án. Nếu dùng chung một cụm thì key phải có tiền tố mã kho để không lẫn dữ liệu giữa các kho.</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet A2+ · WMS bổ sung</h2><span>A2+</span></div><div class="cheat-b"><div><h4>Phần của em</h4>
+<ul><li>API đổ khay (cất) + batch tạo lệnh nhặt (xuất)</li><li>Làm trọn: làm rõ, code, test 90%, review, sự cố</li><li>Quyết định: cơ chế đồng thời, cách tối ưu truy vấn</li></ul></div><div><h4>Index</h4>
+<ul><li>EXPLAIN → partial index (carton_code) WHERE status='EXPECTED'</li><li>Đo ghi trên staging; CONCURRENTLY + lock_timeout; đường lùi</li><li>Mặt trái: ghi chậm, WAL, đĩa, mất HOT update</li></ul></div><div><h4>Viết lại join</h4>
+<ul><li>Subquery tương quan → CTE tính một lần + Hash Join</li><li>Bỏ join thừa; N+1 → = ANY; EXISTS thay IN</li></ul></div><div><h4>MyBatis vs JPA</h4>
+<ul><li>MyBatis: SQL tường minh, không N+1 ẩn; tự bảo trì SQL, <code>#{}</code> không <code>${}</code></li><li>JPA: CRUD nhanh; truy vấn phức tạp khó kiểm soát (bài học Apollogix)</li></ul></div><div><h4>Redis ở WMS</h4>
+<ul><li>Cache tham chiếu + khóa ngắn hạn; không làm nguồn sự thật tồn kho</li><li>Cache-aside: DB rồi xóa key, TTL</li></ul></div></div></section>
+</main>
+</body></html>

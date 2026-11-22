@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>B6 · Microservices và hệ phân tán</title><meta name="description" content="Monolith vs microservices, CAP/PACELC, retry/breaker, Kafka, exactly-once, lag, outbox, Saga, sharding, rate limit, discovery, observability."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">B · Kỹ thuật nền tảng</p><h1>B6 · Microservices và hệ phân tán</h1><p class="lede">Notification Hub là dự án giúp bạn nói phần này bằng kinh nghiệm thật. Mỗi câu nên có một câu “ở Notification Hub em…” và một câu “nếu ở quy mô Zalo thì…”.</p><div class="mast-meta"><span>12 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q89">89</a><a href="#q90">90</a><a href="#q91">91</a><a href="#q92">92</a><a href="#q93">93</a><a href="#q94">94</a><a href="#q95">95</a><a href="#q96">96</a><a href="#q97">97</a><a href="#q98">98</a><a href="#q99">99</a><a href="#q100">100</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q89" data-q="q89">
+<div class="qa-h"><span class="qa-n">89</span><h3>Microservices so với monolith: khi nào nên tách, khi nào không?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> chi phí vận hành, đội ngũ, ranh giới nghiệp vụ, modular monolith.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Em không coi microservices là mặc định. <b>Nên tách khi</b> lợi ích lớn hơn chi phí:</p>
+<ul><li>Nhiều đội làm song song, muốn <b>deploy độc lập</b> mà không chờ nhau.</li><li>Phần hệ thống có <b>tải hoặc yêu cầu khác hẳn</b> (xử lý media nặng CPU, gửi thông báo tải đột biến) cần mở rộng riêng.</li><li><b>Ranh giới nghiệp vụ rõ</b> (bounded context) và ổn định.</li><li>Cần cô lập lỗi: phần phụ chết không kéo sập phần chính.</li></ul>
+<p><b>Không nên</b> khi đội nhỏ, nghiệp vụ còn đổi nhiều, ranh giới chưa rõ. Chi phí thật của microservices: gọi mạng thay gọi hàm (chậm, có thể lỗi), <b>giao dịch phân tán</b>, trace, deploy và giám sát nhiều thứ, dữ liệu trùng lặp. Tách sai ranh giới thì thành “distributed monolith”: tách ra mà vẫn phải deploy cùng nhau.</p>
+<p>Hướng em thích: <b>modular monolith</b> trước, chia module rõ trong một codebase, mỗi module sở hữu bảng của mình, gọi nhau qua interface; khi đo thấy một module cần tách thì tách.</p>
+<p>Notification Hub em làm microservices một phần vì <b>muốn học</b> Kafka, gRPC, Saga. Nếu là sản phẩm thật với một người làm, em sẽ bắt đầu bằng monolith có hàng đợi.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Mỗi service một DB riêng có bắt buộc không?</summary><div class="a"><p>Về nguyên tắc nên vậy, để service khác không phụ thuộc vào cấu trúc bảng của mình. Có thể chung một cụm DB nhưng schema và quyền riêng; tuyệt đối không cho service khác ghi thẳng vào bảng của mình.</p></div></details></div>
+</article>
+<article class="qa" id="q90" data-q="q90">
+<div class="qa-h"><span class="qa-n">90</span><h3>CAP và PACELC: giải thích bằng ví dụ thực tế (không chỉ nêu định nghĩa).</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> khi mạng phân mảnh thì chọn gì, bình thường đánh đổi trễ và nhất quán.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>CAP:</b> khi <b>mạng bị chia cắt</b> (P, chắc chắn sẽ xảy ra), hệ thống phải chọn giữa <b>nhất quán</b> (C: từ chối phục vụ để không trả dữ liệu sai) và <b>sẵn sàng</b> (A: vẫn phục vụ dù dữ liệu có thể cũ).</p>
+<p>Ví dụ:</p>
+<ul><li><b>Trừ tiền, trừ tồn kho flash sale:</b> chọn <b>C</b>. Bên bị cắt khỏi đa số thì từ chối giao dịch, còn hơn bán quá số lượng.</li><li><b>Số like, feed, trạng thái online:</b> chọn <b>A</b>. Hiển thị số like hơi cũ vẫn tốt hơn báo lỗi.</li></ul>
+<p><b>PACELC</b> bổ sung trường hợp <b>bình thường</b>: <b>E</b>lse, khi không có sự cố vẫn phải chọn giữa <b>độ trễ</b> (L) và <b>nhất quán</b> (C). Ví dụ ghi đồng bộ sang replica ở datacenter khác thì nhất quán nhưng chậm thêm một RTT; ghi bất đồng bộ thì nhanh nhưng đọc replica có thể thấy dữ liệu cũ (replica lag, người dùng vừa đăng bài không thấy bài).</p>
+<p>DynamoDB hoặc Cassandra mặc định là PA/EL; hệ dùng đồng thuận như etcd hoặc Spanner là PC/EC. Một hệ thống thật thường <b>chọn khác nhau cho từng loại dữ liệu</b>.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>“CA” có tồn tại không?</summary><div class="a"><p>Chỉ khi không có phân mảnh mạng, tức chạy trên một máy. Trong hệ phân tán thì P là bắt buộc, chỉ còn chọn C hay A khi P xảy ra.</p></div></details></div>
+</article>
+<article class="qa" id="q91" data-q="q91">
+<div class="qa-h"><span class="qa-n">91</span><h3>Timeout, retry, backoff + jitter, circuit breaker, bulkhead: mỗi thứ giải quyết gì? Retry sai gây hại thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> retry storm, chỉ retry thao tác idempotent, ngân sách retry.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><div class="tw"><table><thead><tr><th></th><th>Giải quyết</th><th>Ghi chú</th></tr></thead><tbody><tr><td><b>Timeout</b></td><td>Không chờ vô hạn, giải phóng thread và connection</td><td>Đặt theo p99 của dependency, có ngân sách tổng (deadline)</td></tr><tr><td><b>Retry</b></td><td>Lỗi tạm thời (mạng chập, 503)</td><td>Chỉ thao tác <b>idempotent</b>, số lần giới hạn</td></tr><tr><td><b>Backoff + jitter</b></td><td>Không dồn retry cùng một nhịp</td><td>100 ms, 200, 400… cộng ngẫu nhiên</td></tr><tr><td><b>Circuit breaker</b></td><td>Dependency đang chết thì <b>ngừng gọi</b>, trả lỗi nhanh hoặc dữ liệu dự phòng</td><td>Đóng → mở → nửa mở thử lại vài request</td></tr><tr><td><b>Bulkhead</b></td><td>Một dependency chậm không chiếm hết tài nguyên chung</td><td>Pool thread hoặc semaphore riêng cho từng dependency</td></tr></tbody></table></div>
+<p><b>Retry sai gây hại:</b></p>
+<ul><li><b>Retry storm:</b> dependency đang quá tải, mọi client retry 3 lần → tải gấp 3–4 lần, dependency không thể hồi phục. Nếu nhiều tầng cùng retry 3 lần thì tầng dưới cùng nhận <b>3 × 3 × 3 = 27</b> lần.</li><li>Retry <b>thao tác không idempotent</b> (trừ tiền, gửi SMS): làm hai lần.</li><li>Retry lỗi <b>4xx</b> vô ích.</li></ul>
+<p>Cách đúng: retry ở <b>một tầng</b>, có <b>retry budget</b> (ví dụ retry không vượt 10% số request), backoff + jitter, kết hợp breaker. Ở Notification Hub, gọi nhà cung cấp lỗi tạm thời thì retry với backoff, hết lượt thì đưa vào DLQ thay vì retry mãi.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Timeout đặt bao nhiêu?</summary><div class="a"><p>Nhìn p99 của dependency khi khỏe và ngân sách của cả request. Ví dụ API có SLA 1 giây, gọi hai dependency nối tiếp thì mỗi cái không thể được 1 giây. Truyền deadline xuống các tầng dưới.</p></div></details></div>
+</article>
+<article class="qa" id="q92" data-q="q92">
+<div class="qa-h"><span class="qa-n">92</span><h3>Kafka: topic, partition, consumer group, offset, commit; đảm bảo thứ tự ở đâu?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> thứ tự chỉ trong partition, key để định tuyến, số consumer ≤ số partition.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><ul><li><b>Topic:</b> luồng sự kiện cùng loại, ví dụ <code>notification.requested</code>.</li><li><b>Partition:</b> topic chia thành nhiều partition; mỗi partition là <b>log chỉ ghi nối thêm</b>, có thứ tự, mỗi tin có <b>offset</b> tăng dần. Partition là đơn vị song song và đơn vị nhân bản (leader, follower, ISR).</li><li><b>Consumer group:</b> các consumer cùng group <b>chia nhau partition</b>, mỗi partition chỉ một consumer trong group đọc. Nhiều group khác nhau thì mỗi group đọc đủ toàn bộ (fan-out).</li><li><b>Offset và commit:</b> consumer ghi lại đã xử lý tới đâu. Commit sau khi xử lý xong thì là at-least-once; commit trước thì có thể mất.</li></ul>
+<p><b>Thứ tự chỉ đảm bảo trong một partition.</b> Muốn các sự kiện của cùng một thực thể đúng thứ tự thì gửi <b>cùng key</b> (ví dụ <code>user_id</code>), producer băm key để chọn partition. Ở Notification Hub em dùng key là người nhận để thông báo cho một người không bị đảo thứ tự.</p>
+<p><b>Số consumer hữu ích ≤ số partition.</b> Consumer thứ 13 trong group với 12 partition sẽ ngồi không. Vì vậy chọn số partition dư cho tương lai, vì tăng partition sau sẽ làm đổi ánh xạ key → partition, phá thứ tự của key đó trong giai đoạn chuyển.</p>
+<p>Producer nên <code>acks=all</code>, <code>enable.idempotence=true</code> để không mất và không ghi trùng khi retry.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Một key quá nóng (một tenant gửi cực nhiều) thì sao?</summary><div class="a"><p>Dồn hết vào một partition, consumer đó nghẽn. Có thể thêm hậu tố vào key nếu không cần thứ tự toàn cục cho tenant đó, hoặc tách tenant lớn sang topic riêng.</p></div></details></div>
+</article>
+<article class="qa" id="q93" data-q="q93">
+<div class="qa-h"><span class="qa-n">93</span><h3>At-most-once, at-least-once, exactly-once: khác nhau thế nào? Thực tế bạn đạt “exactly-once” bằng cách nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> at-least-once + consumer idempotent, giao dịch Kafka có giới hạn.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><ul><li><b>At-most-once:</b> commit offset <b>trước</b> khi xử lý. Lỗi giữa chừng thì <b>mất</b> tin. Chấp nhận được với số liệu thống kê không quan trọng.</li><li><b>At-least-once:</b> xử lý xong <b>mới</b> commit. Lỗi sau xử lý nhưng trước commit thì tin được <b>giao lại</b>, xử lý hai lần. Không mất, có thể trùng. Mặc định nên chọn.</li><li><b>Exactly-once:</b> mỗi tin có tác dụng đúng một lần.</li></ul>
+<p><b>Kafka exactly-once</b> (idempotent producer + transaction) chỉ đúng trong phạm vi <b>đọc từ Kafka, ghi vào Kafka</b> (kiểu Kafka Streams). Khi tác dụng nằm <b>bên ngoài</b> (ghi DB, gọi API gửi SMS) thì Kafka không bao được.</p>
+<p>Thực tế em đạt “hiệu quả như exactly-once” bằng <b>at-least-once + consumer idempotent</b>: mỗi sự kiện có <code>event_id</code>, consumer ghi kết quả bằng upsert hoặc bảng <code>processed_events</code> có unique constraint, <b>trong cùng transaction</b> với thay đổi nghiệp vụ. Tin bị giao lại thì đụng unique và bỏ qua. Đó là cách Notification Hub làm.</p>
+<p>Với bên ngoài không có idempotency (một số nhà cung cấp SMS), vẫn có khe nhỏ: gửi xong nhưng chưa kịp ghi nhận thì chết. Giảm bằng cách gửi kèm idempotency key nếu nhà cung cấp hỗ trợ, và chấp nhận rủi ro rất nhỏ đó.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Lưu offset trong DB thay vì Kafka được không?</summary><div class="a"><p>Được: lưu offset cùng transaction với kết quả, khi khởi động seek tới offset trong DB. Đây cũng là một cách để tác dụng và offset nhất quán.</p></div></details></div>
+</article>
+<article class="qa" id="q94" data-q="q94">
+<div class="qa-h"><span class="qa-n">94</span><h3>Consumer lag tăng cao thì xử lý thế nào? Rebalance gây vấn đề gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> đo thời gian xử lý, thêm consumer/partition, max.poll, poison message.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Lag tăng nghĩa là <b>tốc độ xử lý &lt; tốc độ đến</b>. Em đi theo thứ tự:</p>
+<ol><li><b>Lag tăng đều mọi partition hay một partition?</b> Một partition là <b>hot key</b> hoặc <b>poison message</b> (một tin làm consumer lỗi và retry mãi tại chỗ, các tin sau đứng chờ).</li><li><b>Thời gian xử lý mỗi tin:</b> có tăng không, chậm ở đâu: gọi DB, gọi nhà cung cấp bên ngoài?</li><li><b>Rebalance có liên tục không</b> (log “revoked/assigned”).</li></ol>
+<p><b>Xử lý:</b></p>
+<ul><li>Tối ưu xử lý: gom <b>theo lô</b> (ghi DB batch), gọi ngoài <b>bất đồng bộ</b> có giới hạn đồng thời.</li><li><b>Thêm consumer</b> tới bằng số partition; hết thì <b>tăng partition</b> (cẩn thận thứ tự).</li><li>Poison message: bắt lỗi, retry vài lần rồi <b>đẩy vào DLQ</b>, không chặn partition.</li><li>Chấp nhận trễ: thông báo marketing ưu tiên thấp có thể đi topic riêng.</li></ul>
+<p><b>Rebalance gây vấn đề:</b> khi consumer vào ra hoặc <b>xử lý quá <code>max.poll.interval.ms</code></b> (mặc định 5 phút) bị coi là chết, group phải chia lại partition; trong lúc đó <b>không ai xử lý</b> (eager rebalance), và tin đã xử lý nhưng chưa commit sẽ bị <b>xử lý lại</b> → cần idempotent. Vòng lặp tệ: xử lý chậm → bị đá ra → rebalance → lại chậm.</p>
+<p>Sửa: giảm <code>max.poll.records</code>, tăng <code>max.poll.interval.ms</code> cho hợp, dùng <b>cooperative sticky assignor</b> (chỉ dời partition cần dời), static membership khi deploy lăn.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Đo lag bằng gì?</summary><div class="a"><p>Lag tính bằng số tin (<code>log end offset − committed offset</code>) và quan trọng hơn là <b>thời gian trễ</b> của tin cũ nhất. Công cụ: Burrow, metric <code>records-lag-max</code>, Datadog Kafka integration.</p></div></details></div>
+</article>
+<article class="qa" id="q95" data-q="q95">
+<div class="qa-h"><span class="qa-n">95</span><h3>Outbox pattern là gì? Vì sao không ghi DB rồi gửi Kafka trực tiếp (dual write)?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> mất nhất quán khi một trong hai thất bại, relay/CDC.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Dual write</b> là: ghi DB, rồi gửi Kafka, trong code liên tiếp. Không có giao dịch chung giữa hai hệ thống, nên:</p>
+<ul><li>Ghi DB xong, <b>app chết hoặc Kafka lỗi</b> → đơn đã tạo nhưng <b>không có sự kiện</b>, service khác không biết.</li><li>Gửi Kafka trước, <b>DB rollback</b> → sự kiện về một đơn <b>không tồn tại</b>.</li><li>Gửi Kafka trong transaction DB → Kafka chậm làm giữ transaction lâu, và DB vẫn có thể rollback sau khi đã gửi.</li></ul>
+<p><b>Outbox pattern:</b> trong <b>cùng transaction DB</b> với thay đổi nghiệp vụ, ghi thêm một dòng vào bảng <code>outbox(id, aggregate_id, type, payload, created_at)</code>. Hai thứ cùng commit hoặc cùng rollback. Một <b>relay</b> tách riêng đọc outbox và publish lên Kafka, đánh dấu đã gửi:</p>
+<ul><li><b>Polling:</b> quét bảng outbox mỗi vài trăm ms (<code>FOR UPDATE SKIP LOCKED</code> nếu nhiều relay).</li><li><b>CDC:</b> Debezium đọc WAL của PostgreSQL, độ trễ thấp và không tải truy vấn.</li></ul>
+<p>Relay có thể gửi trùng (gửi xong chưa kịp đánh dấu thì chết) → <b>at-least-once</b>, nên consumer phải idempotent theo id của sự kiện. Thứ tự giữ theo <code>aggregate_id</code> làm key.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Bảng outbox phình thì sao?</summary><div class="a"><p>Xóa hoặc partition theo thời gian các dòng đã gửi sau vài ngày. Với CDC có thể xóa ngay sau khi ghi vì Debezium đọc từ WAL.</p></div></details></div>
+</article>
+<article class="qa" id="q96" data-q="q96">
+<div class="qa-h"><span class="qa-n">96</span><h3>Saga: orchestration và choreography; bù trừ; khi nào dùng 2PC?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> nhất quán cuối cùng, khó truy vết, chỉ dùng 2PC khi thật sự cần.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p><b>Saga:</b> chuỗi <b>giao dịch cục bộ</b> trên từng service, mỗi bước có <b>bước bù trừ</b>; bước nào thất bại thì chạy bù trừ các bước trước theo thứ tự ngược. Kết quả là <b>nhất quán cuối cùng</b>, không có khóa toàn cục.</p>
+<ul><li><b>Choreography:</b> mỗi service nghe sự kiện và tự phát sự kiện tiếp. Ít thành phần, phù hợp luồng 2–3 bước; nhiều bước thì <b>khó thấy cả luồng</b>, khó truy vết, dễ vòng lặp.</li><li><b>Orchestration:</b> một <b>bộ điều phối</b> giữ trạng thái saga, ra lệnh cho từng service và quyết định bù trừ. Dễ theo dõi, dễ thêm bước; bộ điều phối là thành phần phải giữ bền vững.</li></ul>
+<p><b>Bù trừ</b> là hành động nghiệp vụ, không phải rollback: “hoàn tiền” chứ không xóa giao dịch trừ tiền; “trả lại quota” chứ không xóa lịch sử. Bước bù trừ phải <b>idempotent và có retry</b>, vì nó cũng có thể lỗi. Bù trừ lỗi mãi thì đưa vào hàng đợi xử lý tay và cảnh báo.</p>
+<p><b>2PC:</b> coordinator hỏi mọi bên “sẵn sàng?”, tất cả đồng ý mới commit. Đảm bảo nguyên tử thật, nhưng <b>chặn</b> khi coordinator chết, giữ khóa lâu, nhiều hệ thống (Kafka, API bên ngoài) không hỗ trợ. Chỉ dùng trong phạm vi hẹp, ví dụ hai DB cùng loại trong nội bộ, khi bắt buộc nguyên tử tức thì.</p>
+<p>Ở Notification Hub em làm <b>Saga cơ bản</b>: <mark>giữ quota của tenant → gửi → nếu gửi thất bại vĩnh viễn thì hoàn quota</mark>, dạng choreography qua Kafka. Em nói rõ là cơ bản: chưa có bộ điều phối và chưa xử lý mọi trường hợp bù trừ lỗi.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Trong lúc saga đang chạy, người khác thấy trạng thái dở dang thì sao?</summary><div class="a"><p>Đúng, Saga thiếu tính cô lập. Dùng trạng thái trung gian rõ ràng (PENDING) để người khác biết, và thiết kế để đọc dở dang không gây hại (semantic lock).</p></div></details></div>
+</article>
+<article class="qa" id="q97" data-q="q97">
+<div class="qa-h"><span class="qa-n">97</span><h3>Consistent hashing và sharding: chọn shard key thế nào, resharding ra sao?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> hot shard, đồng đều dữ liệu, nhóm truy vấn.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Sharding</b> chia dữ liệu theo <b>shard key</b> ra nhiều DB. Chọn key theo ba tiêu chí:</p>
+<ol><li><b>Phân bố đều</b> dữ liệu và tải (không có hot shard).</li><li><b>Truy vấn chính chỉ chạm một shard</b>: dữ liệu hay đọc cùng nhau nằm cùng shard.</li><li>Ổn định, không đổi.</li></ol>
+<p>Ví dụ chat: shard theo <code>conversation_id</code>, vì đọc tin nhắn luôn theo một cuộc hội thoại. Shard theo <code>user_id</code> thì một cuộc chat hai người nằm hai nơi.</p>
+<p><b>Cách băm:</b></p>
+<ul><li><code>hash(key) % N</code>: đơn giản nhưng <b>đổi N là gần như mọi key đổi chỗ</b>, phải di chuyển gần hết dữ liệu.</li><li><b>Consistent hashing:</b> đặt node và key lên một vòng băm, key thuộc node gần nhất theo chiều kim đồng hồ. Thêm node chỉ chuyển <b>khoảng 1/N</b> dữ liệu. Dùng <b>virtual node</b> (mỗi máy nhiều điểm trên vòng) để chia đều và chia tải khi một node rời đi.</li><li><b>Bảng ánh xạ / nhiều shard logic:</b> băm vào 1.024 shard logic cố định, ánh xạ shard logic → máy vật lý; resharding chỉ là chuyển nguyên shard logic sang máy khác.</li></ul>
+<p><b>Resharding:</b> ghi kép hoặc sao chép nền shard đang chuyển, đồng bộ phần thay đổi, chuyển đọc rồi chuyển ghi, cuối cùng dọn dữ liệu cũ.</p>
+<p>Đổi lại: truy vấn <b>xuyên shard</b> (thống kê toàn bộ) phải scatter-gather, JOIN và giao dịch xuyên shard khó.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Hot shard xử lý thế nào?</summary><div class="a"><p>Tách shard đó, hoặc với một key quá nóng (người nổi tiếng) thì thêm hậu tố để rải ra, kèm cache phía trước.</p></div></details></div>
+</article>
+<article class="qa" id="q98" data-q="q98">
+<div class="qa-h"><span class="qa-n">98</span><h3>Rate limiting phân tán: token bucket và sliding window; đặt ở đâu (gateway hay service)?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> đồng bộ qua Redis, fail-open hay fail-closed.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><ul><li><b>Token bucket:</b> xô chứa tối đa B token, nạp r token mỗi giây; mỗi request lấy một token, hết thì từ chối. <b>Cho phép burst</b> tới B mà vẫn giữ tốc độ trung bình r. Hợp cho API công khai.</li><li><b>Sliding window log:</b> lưu thời điểm từng request trong ZSet, đếm trong cửa sổ trượt. Chính xác nhưng tốn bộ nhớ.</li><li><b>Sliding window counter:</b> cộng có trọng số hai cửa sổ cố định liền nhau. Gần đúng, rẻ, tránh <b>burst gấp đôi ở biên</b> của fixed window (99 request lúc 59 giây và 100 request lúc 61 giây đều lọt).</li></ul>
+<p><b>Phân tán:</b> mọi instance dùng chung trạng thái trong <b>Redis</b>, thao tác đọc và cập nhật bằng <b>Lua script</b> để atomic. Key theo user, IP, API key hoặc tenant. Với tải rất lớn: mỗi instance giữ hạn mức cục bộ và đồng bộ định kỳ, chấp nhận sai số.</p>
+<p><b>Đặt ở đâu:</b></p>
+<ul><li><b>Gateway:</b> chặn sớm theo IP và API key, bảo vệ toàn hệ thống, chống lạm dụng.</li><li><b>Service:</b> giới hạn theo nghiệp vụ (mỗi tenant 1.000 thông báo/phút, bảo vệ nhà cung cấp SMS). Notification Hub em đặt ở service cho quota tenant.</li></ul>
+<p>Trả <b>429 + <code>Retry-After</code></b>. Redis chết: fail-open cho giới hạn chống spam (kèm giới hạn cục bộ), fail-closed cho giới hạn bảo vệ chi phí.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Notification Hub em dùng thuật toán nào, điểm yếu?</summary><div class="a"><p>Xem chi tiết ở trang A6 (câu 38). Tóm tắt: <mark>cửa sổ trượt bằng ZSet + Lua</mark>; điểm yếu là tốn bộ nhớ theo số request, và mọi kiểm tra đều đi Redis.</p></div></details></div>
+</article>
+<article class="qa" id="q99" data-q="q99">
+<div class="qa-h"><span class="qa-n">99</span><h3>Service discovery, load balancing (L4/L7), health check: hoạt động thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> readiness và liveness, draining khi deploy.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Service discovery:</b> instance thay đổi liên tục (scale, deploy), nên không gọi bằng IP cố định.</p>
+<ul><li><b>Phía server:</b> gọi qua một tên ổn định, hạ tầng định tuyến. Trong Kubernetes, Service có DNS <code>orders.default.svc</code> và kube-proxy chia tải tới các pod sẵn sàng.</li><li><b>Phía client:</b> client hỏi registry (Consul, Eureka) danh sách instance rồi tự chọn. gRPC hay làm cách này để cân bằng theo từng request.</li></ul>
+<p><b>Load balancing:</b></p>
+<ul><li><b>L4</b> (TCP): chia theo kết nối, nhanh, không hiểu HTTP. Với gRPC/HTTP/2, một kết nối dài mang nhiều request nên <b>L4 chia không đều</b>.</li><li><b>L7</b> (HTTP): hiểu path, header; định tuyến theo URL, retry, cân bằng theo request. Envoy, Nginx, API gateway.</li><li>Thuật toán: round robin, least connections, consistent hash (giữ cùng user về cùng instance cho cache).</li></ul>
+<p><b>Health check:</b></p>
+<ul><li><b>Liveness:</b> process còn sống không; fail thì <b>khởi động lại</b>. Không kiểm tra DB ở đây, nếu không DB chậm sẽ làm restart hàng loạt.</li><li><b>Readiness:</b> sẵn sàng nhận traffic chưa (đã nạp xong, kết nối được dependency); fail thì <b>rút khỏi load balancer</b>, không restart.</li></ul>
+<p><b>Draining khi deploy:</b> nhận SIGTERM → báo not ready → chờ load balancer cập nhật → xử lý xong request đang chạy (graceful shutdown) → tắt. Spring Boot có <code>server.shutdown=graceful</code>.</p></div>
+</article>
+<article class="qa" id="q100" data-q="q100">
+<div class="qa-h"><span class="qa-n">100</span><h3>Quan sát hệ thống: metrics, logs, traces; RED và USE; p99 khác trung bình thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> correlation id, đặt alert theo SLO, tail latency.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Ba trụ:</p>
+<ul><li><b>Metrics:</b> số theo thời gian, rẻ, để <b>phát hiện</b> và cảnh báo.</li><li><b>Logs:</b> chi tiết từng sự kiện, để tìm <b>nguyên nhân</b>. Log có cấu trúc (JSON) kèm <code>traceId</code>.</li><li><b>Traces:</b> đường đi một request qua nhiều service, để <b>khoanh vùng</b> chỗ chậm. OpenTelemetry truyền trace context qua HTTP header và header Kafka.</li></ul>
+<p><b>RED</b> cho service: <b>R</b>ate (request/giây), <b>E</b>rrors (tỉ lệ lỗi), <b>D</b>uration (độ trễ theo phân vị). <b>USE</b> cho tài nguyên: <b>U</b>tilization, <b>S</b>aturation (hàng đợi, pool đang chờ), <b>E</b>rrors.</p>
+<p><b>p99 khác trung bình:</b> trung bình bị các request nhanh kéo xuống, che mất đuôi. p99 = 1% request chậm hơn mức này. Trong hệ nhiều tầng, một trang gọi 20 service thì p99 của từng service trở thành chuyện thường gặp của người dùng (<b>tail latency</b> cộng dồn). Không lấy trung bình của các p99 giữa nhiều máy, phải tính từ histogram.</p>
+<p><b>Alert theo SLO:</b> ví dụ 99,9% request dưới 300 ms trong 30 ngày → có <b>error budget</b>. Cảnh báo theo <b>burn rate</b> (budget đang cháy nhanh gấp 14 lần trong 1 giờ thì gọi người), không cảnh báo theo từng điểm CPU. Mỗi cảnh báo phải hành động được.</p>
+<p><b>Correlation id:</b> sinh ở gateway, truyền qua mọi service và vào mọi dòng log (MDC), để từ một lỗi người dùng báo tìm ra toàn bộ đường đi.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Log quá nhiều thì sao?</summary><div class="a"><p>Tốn tiền và khó tìm. Log mức INFO có chọn lọc, lấy mẫu trace (giữ 100% trace lỗi và chậm, lấy mẫu phần còn lại), metric thay cho log khi chỉ cần đếm.</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet B6 · Hệ phân tán</h2><span>B6</span></div><div class="cheat-b"><div><h4>Kiến trúc</h4>
+<ul><li>Tách khi: nhiều đội, tải khác biệt, ranh giới rõ</li><li>Modular monolith trước; tránh distributed monolith</li><li>CAP khi phân mảnh; PACELC lúc bình thường: trễ vs nhất quán</li><li>Tiền/tồn kho: C; like/feed: A</li></ul></div><div><h4>Chống lỗi</h4>
+<ul><li>Timeout theo p99 + deadline</li><li>Retry chỉ idempotent, 1 tầng, budget, backoff + jitter</li><li>Breaker: đóng → mở → nửa mở; bulkhead: pool riêng</li><li>3 tầng × 3 retry = 27 lần</li></ul></div><div><h4>Kafka</h4>
+<ul><li>Thứ tự chỉ trong partition; key = thực thể</li><li>Consumer ≤ partition; acks=all, idempotence</li><li>At-least-once + consumer idempotent (event_id unique)</li><li>Lag: hot partition, poison → DLQ, max.poll, cooperative rebalance</li></ul></div><div><h4>Nhất quán</h4>
+<ul><li>Dual write sai → outbox cùng transaction + relay/CDC</li><li>Saga: bù trừ nghiệp vụ, idempotent; orchestration vs choreography</li><li>2PC: chặn, chỉ phạm vi hẹp</li></ul></div><div><h4>Mở rộng &amp; vận hành</h4>
+<ul><li>Shard key: đều, một shard cho truy vấn chính, ổn định</li><li>Consistent hashing + virtual node; shard logic cố định</li><li>Rate limit: token bucket (burst), sliding window; Redis + Lua; 429</li><li>Liveness (restart) vs readiness (rút khỏi LB); graceful shutdown</li><li>RED/USE, p99 từ histogram, SLO + burn rate, correlation id</li></ul></div></div></section>
+</main>
+</body></html>

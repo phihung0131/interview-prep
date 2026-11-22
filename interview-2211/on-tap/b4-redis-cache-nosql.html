@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>B4 · Redis, cache và NoSQL</title><meta name="description" content="Kiểu dữ liệu, đơn luồng, các mẫu cache, penetration/stampede/avalanche, hot key, lệch cache, persistence, khóa phân tán, NoSQL."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">B · Kỹ thuật nền tảng</p><h1>B4 · Redis, cache và NoSQL</h1><p class="lede">Zalo Media đọc rất nhiều nên cache là chủ đề chắc chắn bị hỏi. Neo câu trả lời vào Redis rate limit và cache ở Notification Hub, cache ở WMS (A2 · câu 15).</p><div class="mast-meta"><span>9 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q73">73</a><a href="#q74">74</a><a href="#q75">75</a><a href="#q76">76</a><a href="#q77">77</a><a href="#q78">78</a><a href="#q79">79</a><a href="#q80">80</a><a href="#q81">81</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q73" data-q="q73">
+<div class="qa-h"><span class="qa-n">73</span><h3>Redis có các kiểu dữ liệu nào và dùng cho bài toán nào (String, Hash, List, Set, ZSet)?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> ZSet cho xếp hạng, Set cho unique, Hash cho đối tượng.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><div class="tw"><table><thead><tr><th>Kiểu</th><th>Bài toán</th><th>Lệnh</th></tr></thead><tbody><tr><td>String</td><td>Cache object dạng JSON, bộ đếm, khóa</td><td><code>GET/SET EX</code>, <code>INCR</code>, <code>SET NX PX</code></td></tr><tr><td>Hash</td><td>Object nhiều trường, sửa từng trường</td><td><code>HSET</code>, <code>HINCRBY</code></td></tr><tr><td>List</td><td>Hàng đợi đơn giản, N bản ghi mới nhất</td><td><code>LPUSH</code> + <code>LTRIM</code>, <code>BRPOP</code></td></tr><tr><td>Set</td><td>Tập duy nhất: ai đã like, tag</td><td><code>SADD</code>, <code>SISMEMBER</code>, <code>SINTER</code></td></tr><tr><td>Sorted Set</td><td><b>Xếp hạng</b>, timeline theo thời gian, cửa sổ trượt</td><td><code>ZINCRBY</code>, <code>ZREVRANGE</code>, <code>ZRANGEBYSCORE</code></td></tr></tbody></table></div>
+<p>Thêm: <b>Bitmap</b> (điểm danh, đánh dấu người dùng hoạt động theo ngày rất tiết kiệm), <b>HyperLogLog</b> (đếm phần tử duy nhất gần đúng với 12 KB, ví dụ số người xem duy nhất), <b>Stream</b> (log sự kiện có consumer group), <b>Geo</b>.</p>
+<p>Ví dụ: bảng xếp hạng top video dùng ZSet, <code>ZINCRBY views 1 video:42</code> và <code>ZREVRANGE views 0 9 WITHSCORES</code>. Rate limiting cửa sổ trượt ở Notification Hub dùng ZSet lưu thời điểm request.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Vì sao Hash tốt hơn nhiều key String cho một object?</summary><div class="a"><p>Hash nhỏ được mã hóa gọn (listpack) nên tiết kiệm bộ nhớ, và sửa được một trường mà không phải đọc/ghi cả JSON. Nhưng không đặt TTL riêng cho từng trường được (bản mới có HEXPIRE).</p></div></details></div>
+</article>
+<article class="qa" id="q74" data-q="q74">
+<div class="qa-h"><span class="qa-n">74</span><h3>Redis đơn luồng vì sao vẫn nhanh? Có lệnh nào làm nghẽn cả server?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> I/O multiplexing, KEYS, big key, Lua dài.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Redis xử lý lệnh trên <b>một luồng chính</b> nhưng vẫn nhanh vì:</p>
+<ul><li>Dữ liệu <b>trong RAM</b>, mỗi lệnh chỉ vài micro giây.</li><li><b>I/O multiplexing</b> (epoll): một luồng phục vụ hàng chục nghìn kết nối, không chặn khi chờ mạng.</li><li><b>Không có khóa</b>, không chuyển ngữ cảnh giữa các luồng; mỗi lệnh tự nhiên là atomic.</li><li>Cấu trúc dữ liệu tối ưu. Redis 6+ còn có luồng I/O riêng để đọc ghi socket.</li></ul>
+<p>Mặt trái: <b>một lệnh chậm chặn tất cả</b>. Các lệnh nguy hiểm:</p>
+<ul><li><code>KEYS *</code> quét toàn bộ key → dùng <code>SCAN</code> theo từng đợt.</li><li><b>Big key:</b> <code>HGETALL</code>, <code>SMEMBERS</code>, <code>LRANGE 0 -1</code> trên key hàng triệu phần tử; <code>DEL</code> big key (dùng <code>UNLINK</code> xóa nền).</li><li><b>Lua script chạy lâu</b>, <code>FLUSHALL</code> đồng bộ.</li><li><code>SORT</code>, <code>ZUNIONSTORE</code> trên tập lớn.</li></ul>
+<p>Phát hiện bằng <code>SLOWLOG GET</code>, <code>redis-cli --bigkeys</code>, <code>LATENCY DOCTOR</code>.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Pipeline khác transaction (MULTI) thế nào?</summary><div class="a"><p>Pipeline gửi nhiều lệnh một lượt để giảm số vòng mạng, không đảm bảo atomic. MULTI/EXEC đảm bảo chạy liền nhau không bị chen, nhưng không rollback nếu một lệnh lỗi. Muốn logic điều kiện atomic thì dùng Lua.</p></div></details></div>
+</article>
+<article class="qa" id="q75" data-q="q75">
+<div class="qa-h"><span class="qa-n">75</span><h3>Cache-aside, write-through, write-behind: khác nhau thế nào và bạn đã dùng cái nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> trạng thái nhất quán, rủi ro mất dữ liệu.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><ul><li><b>Cache-aside (lazy loading):</b> đọc cache, không có thì đọc DB rồi ghi vào cache với TTL. Ghi thì <b>cập nhật DB rồi xóa cache</b>. Ứng dụng tự quản. Phổ biến nhất, Redis chết vẫn chạy được (chậm hơn). Rủi ro: lần đọc đầu chậm, có cửa sổ lệch nhỏ.</li><li><b>Write-through:</b> ghi qua cache, cache ghi đồng bộ xuống DB. Cache luôn mới; ghi chậm hơn và cache chứa cả dữ liệu ít đọc.</li><li><b>Write-behind (write-back):</b> ghi vào cache, <b>xuống DB sau theo lô</b>. Ghi rất nhanh, gộp được nhiều lần ghi; <b>rủi ro mất dữ liệu</b> nếu cache chết trước khi xả, và DB trễ hơn thực tế.</li></ul>
+<p>Em dùng <b>cache-aside</b>: ở Notification Hub để cache cấu hình tenant và quota (đọc mỗi request, đổi hiếm), TTL vài phút và xóa cache khi admin sửa. Kiểu gần <b>write-behind</b> hợp với bộ đếm lượt xem: <code>INCR</code> trong Redis rồi định kỳ gộp ghi xuống DB, chấp nhận lệch nhỏ và có đối soát.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Khi nào không nên cache?</summary><div class="a"><p>Dữ liệu đổi liên tục và phải chính xác tuyệt đối (số dư, tồn kho khi trừ), dữ liệu ít đọc lại, hoặc khi DB đã đủ nhanh. Cache thêm một nguồn lệch và một hệ thống phải vận hành.</p></div></details></div>
+</article>
+<article class="qa" id="q76" data-q="q76">
+<div class="qa-h"><span class="qa-n">76</span><h3>Cache penetration, breakdown (stampede), avalanche: phân biệt và cách phòng.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> cache giá trị rỗng/Bloom filter, khóa xây lại, TTL ngẫu nhiên (jitter).</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><div class="tw"><table><thead><tr><th></th><th>Hiện tượng</th><th>Phòng</th></tr></thead><tbody><tr><td><b>Penetration</b></td><td>Hỏi key <b>không tồn tại</b> (id rác, bị tấn công), cache không bao giờ có, mọi request xuống DB</td><td>Cache cả <b>giá trị rỗng</b> với TTL ngắn; <b>Bloom filter</b> loại id chắc chắn không có; validate đầu vào, rate limit</td></tr><tr><td><b>Breakdown / stampede</b></td><td><b>Một key nóng hết hạn</b>, hàng nghìn request cùng lúc miss và cùng đi DB dựng lại</td><td><b>Khóa dựng lại</b> (chỉ một request lấy <code>SET NX</code> để đọc DB, còn lại chờ ngắn hoặc trả bản cũ); làm mới sớm trước khi hết hạn; key cực nóng thì không đặt hết hạn mà làm mới nền</td></tr><tr><td><b>Avalanche</b></td><td><b>Nhiều key hết hạn cùng lúc</b> (cùng nạp lúc deploy, cùng TTL) hoặc Redis chết, DB bị dồn tải</td><td><b>TTL ngẫu nhiên (jitter)</b> ví dụ 600 ± 60 giây; Redis cluster có bản sao; circuit breaker và rate limit trước DB; cache cục bộ nhiều tầng</td></tr></tbody></table></div>
+<p>Một câu dễ nhớ: penetration là <b>key không có</b>, breakdown là <b>một key nóng</b>, avalanche là <b>nhiều key cùng lúc</b>.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Bloom filter có sai không?</summary><div class="a"><p>Có thể báo “có thể có” với key không tồn tại (dương tính giả), nhưng không bao giờ báo “không có” với key có thật. Nên dùng để loại chắc chắn, phần còn lại vẫn kiểm tra DB.</p></div></details><details class="fu"><summary>Request chờ khóa dựng lại bao lâu?</summary><div class="a"><p>Ngắn, vài chục tới vài trăm mili giây rồi đọc lại cache; hoặc trả dữ liệu cũ (stale-while-revalidate) nếu nghiệp vụ chấp nhận.</p></div></details></div>
+</article>
+<article class="qa" id="q77" data-q="q77">
+<div class="qa-h"><span class="qa-n">77</span><h3>Hot key xử lý thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> cache cục bộ (Caffeine), nhân bản key, tách shard.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p><b>Hot key:</b> một key bị đọc cực nhiều, ví dụ bài viết của người nổi tiếng hoặc video đang viral, dồn hết vào <b>một node Redis</b> (vì một key chỉ nằm trên một shard), node đó nghẽn CPU hoặc băng thông dù cụm còn rảnh.</p>
+<p>Xử lý theo tầng:</p>
+<ol><li><b>Cache cục bộ trong ứng dụng</b> (Caffeine) với TTL ngắn vài giây: mỗi instance tự giữ một bản, phần lớn request không tới Redis nữa. Đổi lại lệch vài giây, chấp nhận được với dữ liệu hiển thị.</li><li><b>Nhân bản key:</b> lưu thành <code>post:42#0</code> … <code>post:42#9</code> trên nhiều shard, đọc ngẫu nhiên một bản; ghi thì cập nhật hoặc xóa cả nhóm.</li><li>Với key <b>ghi</b> nóng như bộ đếm like, <b>tách bộ đếm</b> thành nhiều key con rồi cộng lại khi đọc, hoặc gộp trong bộ nhớ rồi <code>INCRBY</code> theo lô.</li><li>Đọc từ <b>replica</b>.</li></ol>
+<p>Phát hiện: <code>redis-cli --hotkeys</code> (cần chính sách LFU), theo dõi tải từng node, hoặc thống kê phía client.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Phát hiện hot key tự động rồi làm gì?</summary><div class="a"><p>Client đếm tần suất key trong cửa sổ ngắn; key vượt ngưỡng thì tự đưa vào cache cục bộ. Một số hệ thống lớn làm theo hướng này.</p></div></details></div>
+</article>
+<article class="qa" id="q78" data-q="q78">
+<div class="qa-h"><span class="qa-n">78</span><h3>Khi nào dữ liệu cache và DB lệch nhau? Cách xoá cache sau khi cập nhật DB (update hay delete, thứ tự)?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> race giữa đọc và ghi, delay double delete, TTL làm lưới an toàn.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Lệch xảy ra vì <b>cập nhật DB và cache là hai thao tác riêng</b>, không cùng giao dịch.</p>
+<p><b>Nên xóa cache, không cập nhật cache.</b> Cập nhật cache khi hai request ghi đồng thời có thể ghi đè theo thứ tự sai (ghi DB A rồi B, nhưng ghi cache B rồi A → cache giữ A cũ mãi). Xóa thì lần đọc sau tự nạp đúng.</p>
+<p><b>Thứ tự: cập nhật DB trước, rồi xóa cache.</b> Nếu xóa cache trước: request đọc chen vào giữa, miss, đọc DB <b>cũ</b> và nạp lại cache cũ, rồi DB mới được ghi → cache lệch tới khi hết TTL.</p>
+<p>Cập nhật DB rồi xóa vẫn còn một khe hiếm: request đọc miss, đọc DB cũ, <b>chậm</b>; trong lúc đó ghi DB mới và xóa cache; rồi request đọc mới ghi giá trị cũ vào cache. Khả năng thấp vì đọc thường nhanh hơn ghi.</p>
+<p>Lưới an toàn:</p>
+<ul><li><b>Delayed double delete:</b> xóa, rồi xóa thêm lần nữa sau vài trăm mili giây.</li><li><b>TTL</b> luôn có, để lệch tự lành.</li><li>Xóa cache <b>dựa trên CDC</b> (Debezium đọc WAL) hoặc outbox, để xóa thất bại thì có retry.</li><li>Dữ liệu cần đúng tuyệt đối thì <b>đọc DB</b>, không đọc cache.</li></ul></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Xóa cache thất bại thì sao?</summary><div class="a"><p>Retry, hoặc đẩy vào hàng đợi để xóa lại; không thì dựa vào TTL. Đây là lý do xóa qua CDC/outbox đáng tin hơn gọi xóa trực tiếp.</p></div></details></div>
+</article>
+<article class="qa" id="q79" data-q="q79">
+<div class="qa-h"><span class="qa-n">79</span><h3>Redis persistence (RDB, AOF) và Cluster/Sentinel: khác nhau gì? Khi Redis chết thì hệ thống của bạn ứng xử ra sao?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> fail-open hay fail-closed, chịu mất dữ liệu, chế độ degrade.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Persistence:</b></p>
+<ul><li><b>RDB:</b> chụp snapshot định kỳ (fork process con). Khởi động nhanh, file gọn, nhưng mất dữ liệu từ lần chụp cuối.</li><li><b>AOF:</b> ghi log mọi lệnh ghi, <code>appendfsync everysec</code> thì mất tối đa khoảng 1 giây. File lớn hơn, có rewrite để gọn lại. Thực tế thường bật cả hai.</li></ul>
+<p><b>Sẵn sàng cao:</b></p>
+<ul><li><b>Sentinel:</b> một master, nhiều replica; Sentinel theo dõi và <b>tự chuyển replica lên master</b> khi master chết. Dữ liệu không chia nhỏ, giới hạn bởi RAM một máy.</li><li><b>Cluster:</b> <b>chia dữ liệu</b> thành 16.384 slot trên nhiều master, mỗi master có replica. Mở rộng ngang được; đổi lại lệnh nhiều key phải cùng slot (dùng hash tag <code>{user:1}</code>), không có SELECT db.</li></ul>
+<p>Replication là <b>bất đồng bộ</b> nên failover có thể mất vài ghi cuối.</p>
+<p><b>Khi Redis chết, hệ thống của em:</b></p>
+<ul><li><b>Cache:</b> <b>fail-open</b>, đọc thẳng DB, nhưng có circuit breaker và rate limit để DB không bị dồn sập; timeout Redis ngắn (50–100 ms) để không treo request.</li><li><b>Rate limit:</b> tùy mục đích. Chống spam người dùng thì fail-open (cho qua, kèm giới hạn cục bộ thô trong instance); bảo vệ nhà cung cấp tính tiền theo lượt thì fail-closed.</li><li><b>Khóa phân tán, idempotency:</b> không dựa duy nhất vào Redis; Notification Hub có lớp idempotency cuối ở PostgreSQL (upsert), Redis mất thì vẫn không gửi trùng.</li></ul></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Fork khi chụp RDB có vấn đề gì?</summary><div class="a"><p>Với RAM lớn, fork mất thời gian và copy-on-write làm tăng bộ nhớ khi ghi nhiều; cần chừa RAM và tắt transparent huge pages.</p></div></details></div>
+</article>
+<article class="qa" id="q80" data-q="q80">
+<div class="qa-h"><span class="qa-n">80</span><h3>Khóa phân tán bằng Redis (SET NX PX): rủi ro gì? Fencing token là gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> hết hạn khi đang xử lý, GC pause, việc kiểm tra ở tầng dưới.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Cách cơ bản: <code>SET lock:job123 &lt;token-ngẫu-nhiên&gt; NX PX 30000</code>. Nhả khóa bằng <b>Lua so token rồi mới xóa</b>, để không xóa nhầm khóa của người khác.</p>
+<p>Rủi ro:</p>
+<ol><li><b>Khóa hết hạn khi đang xử lý:</b> việc chạy lâu hơn 30 giây (hoặc <b>GC pause</b> dài, mạng chậm), khóa tự mất, client B lấy được khóa; giờ <b>hai client cùng nghĩ mình giữ khóa</b>. A tỉnh lại vẫn ghi tiếp.</li><li><b>Failover:</b> master nhận khóa rồi chết trước khi đồng bộ sang replica; replica lên master không biết khóa đó, client khác lấy được.</li><li>Đồng hồ lệch ảnh hưởng thuật toán Redlock.</li></ol>
+<p><b>Fencing token:</b> mỗi lần cấp khóa kèm một <b>số tăng dần</b> (33, 34…). Khi ghi vào tài nguyên, client gửi kèm token, và <b>tầng lưu trữ từ chối token nhỏ hơn token đã thấy</b>. A cầm token 33 tỉnh dậy ghi muộn sẽ bị từ chối vì B đã ghi với 34. Nghĩa là <b>kiểm tra cuối cùng phải ở tầng dưới</b>, ví dụ <code>UPDATE … WHERE fence &lt; :token</code>.</p>
+<p>Vì vậy em dùng khóa Redis cho <b>hiệu quả</b> (tránh hai worker làm trùng việc tốn kém), còn <b>tính đúng</b> đặt ở DB: unique constraint, conditional update, version. Ở WMS, khóa chống batch chạy chồng em dùng advisory lock hoặc dòng khóa trong PostgreSQL vì dữ liệu đã ở đó.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Gia hạn khóa (watchdog) có giải quyết được không?</summary><div class="a"><p>Giảm khả năng hết hạn (Redisson tự gia hạn mỗi 1/3 TTL khi client còn sống), nhưng GC pause dài hoặc mất mạng vẫn làm khóa hết hạn. Vẫn cần fencing cho tính đúng.</p></div></details><details class="fu"><summary>Redlock thì sao?</summary><div class="a"><p>Lấy khóa trên đa số N node độc lập. Giảm rủi ro failover nhưng vẫn phụ thuộc thời gian; có tranh luận nổi tiếng giữa Martin Kleppmann và antirez. Cần đúng tuyệt đối thì dùng hệ đồng thuận (etcd, ZooKeeper) kèm fencing.</p></div></details></div>
+</article>
+<article class="qa" id="q81" data-q="q81">
+<div class="qa-h"><span class="qa-n">81</span><h3>Khi nào chọn NoSQL (Cassandra, MongoDB, DynamoDB) thay cho PostgreSQL?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> mẫu truy vấn, ghi lớn, schema linh hoạt; đánh đổi join và giao dịch.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Em bắt đầu từ <b>mẫu truy vấn</b> chứ không từ công nghệ. PostgreSQL là mặc định; chọn NoSQL khi:</p>
+<ul><li><b>Ghi cực lớn, dữ liệu theo thời gian, truy vấn theo khóa đã biết trước:</b> tin nhắn, log, timeline, sự kiện. <b>Cassandra/ScyllaDB</b>: ghi nhanh (LSM tree), mở rộng ngang tuyến tính, nhiều datacenter; thiết kế bảng theo truy vấn, ví dụ partition key <code>conversation_id</code>, clustering key <code>message_id</code>.</li><li><b>Truy cập theo khóa, độ trễ thấp, quản lý sẵn:</b> <b>DynamoDB</b>, phải biết trước partition key và mẫu truy cập.</li><li><b>Document schema linh hoạt</b>, mỗi bản ghi cấu trúc khác nhau, đọc cả khối: <b>MongoDB</b>, ví dụ cấu hình, hồ sơ sản phẩm nhiều thuộc tính.</li></ul>
+<p>Đổi lại mất:</p>
+<ul><li><b>JOIN</b> và truy vấn tùy ý: muốn truy vấn kiểu mới thường phải tạo bảng mới (phi chuẩn hóa).</li><li><b>Giao dịch nhiều dòng</b> (có nhưng hạn chế), ràng buộc khóa ngoại.</li><li>Thường là <b>nhất quán cuối cùng</b> hoặc phải chọn mức nhất quán mỗi lần đọc ghi.</li></ul>
+<p>Tiền, tồn kho, quan hệ phức tạp: giữ SQL. Tin nhắn hàng tỉ dòng ghi liên tục: cân nhắc Cassandra.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Cassandra chọn partition key sai thì sao?</summary><div class="a"><p>Partition quá lớn (một nhóm chat cực đông, nhiều năm tin nhắn) gây hot partition và đọc chậm. Thêm “bucket thời gian” vào partition key, ví dụ <code>(conversation_id, tháng)</code>.</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet B4 · Redis &amp; cache</h2><span>B4</span></div><div class="cheat-b"><div><h4>Kiểu dữ liệu</h4>
+<ul><li>String: cache, INCR, SET NX PX</li><li>Hash: object; ZSet: xếp hạng, cửa sổ trượt</li><li>Set: unique; HyperLogLog: đếm duy nhất 12 KB; Bitmap: điểm danh</li></ul></div><div><h4>Đơn luồng</h4>
+<ul><li>RAM + epoll + không khóa</li><li>Cấm: KEYS (dùng SCAN), big key, Lua dài; DEL → UNLINK</li><li>SLOWLOG, --bigkeys</li></ul></div><div><h4>Mẫu cache</h4>
+<ul><li>Cache-aside (mặc định): DB rồi xóa cache</li><li>Write-through: cache luôn mới, ghi chậm</li><li>Write-behind: nhanh, có rủi ro mất</li></ul></div><div><h4>3 sự cố</h4>
+<ul><li>Penetration: key không có → cache rỗng, Bloom filter</li><li>Breakdown: 1 key nóng hết hạn → khóa dựng lại, làm mới sớm</li><li>Avalanche: nhiều key cùng lúc → TTL jitter, HA, breaker</li></ul></div><div><h4>Lệch cache</h4>
+<ul><li>Xóa, không cập nhật; DB trước, xóa sau</li><li>Double delete, TTL, xóa qua CDC/outbox</li><li>Hot key: Caffeine cục bộ, nhân bản key, tách bộ đếm</li></ul></div><div><h4>HA &amp; khóa</h4>
+<ul><li>RDB + AOF everysec; Sentinel (failover) vs Cluster (16.384 slot)</li><li>Redis chết: cache fail-open + breaker; rate limit tùy mục đích</li><li>Khóa: SET NX PX + token, nhả bằng Lua</li><li>Hết hạn khi GC pause → fencing token, kiểm tra ở DB</li></ul></div><div><h4>NoSQL</h4>
+<ul><li>Từ mẫu truy vấn; Cassandra cho ghi lớn theo khóa</li><li>Mất JOIN, giao dịch; nhất quán cuối cùng</li></ul></div></div></section>
+</main>
+</body></html>

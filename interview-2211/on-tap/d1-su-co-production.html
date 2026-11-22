@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>D1 · Sự cố production</title><meta name="description" content="p99 tăng sau deploy, cạn pool, consumer lag, OOM, cache lạnh, thông báo trùng, replica lag, tồn kho lệch, đĩa đầy, retry storm, postmortem."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">D · Tình huống &amp; debug</p><h1>D1 · Sự cố production</h1><p class="lede">Mọi câu trả lời theo cùng thứ tự: <b>cầm máu → thu thập dữ liệu → giả thuyết → kiểm chứng → sửa gốc → ngăn tái diễn</b>. Người phỏng vấn chấm cách bạn nghĩ có thứ tự, không chấm việc đoán trúng ngay.</p><div class="mast-meta"><span>11 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q133">133</a><a href="#q134">134</a><a href="#q135">135</a><a href="#q136">136</a><a href="#q137">137</a><a href="#q138">138</a><a href="#q139">139</a><a href="#q140">140</a><a href="#q141">141</a><a href="#q142">142</a><a href="#q143">143</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<div class="intro-box"><p><b>Câu mở đầu mẫu:</b> “Việc đầu tiên em làm là giảm ảnh hưởng tới người dùng, sau đó mới tìm nguyên nhân.” Rồi nói rõ em <b>nhìn vào số nào</b> trước khi kết luận.</p></div>
+<article class="qa" id="q133" data-q="q133">
+<div class="qa-h"><span class="qa-n">133</span><h3>p99 tăng từ 80 ms lên 1,5 s ngay sau deploy, CPU chỉ 20%, DB bình thường. Bạn làm gì?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> rollback trước, thread dump (chờ khóa/pool), gọi dependency chậm, GC.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p><b>Cầm máu:</b> sự cố bắt đầu <b>ngay sau deploy</b> nên nghi phạm số một là bản mới. Em <b>rollback</b> (hoặc tắt feature flag) trước, xác nhận p99 về lại 80 ms, rồi mới điều tra trên bản lỗi ở staging hoặc một canary nhỏ.</p>
+<p><b>CPU 20% và DB bình thường</b> nghĩa là thread <b>đang chờ</b>, không phải đang tính. Các khả năng:</p>
+<ol><li><b>Chờ khóa hoặc chờ pool:</b> bản mới thêm <code>synchronized</code> quanh đoạn nóng, hoặc giữ connection lâu hơn (transaction bọc lời gọi HTTP) → <b>thread dump</b> (<code>jstack</code> ba lần) thấy nhiều thread <code>BLOCKED</code> cùng một monitor hoặc <code>WAITING</code> ở <code>HikariPool.getConnection</code>. Metric pool: pending tăng.</li><li><b>Gọi dependency chậm:</b> bản mới gọi thêm một service hoặc API ngoài, hoặc đổi timeout → <b>trace APM</b> thấy span mới chiếm phần lớn thời gian.</li><li><b>GC:</b> bản mới tạo nhiều object (nạp list lớn, cache không giới hạn) → GC log hoặc metric JVM thấy pause dài, heap tăng.</li><li><b>Cấu hình:</b> pool nhỏ đi, log mức DEBUG đồng bộ ghi đĩa, thread pool mới với queue lớn.</li></ol>
+<p><b>Kiểm chứng:</b> so sánh trace của request chậm giữa hai phiên bản, đọc diff của bản deploy theo các giả thuyết trên.</p>
+<p><b>Sửa gốc</b> rồi deploy lại kiểu <b>canary</b> (5% traffic) và theo dõi p99. <b>Ngăn tái diễn:</b> cảnh báo p99 theo phiên bản, load test cho đường nóng trong pipeline, canary tự động rollback khi SLO xấu đi.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Không rollback được (có migration DB) thì sao?</summary><div class="a"><p>Tắt tính năng bằng feature flag; nếu migration là thêm cột tương thích ngược thì code cũ vẫn chạy được. Đây là lý do migration luôn phải tương thích ngược.</p></div></details></div>
+</article>
+<article class="qa" id="q134" data-q="q134">
+<div class="qa-h"><span class="qa-n">134</span><h3>Log báo không lấy được connection, 5xx tăng nhưng DB không nặng.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> pool cạn do truy vấn chậm/transaction mở lâu/leak, cách đo pool usage.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Lỗi kiểu <code>Connection is not available, request timed out after 30000ms</code> mà <b>DB không nặng</b> nghĩa là connection bị <b>giữ ở phía ứng dụng</b> chứ DB không bận xử lý.</p>
+<p><b>Cầm máu:</b> restart một instance để xác nhận có giải phóng tạm (nếu có thì đúng là giữ/rò rỉ), giới hạn tải vào endpoint nghi ngờ.</p>
+<p><b>Đo:</b></p>
+<ul><li>Metric HikariCP: <code>active</code> sát <code>max</code>, <code>pending</code> tăng, <code>usage</code> (thời gian giữ connection) tăng.</li><li>Phía DB: <code>pg_stat_activity</code> xem các connection của ứng dụng đang <b><code>idle in transaction</code></b> (mở transaction mà không chạy gì) hay đang chạy query nào lâu.</li><li>Thread dump: thread nào đang giữ connection và đang làm gì (thường đang chờ socket HTTP).</li></ul>
+<p><b>Ba nguyên nhân hay gặp:</b></p>
+<ol><li><b>Transaction mở trong lúc gọi HTTP/gRPC</b> chậm → giữ connection vài giây.</li><li><b>Rò rỉ connection:</b> code tự lấy connection mà không đóng trong <code>finally</code>/try-with-resources. Bật <code>leakDetectionThreshold</code> để có stack trace chỗ lấy.</li><li><b>Một query chậm</b> (vẫn ít tải trên DB tổng) chiếm nhiều connection lâu, ví dụ một báo cáo.</li></ol>
+<p><b>Sửa</b> theo đúng nguyên nhân; thêm <code>connectionTimeout</code> ngắn để fail fast, <code>idle_in_transaction_session_timeout</code> phía DB, alert theo pending.</p></div>
+</article>
+<article class="qa" id="q135" data-q="q135">
+<div class="qa-h"><span class="qa-n">135</span><h3>Kafka consumer lag tăng liên tục nhưng không có lỗi.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> thời gian xử lý mỗi tin, poison message, rebalance, số partition.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Lag tăng mà không có lỗi nghĩa là consumer <b>chậm hơn tốc độ đến</b>, hoặc <b>đang bị kẹt mà không ném lỗi</b>.</p>
+<ol><li><b>Lag đều mọi partition hay một partition?</b> Một partition → <b>hot key</b> hoặc một <b>tin poison</b> khiến consumer retry tại chỗ trong im lặng (retry vô hạn nuốt lỗi).</li><li><b>Thời gian xử lý mỗi tin</b> có tăng không: dependency bên ngoài chậm (DB, nhà cung cấp SMS), query chậm dần do bảng lớn lên.</li><li><b>Rebalance liên tục:</b> log consumer thấy “revoking/assigned partitions” lặp lại; nguyên nhân là xử lý một lô lâu hơn <code>max.poll.interval.ms</code> → bị đá khỏi group, mọi consumer dừng để chia lại, rồi lặp lại.</li><li><b>Tốc độ đến tăng</b> (chiến dịch marketing) vượt năng lực.</li><li><b>Số consumer &lt; số partition</b> hoặc có consumer chết mà không ai thay.</li></ol>
+<p><b>Xử lý:</b> poison → đẩy DLQ sau N lần; chậm → gom lô, gọi ngoài bất đồng bộ có giới hạn, thêm consumer (≤ partition), tăng partition nếu cần; rebalance → giảm <code>max.poll.records</code>, cooperative sticky; tách luồng ưu tiên thấp ra topic riêng.</p>
+<p><b>Ngăn tái diễn:</b> alert theo <b>thời gian trễ</b> của tin cũ nhất, metric thời gian xử lý mỗi tin, DLQ có alert.</p></div>
+</article>
+<article class="qa" id="q136" data-q="q136">
+<div class="qa-h"><span class="qa-n">136</span><h3>Heap tăng dần, Full GC liên tục, OOM sau 6 giờ.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> heap dump, leak (cache/static map/listener), ngăn tái diễn bằng giới hạn kích thước.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Mẫu “heap tăng dần, Full GC dày dần, sau 6 giờ OOM” là <b>rò rỉ bộ nhớ</b>, không phải tải đột biến.</p>
+<p><b>Cầm máu:</b> restart luân phiên các instance trước khi tới ngưỡng (đặt lịch tạm), tăng số instance nếu cần; đây chỉ là băng tạm.</p>
+<p><b>Thu thập:</b></p>
+<ul><li>Đảm bảo có <code>-XX:+HeapDumpOnOutOfMemoryError</code>; chủ động lấy <b>heap dump</b> ở 1 giờ và 4 giờ (<code>jcmd &lt;pid&gt; GC.heap_dump</code>), cẩn thận vì lấy dump sẽ dừng ứng dụng vài giây.</li><li>Mở bằng <b>Eclipse MAT</b>: Leak Suspects, <b>dominator tree</b>, so hai dump xem class nào tăng.</li></ul>
+<p><b>Nghi phạm quen thuộc:</b></p>
+<ul><li><b>Cache tự viết bằng <code>static Map</code> không giới hạn, không TTL.</b></li><li>Listener/callback đăng ký mà không hủy.</li><li><b>ThreadLocal</b> trong thread pool không <code>remove()</code>.</li><li>Gom kết quả vào list trong bộ nhớ (session, batch).</li><li>Thư viện client tạo mới mỗi request (HTTP client, connection) không đóng.</li></ul>
+<p><b>Sửa:</b> thay bằng cache có giới hạn kích thước và TTL (Caffeine <code>maximumSize</code>, <code>expireAfterWrite</code>), hủy listener, <code>try/finally remove()</code>.</p>
+<p><b>Ngăn tái diễn:</b> alert theo <b>heap sau GC</b> tăng liên tục, mọi cache bắt buộc có giới hạn, test chạy dài (soak test) vài giờ trước khi release.</p></div>
+</article>
+<article class="qa" id="q137" data-q="q137">
+<div class="qa-h"><span class="qa-n">137</span><h3>Sau deploy, cache hit ratio về 0 và DB quá tải.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> cache lạnh, đổi key, khóa xây lại, làm nóng cache, triển khai từng phần.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Hai khả năng chính sau deploy:</p>
+<ol><li><b>Cache lạnh:</b> cache cục bộ (Caffeine) rỗng sau khi restart toàn bộ instance cùng lúc, hoặc Redis bị xả.</li><li><b>Đổi key:</b> bản mới đổi định dạng key (thêm version, đổi tiền tố, đổi cách serialize) → <b>toàn bộ key cũ không còn khớp</b>, như thể cache trống. Hoặc lỗi deserialize khiến mọi lần đọc cache đều coi là miss.</li></ol>
+<p><b>Cầm máu:</b></p>
+<ul><li>Rollback nếu do đổi key; giới hạn tải vào DB (rate limit, circuit breaker, trả dữ liệu dự phòng cho tính năng phụ).</li><li>Bật <b>khóa dựng lại</b>: mỗi key chỉ một request đọc DB, còn lại chờ, tránh stampede.</li></ul>
+<p><b>Kiểm chứng:</b> xem log lỗi deserialize, so key mẫu trong Redis giữa hai phiên bản, metric hit/miss theo thời gian bắt đầu đúng lúc deploy.</p>
+<p><b>Ngăn tái diễn:</b></p>
+<ul><li><b>Làm nóng cache</b> trước khi chuyển traffic: nạp sẵn key nóng nhất.</li><li><b>Triển khai từng phần</b> (rolling, canary), không restart tất cả cùng lúc.</li><li>Đổi định dạng key thì <b>đọc cả key cũ và mới</b> trong giai đoạn chuyển, hoặc ghi kép.</li><li>Alert theo hit ratio và theo tải DB.</li></ul></div>
+</article>
+<article class="qa" id="q138" data-q="q138">
+<div class="qa-h"><span class="qa-n">138</span><h3>Người dùng nhận thông báo trùng 2–3 lần.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> at-least-once, consumer chưa idempotent, rebalance/commit offset, retry nhà cung cấp.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Hệ thống gửi theo <b>at-least-once</b>, nên trùng xảy ra khi <b>một bước bị làm lại mà không có chặn trùng</b>:</p>
+<ol><li><b>Consumer chưa idempotent:</b> xử lý xong (đã gửi) nhưng chưa kịp commit offset thì <b>rebalance</b> hoặc crash → tin được giao lại, gửi lần nữa.</li><li><b>Xử lý lâu hơn <code>max.poll.interval.ms</code></b> → bị đá khỏi group, partition giao cho consumer khác làm lại.</li><li><b>Retry phía gọi nhà cung cấp:</b> gọi API push bị timeout nhưng thực ra nhà cung cấp <b>đã nhận</b>, retry thành gửi hai lần.</li><li><b>Producer phía trên gửi trùng</b> sự kiện (dual write, retry không idempotence).</li></ol>
+<p><b>Điều tra:</b> lấy vài người dùng bị trùng, tra theo <code>notification_id</code> trong log: hai lần gửi từ cùng consumer hay khác consumer, cách nhau bao lâu, có trùng thời điểm rebalance không.</p>
+<p><b>Sửa:</b></p>
+<ul><li>Bảng ghi nhận <code>(notification_id, device_id)</code> <b>unique</b>, ghi <b>trước</b> khi gửi với trạng thái SENDING, gửi xong chuyển SENT; tin đến lại mà đã SENT thì bỏ.</li><li>Gửi kèm <b>idempotency key / collapse key</b> cho nhà cung cấp nếu hỗ trợ (APNs <code>apns-collapse-id</code>, FCM <code>collapse_key</code>) để thiết bị chỉ hiện một.</li><li>Producer <code>enable.idempotence=true</code>.</li></ul>
+<p>Đây là lý do Notification Hub của em có lớp idempotency bằng upsert PostgreSQL.</p></div>
+</article>
+<article class="qa" id="q139" data-q="q139">
+<div class="qa-h"><span class="qa-n">139</span><h3>Người dùng báo bài vừa đăng biến mất rồi lại hiện.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> replica lag, đọc từ replica khác nhau, read-your-writes.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Bài <b>biến mất rồi hiện lại</b> gần như chắc chắn là <b>replica lag kết hợp đọc từ nhiều replica khác nhau</b>: lần tải đầu rơi vào primary hoặc replica đã có bài; lần sau rơi vào replica trễ hơn chưa có; lần sau nữa replica đã bắt kịp.</p>
+<p><b>Kiểm chứng:</b> xem metric replica lag (<code>pg_stat_replication</code>, <code>replay_lag</code>) đúng lúc người dùng báo, log request ghi lại replica nào phục vụ.</p>
+<p><b>Sửa:</b></p>
+<ul><li><b>Read-your-writes:</b> người vừa ghi thì đọc primary trong vài giây, hoặc đọc theo LSN/version đã ghi.</li><li><b>Monotonic reads:</b> gắn user vào một replica (sticky) để dữ liệu không “đi lùi”.</li><li>Rút replica có lag vượt ngưỡng khỏi nhóm đọc.</li><li>Phía client: giữ bài vừa đăng trong danh sách hiển thị.</li></ul>
+<p>Nguyên nhân phụ cần loại trừ: cache feed nhiều tầng có TTL khác nhau, hoặc CDN cache API.</p></div>
+</article>
+<article class="qa" id="q140" data-q="q140">
+<div class="qa-h"><span class="qa-n">140</span><h3>Tồn kho lệch sau khi hai batch job chạy chồng nhau.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> khóa job, idempotent, đối soát, sửa dữ liệu an toàn.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Đây là chuyện có thật ở loại hệ thống em làm (WMS).</p>
+<p><b>Cầm máu:</b> tạm dừng các job liên quan, chặn thao tác xuất kho trên những mặt hàng bị lệch để không bán/xuất thứ không có.</p>
+<p><b>Nguyên nhân:</b> hai lần chạy cùng một batch (lịch chồng, hoặc người chạy tay khi bản theo lịch chưa xong) cùng đọc tồn kho, cùng tính và cùng trừ → trừ hai lần; hoặc một lần chạy chết giữa chừng, lần chạy lại xử lý lại phần đã xong.</p>
+<p><b>Điều tra:</b> bảng nhật ký chạy batch (giờ bắt đầu/kết thúc, ai chạy), log theo id lần chạy, so <b>lịch sử biến động tồn</b> (bảng movement) với kết quả mong đợi để biết dòng nào bị trừ trùng.</p>
+<p><b>Sửa gốc:</b></p>
+<ol><li><b>Khóa chống chạy chồng:</b> advisory lock hoặc dòng khóa có hạn; lần sau thấy lần trước còn RUNNING thì thoát.</li><li><b>Idempotent:</b> mỗi biến động tồn có <b>khóa nghiệp vụ</b> (id lệnh + dòng) với unique constraint, chạy lại không tạo biến động mới; trừ tồn bằng conditional update.</li><li>Chia chunk, đánh dấu trạng thái từng phần để chạy lại chỉ làm phần thiếu.</li></ol>
+<p><b>Sửa dữ liệu an toàn:</b> tính lại tồn đúng từ lịch sử biến động (nguồn sự thật), sinh <b>bút toán điều chỉnh</b> (không UPDATE đè trực tiếp), chạy trên bản sao trước, có người duyệt, lưu lại bằng chứng, và đối soát với kiểm kê thực tế nếu cần.</p>
+<p><b>Ngăn tái diễn:</b> job đối soát tồn hằng ngày, alert khi tồn âm hoặc lệch.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Ở WMS em đã gặp chính xác chuyện này chưa?</summary><div class="a"><p>Kể theo trang “Case kiện Retired” (tồn kho âm do race condition) hoặc câu 5 ở trang WMS (batch chạy lại). Đừng nhận đã gặp nếu chưa.</p></div></details></div>
+</article>
+<article class="qa" id="q141" data-q="q141">
+<div class="qa-h"><span class="qa-n">141</span><h3>Disk đầy trên node lúc 3 giờ sáng.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> log/WAL/temp, dọn an toàn trước, alert sớm, quay vòng log.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p><b>Cầm máu trước:</b> đĩa đầy làm DB ngừng ghi, ứng dụng không ghi log được, có thể sập dây chuyền.</p>
+<ol><li><code>df -h</code> xem phân vùng nào; <code>du -sh /* | sort -h</code> lần thư mục to; <code>lsof +L1</code> tìm file đã xóa mà process còn giữ.</li><li><b>Dọn an toàn:</b> log cũ đã quay vòng, file tạm, heap dump cũ, image Docker không dùng (<code>docker system prune</code> cẩn thận). <b>Không xóa file WAL của PostgreSQL bằng tay</b> (làm hỏng DB).</li></ol>
+<p><b>Nguyên nhân hay gặp:</b></p>
+<ul><li><b>Log</b> không quay vòng, hoặc bật DEBUG.</li><li><b>WAL phình</b> vì <b>replication slot</b> của replica hoặc CDC (Debezium) đã chết không đọc → PostgreSQL giữ WAL mãi. Kiểm <code>pg_replication_slots</code>.</li><li>Archive WAL lỗi; <b>file tạm</b> của query sort lớn; backup cục bộ.</li><li>Heap dump tự động nhiều lần.</li></ul>
+<p><b>Sửa gốc</b> theo nguyên nhân: logrotate và giới hạn kích thước, xóa slot hỏng, <code>max_slot_wal_keep_size</code>, chuyển log ra hệ thống tập trung.</p>
+<p><b>Ngăn tái diễn:</b> alert ở <b>75–80%</b> và theo <b>tốc độ tăng</b> (dự đoán đầy trong 4 giờ), để có người xử lý trong giờ làm thay vì 3 giờ sáng.</p></div>
+</article>
+<article class="qa" id="q142" data-q="q142">
+<div class="qa-h"><span class="qa-n">142</span><h3>Sau khi dependency hồi phục, hệ thống lại sập (retry storm).</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> backoff + jitter, ngân sách retry, circuit breaker, tăng tải dần.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Dependency vừa hồi phục thì mọi client <b>dồn toàn bộ request đang chờ và retry vào cùng một lúc</b>: hàng đợi tồn đọng, retry 3 lần ở nhiều tầng, cache đã hết hạn, các instance khởi động lại cùng lúc → dependency nhận gấp nhiều lần tải bình thường và <b>sập lại</b> (thundering herd).</p>
+<p><b>Cầm máu:</b> chặn bớt tải vào dependency (rate limit ở gateway, tạm tắt luồng không quan trọng), mở dần.</p>
+<p><b>Sửa gốc:</b></p>
+<ul><li><b>Backoff mũ + jitter</b> để các client không retry cùng nhịp.</li><li><b>Retry budget:</b> tổng retry không vượt 10–20% request; chỉ một tầng retry.</li><li><b>Circuit breaker</b> với trạng thái <b>nửa mở</b>: chỉ cho vài request thử, thành công mới mở rộng dần.</li><li><b>Tăng tải dần</b> (ramp-up) khi hồi phục, xả hàng đợi tồn đọng với tốc độ giới hạn.</li><li>Phía dependency: <b>load shedding</b>, trả 503 nhanh khi quá tải thay vì xử lý chậm tất cả; giới hạn đồng thời.</li></ul>
+<p>Ở Notification Hub, retry đi qua topic có độ trễ tăng dần thay vì retry ngay, nên khi nhà cung cấp hồi phục, lượng retry đến rải đều.</p></div>
+</article>
+<article class="qa" id="q143" data-q="q143">
+<div class="qa-h"><span class="qa-n">143</span><h3>Kể cách bạn viết postmortem sau một sự cố.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> dòng thời gian, nguyên nhân gốc, không đổ lỗi cá nhân, hành động ngăn tái diễn có chủ sở hữu.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Postmortem <b>không đổ lỗi cá nhân</b>: mục tiêu là sửa hệ thống để người khác không mắc lại, không tìm ai có lỗi. Cấu trúc em dùng:</p>
+<ol><li><b>Tóm tắt:</b> chuyện gì, ảnh hưởng ai, bao lâu, mức độ (bao nhiêu người dùng, đơn hàng, lỗi).</li><li><b>Dòng thời gian</b> theo phút: lúc bắt đầu, lúc phát hiện (và phát hiện bằng gì), lúc cầm máu, lúc khắc phục xong. Khoảng từ bắt đầu tới phát hiện thường là chỗ cần cải thiện nhất.</li><li><b>Nguyên nhân gốc</b> bằng <b>5 Whys</b>: không dừng ở “code có NPE” mà hỏi tiếp vì sao dữ liệu đó tới được đây, vì sao test không bắt, vì sao không có alert.</li><li><b>Điều gì làm tốt, điều gì làm chưa tốt, chỗ nào gặp may.</b></li><li><b>Hành động</b> cụ thể, mỗi hành động có <b>người chịu trách nhiệm và hạn chót</b>, phân loại: phát hiện sớm hơn, giảm ảnh hưởng, ngăn tái diễn.</li></ol>
+<p>Ở WMS, khi sửa lỗi NPE do dữ liệu từ hệ thống ngoài chưa được xử lý, phần em đóng góp vào báo cáo là <mark>root cause, test hồi quy tái hiện đúng dữ liệu lỗi, và đề xuất kiểm tra dữ liệu đầu vào ở bước nạp</mark>.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Nếu lỗi do chính em gây ra?</summary><div class="a"><p>Nói thẳng, mô tả sự việc khách quan, và tập trung vào vì sao hệ thống cho phép lỗi đó lọt (thiếu review, thiếu test, thiếu cảnh báo). Xem câu 152 phần E.</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet D1 · Sự cố</h2><span>D1</span></div><div class="cheat-b"><div class="full"><h4>Thứ tự luôn dùng</h4>
+<ul><li>Cầm máu (rollback, flag, giới hạn tải) → dữ liệu → giả thuyết → kiểm chứng → sửa gốc → ngăn tái diễn</li></ul></div><div><h4>p99 tăng, CPU thấp</h4>
+<ul><li>Thread đang chờ: khóa, pool, dependency, GC</li><li>jstack ×3, trace APM, diff bản deploy, canary</li></ul></div><div><h4>Pool cạn, DB rảnh</h4>
+<ul><li>idle in transaction, HTTP trong transaction, rò rỉ, query chậm</li><li>Hikari active/pending, leakDetectionThreshold</li></ul></div><div><h4>Kafka lag</h4>
+<ul><li>Một partition: hot key/poison; tất cả: chậm hoặc rebalance</li><li>DLQ, gom lô, max.poll, alert theo thời gian trễ</li></ul></div><div><h4>Bộ nhớ, cache</h4>
+<ul><li>Heap sau GC tăng bậc thang = rò rỉ → heap dump + MAT</li><li>static map, listener, ThreadLocal</li><li>Cache về 0: lạnh hoặc đổi key → khóa dựng lại, warm-up, rolling</li></ul></div><div><h4>Dữ liệu</h4>
+<ul><li>Trùng thông báo: at-least-once + unique (noti, device) + collapse key</li><li>Bài biến mất: replica lag → read-your-writes, sticky</li><li>Tồn lệch: khóa job, idempotent, sửa bằng bút toán điều chỉnh</li></ul></div><div><h4>Hạ tầng</h4>
+<ul><li>Đĩa đầy: log, WAL do replication slot chết; alert 80% + tốc độ</li><li>Retry storm: backoff + jitter, budget, half-open, ramp-up, load shedding</li><li>Postmortem: timeline, 5 Whys, action có chủ + hạn, không đổ lỗi</li></ul></div></div></section>
+</main>
+</body></html>

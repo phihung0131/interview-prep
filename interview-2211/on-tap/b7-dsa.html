@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>B7 · Cấu trúc dữ liệu và giải thuật</title><meta name="description" content="Độ phức tạp collection, chọn cấu trúc cho LRU/Top-K/rate limiter/interval/đếm duy nhất, 8 bài code mẫu."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">B · Kỹ thuật nền tảng</p><h1>B7 · Cấu trúc dữ liệu và giải thuật</h1><p class="lede">Vòng code thường là bài mức dễ đến trung bình. Điểm được chấm là cách bạn <b>nói to</b>: làm rõ đề → brute force → tối ưu → độ phức tạp → test biên. Câu 103 có lời giải Java ngắn cho 8 bài.</p><div class="mast-meta"><span>3 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q101">101</a><a href="#q102">102</a><a href="#q103">103</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q101" data-q="q101">
+<div class="qa-h"><span class="qa-n">101</span><h3>Độ phức tạp của: HashMap, TreeMap, PriorityQueue, ArrayList, LinkedList.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> get/put/insert/remove, vì sao LinkedList hiếm khi nhanh hơn.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><div class="tw"><table><thead><tr><th>Cấu trúc</th><th>get / tìm</th><th>thêm</th><th>xóa</th><th>Ghi chú</th></tr></thead><tbody><tr><td>HashMap</td><td>O(1) TB</td><td>O(1) TB</td><td>O(1) TB</td><td>Xấu nhất O(log n) nhờ treeify; không thứ tự</td></tr><tr><td>TreeMap</td><td>O(log n)</td><td>O(log n)</td><td>O(log n)</td><td>Cây đỏ-đen, có thứ tự, <code>floorKey</code>, <code>ceilingKey</code>, khoảng</td></tr><tr><td>PriorityQueue</td><td>peek O(1)</td><td>O(log n)</td><td>poll O(log n); remove(x) O(n)</td><td>Heap nhị phân trên mảng</td></tr><tr><td>ArrayList</td><td>theo index O(1)</td><td>cuối O(1) khấu hao; giữa O(n)</td><td>O(n)</td><td>Liền bộ nhớ</td></tr><tr><td>LinkedList</td><td>theo index O(n)</td><td>đầu/cuối O(1)</td><td>O(1) nếu đã có node</td><td>Mỗi phần tử một node</td></tr></tbody></table></div>
+<p><b>Vì sao LinkedList hiếm khi nhanh hơn:</b> về lý thuyết chèn giữa là O(1), nhưng phải <b>đi tới vị trí đó mất O(n)</b> trước. Mỗi node là một object riêng (thêm khoảng 24 byte và hai con trỏ), nằm rải rác trong bộ nhớ nên <b>cache CPU kém</b>; ArrayList dời phần tử bằng <code>System.arraycopy</code> liền khối nên rất nhanh. Cần hàng đợi hai đầu thì dùng <b>ArrayDeque</b>, không dùng LinkedList.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>HashSet dựa trên gì?</summary><div class="a"><p>Một HashMap bên trong, phần tử làm key, value là một object hằng.</p></div></details></div>
+</article>
+<article class="qa" id="q102" data-q="q102">
+<div class="qa-h"><span class="qa-n">102</span><h3>Chọn cấu trúc dữ liệu cho: LRU cache, Top-K, rate limiter cửa sổ trượt, gộp khoảng thời gian, đếm phần tử duy nhất.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> LinkedHashMap, heap, deque, sort + quét, HashSet.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><div class="tw"><table><thead><tr><th>Bài toán</th><th>Cấu trúc</th><th>Độ phức tạp</th></tr></thead><tbody><tr><td><b>LRU cache</b></td><td>HashMap + danh sách liên kết đôi (hoặc <code>LinkedHashMap(accessOrder=true)</code> + <code>removeEldestEntry</code>)</td><td>get/put O(1)</td></tr><tr><td><b>Top-K</b> phần tử lớn nhất</td><td><b>Min-heap kích thước K</b>: đầy thì so với đỉnh, lớn hơn thì thay</td><td>O(n log K), bộ nhớ O(K)</td></tr><tr><td><b>Top-K tần suất</b></td><td>HashMap đếm + min-heap K (hoặc bucket theo tần suất O(n))</td><td>O(n log K)</td></tr><tr><td><b>Rate limiter cửa sổ trượt</b></td><td><b>Deque</b> chứa thời điểm request: bỏ đầu những cái quá cửa sổ, kích thước &lt; giới hạn thì cho qua</td><td>O(1) khấu hao mỗi request</td></tr><tr><td><b>Gộp khoảng thời gian</b></td><td><b>Sắp xếp theo điểm bắt đầu + quét</b> một lượt</td><td>O(n log n)</td></tr><tr><td><b>Kiểm tra chồng lịch</b> (tài xế TMS)</td><td>TreeMap theo giờ bắt đầu: kiểm <code>floorEntry</code> và <code>ceilingEntry</code></td><td>O(log n) mỗi lần</td></tr><tr><td><b>Đếm phần tử duy nhất</b></td><td>HashSet (chính xác); <b>HyperLogLog</b> khi hàng tỉ phần tử (sai số ~1%)</td><td>O(n)</td></tr><tr><td>Sliding window max</td><td>Deque đơn điệu</td><td>O(n)</td></tr></tbody></table></div>
+<p>Câu chuyện thật để kể: tính năng phân công tài xế ở Apollogix kiểm tra chồng lịch chính là bài <b>hai khoảng giao nhau</b> khi <code>start1 &lt; end2 &amp;&amp; start2 &lt; end1</code>.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Phân tán thì Top-K làm thế nào?</summary><div class="a"><p>Mỗi node tính top-K cục bộ (hoặc dùng Count-Min Sketch), gộp ở node tổng. Với bảng xếp hạng thời gian thực thì dùng Redis ZSet.</p></div></details></div>
+</article>
+<article class="qa" id="q103" data-q="q103">
+<div class="qa-h"><span class="qa-n">103</span><h3>Luyện code (nói to khi làm): Two Sum, valid parentheses, merge intervals, LRU cache, top K frequent, sliding window maximum, binary search biến thể, BFS/DFS trên đồ thị.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> làm rõ đề, nêu cách brute force, tối ưu, độ phức tạp, test biên.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">luyện mỗi bài 15–25 phút</span></p><p><b>Khung nói to cho mọi bài:</b></p>
+<ol><li>Nhắc lại đề, hỏi ràng buộc: kích thước n, có số âm không, có trùng không, input rỗng?</li><li>Nêu <b>brute force</b> và độ phức tạp.</li><li>Tìm điểm lặp lại hoặc tính chất để tối ưu, nói ý tưởng trước khi code.</li><li>Code, đặt tên rõ.</li><li>Chạy tay một ví dụ, rồi <b>test biên</b>: rỗng, một phần tử, toàn trùng, số lớn.</li><li>Nêu độ phức tạp thời gian và bộ nhớ.</li></ol>
+<p><b>Two Sum</b> · HashMap lưu giá trị → chỉ số. O(n).</p>
+<pre><code>Map&lt;Integer,Integer&gt; seen = new HashMap&lt;&gt;();
+for (int i = 0; i &lt; a.length; i++) {
+  Integer j = seen.get(target - a[i]);
+  if (j != null) return new int[]{j, i};
+  seen.put(a[i], i);
+}</code></pre>
+<p><b>Valid parentheses</b> · Stack (ArrayDeque). O(n).</p>
+<pre><code>Deque&lt;Character&gt; st = new ArrayDeque&lt;&gt;();
+for (char c : s.toCharArray()) {
+  if (c=='(') st.push(')'); else if (c=='[') st.push(']'); else if (c=='{') st.push('}');
+  else if (st.isEmpty() || st.pop() != c) return false;
+}
+return st.isEmpty();</code></pre>
+<p><b>Merge intervals</b> · sắp xếp theo start, nối nếu chồng. O(n log n).</p>
+<pre><code>Arrays.sort(iv, (x, y) -&gt; Integer.compare(x[0], y[0]));
+List&lt;int[]&gt; out = new ArrayList&lt;&gt;();
+for (int[] cur : iv) {
+  if (out.isEmpty() || out.get(out.size()-1)[1] &lt; cur[0]) out.add(cur);
+  else out.get(out.size()-1)[1] = Math.max(out.get(out.size()-1)[1], cur[1]);
+}</code></pre>
+<p><b>LRU cache</b> · LinkedHashMap. O(1).</p>
+<pre><code>class LRU&lt;K,V&gt; extends LinkedHashMap&lt;K,V&gt; {
+  private final int cap;
+  LRU(int cap) { super(16, 0.75f, true); this.cap = cap; }
+  protected boolean removeEldestEntry(Map.Entry&lt;K,V&gt; e) { return size() &gt; cap; }
+}</code></pre>
+<p>Người phỏng vấn có thể yêu cầu tự viết HashMap + danh sách đôi với node đầu/cuối giả.</p>
+<p><b>Top K frequent</b> · đếm + min-heap K. O(n log k).</p>
+<pre><code>Map&lt;Integer,Integer&gt; cnt = new HashMap&lt;&gt;();
+for (int x : nums) cnt.merge(x, 1, Integer::sum);
+PriorityQueue&lt;Integer&gt; pq = new PriorityQueue&lt;&gt;(Comparator.comparingInt(cnt::get));
+for (int x : cnt.keySet()) { pq.offer(x); if (pq.size() &gt; k) pq.poll(); }</code></pre>
+<p><b>Sliding window maximum</b> · deque chỉ số, giá trị giảm dần. O(n).</p>
+<pre><code>Deque&lt;Integer&gt; dq = new ArrayDeque&lt;&gt;();
+for (int i = 0; i &lt; a.length; i++) {
+  while (!dq.isEmpty() &amp;&amp; dq.peekFirst() &lt;= i - k) dq.pollFirst();
+  while (!dq.isEmpty() &amp;&amp; a[dq.peekLast()] &lt;= a[i]) dq.pollLast();
+  dq.offerLast(i);
+  if (i &gt;= k - 1) res[i - k + 1] = a[dq.peekFirst()];
+}</code></pre>
+<p><b>Binary search biến thể</b> · tìm vị trí đầu tiên thỏa điều kiện. O(log n).</p>
+<pre><code>int lo = 0, hi = n;            // [lo, hi)
+while (lo &lt; hi) {
+  int mid = lo + (hi - lo) / 2; // tránh tràn số
+  if (ok(mid)) hi = mid; else lo = mid + 1;
+}
+return lo;                      // n nếu không có</code></pre>
+<p>Dùng cho: lower bound, mảng xoay, tìm đáp án nhỏ nhất thỏa (tốc độ ăn chuối, sức chứa tàu).</p>
+<p><b>BFS / DFS trên đồ thị</b> · BFS cho đường ngắn nhất không trọng số, DFS cho đếm thành phần. O(V + E).</p>
+<pre><code>Deque&lt;Integer&gt; q = new ArrayDeque&lt;&gt;(List.of(src));
+boolean[] seen = new boolean[n]; seen[src] = true;
+while (!q.isEmpty()) {
+  int u = q.poll();
+  for (int v : adj.get(u)) if (!seen[v]) { seen[v] = true; q.offer(v); }
+}</code></pre>
+<p>Lưới 2D (số đảo): DFS/BFS 4 hướng, đánh dấu đã thăm.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Em không nghĩ ra lời giải tối ưu thì làm sao?</summary><div class="a"><p>Nói brute force và code nó cho đúng trước, nói rõ chỗ chậm, rồi thử các hướng: HashMap đổi bộ nhớ lấy thời gian, sắp xếp, hai con trỏ, heap. Người phỏng vấn thường gợi ý nếu thấy bạn suy nghĩ có hệ thống.</p></div></details><details class="fu"><summary><code>mid = (lo + hi) / 2</code> có vấn đề gì?</summary><div class="a"><p>Tràn số khi lo + hi vượt Integer.MAX_VALUE. Dùng <code>lo + (hi - lo) / 2</code> hoặc <code>(lo + hi) &gt;&gt;&gt; 1</code>.</p></div></details></div>
+<div class="trap">Im lặng code 10 phút. Hãy nói to từng bước, kể cả khi đang bí.</div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet B7 · DSA</h2><span>B7</span></div><div class="cheat-b"><div><h4>Độ phức tạp</h4>
+<ul><li>HashMap O(1) TB; TreeMap O(log n) có thứ tự</li><li>PriorityQueue: offer/poll O(log n), peek O(1)</li><li>ArrayList get O(1), chèn giữa O(n); LinkedList hiếm khi tốt hơn → ArrayDeque</li></ul></div><div><h4>Chọn cấu trúc</h4>
+<ul><li>LRU: LinkedHashMap(accessOrder) / map + list đôi</li><li>Top-K: min-heap K → O(n log K)</li><li>Rate limiter: deque thời điểm</li><li>Interval: sort + quét; chồng lịch: TreeMap floor/ceiling</li><li>Duy nhất: HashSet / HyperLogLog</li><li>Window max: deque đơn điệu</li></ul></div><div><h4>Mẫu tư duy</h4>
+<ul><li>Cần tra nhanh → HashMap</li><li>Mảng đã sắp → hai con trỏ / binary search</li><li>Khoảng liên tiếp → sliding window</li><li>K lớn/nhỏ nhất → heap</li><li>Đường ngắn nhất không trọng số → BFS</li></ul></div><div><h4>Nói to</h4>
+<ul><li>Làm rõ → brute force → tối ưu → code → chạy tay → biên → độ phức tạp</li><li>Biên: rỗng, 1 phần tử, trùng, âm, tràn số</li></ul></div></div></section>
+</main>
+</body></html>

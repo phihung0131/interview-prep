@@ -1,0 +1,103 @@
+@page c4
+@file c4-phan-bien-thiet-ke.html
+@code C4
+@group C
+@title Phản biện thiết kế của chính bạn
+@desc SPOF, mất AZ/datacenter, chi phí, triển khai theo giai đoạn với đội 5 người.
+@lede Cuối buổi thiết kế, người phỏng vấn thường hỏi ngược. Chủ động tự phản biện trước khi bị hỏi là điểm cộng lớn: nó cho thấy bạn nghĩ như người vận hành hệ thống.
+
+@q 129
+@time khoảng 75 giây
+@ans
+Em đi qua **từng thành phần trên sơ đồ** và hỏi “nó chết thì sao”:
+
+| Thành phần | Nếu chết | Cách chống |
+|---|---|---|
+| Load balancer / gateway | Mất toàn bộ traffic | Nhiều instance, LB quản lý của cloud, DNS trỏ nhiều IP |
+| Service không trạng thái | Giảm năng lực | Nhiều instance trên nhiều AZ, health check, autoscale |
+| **DB primary** | Không ghi được | Replica đồng bộ/bán đồng bộ + **failover tự động** (Patroni, RDS Multi-AZ); thử failover định kỳ |
+| Redis | Cache miss dồn DB, mất rate limit | Sentinel/Cluster có replica; ứng dụng fail-open có breaker |
+| Kafka | Không nhận sự kiện | 3 broker, replication factor 3, `min.insync.replicas=2`; producer có buffer và outbox |
+| Bộ điều phối, job scheduler chạy một instance | Job không chạy | Leader election, khóa có hạn |
+| Nhà cung cấp bên ngoài (SMS, push) | Không gửi được | Nhiều nhà cung cấp, fallback |
+| Cấu hình, DNS, chứng chỉ, secret | Lỗi lan toàn hệ thống | Thay đổi có kiểm soát, cảnh báo hết hạn chứng chỉ |
+
+SPOF hay bị bỏ sót: **DB primary**, **một job chạy đơn lẻ**, **một người duy nhất biết vận hành**, và **cấu hình dùng chung** (một thay đổi cấu hình sai đánh sập mọi thứ cùng lúc).
+@fu Nhân bản mọi thứ có tốn không?
+Có. Ưu tiên theo tác động: thứ gì chết là người dùng không dùng được (DB, gateway) thì nhân bản trước; thứ chỉ làm chậm tính năng phụ thì chấp nhận khôi phục trong vài phút.
+
+@q 130
+@time khoảng 75 giây
+@ans
+Trước tiên em chốt hai con số với nghiệp vụ:
+- **RPO** (mất tối đa bao nhiêu dữ liệu): 0, vài giây, hay vài phút?
+- **RTO** (bao lâu phải chạy lại): vài phút hay vài giờ?
+
+**Mất một AZ** (một trung tâm dữ liệu trong cùng vùng):
+- Service chạy **ít nhất 3 AZ**, LB tự bỏ AZ chết; đủ năng lực dư để 2 AZ còn lại gánh (mỗi AZ chạy ở ~66% công suất tối đa).
+- DB: replica ở AZ khác, **sao chép đồng bộ hoặc bán đồng bộ** → RPO gần 0, failover tự động trong 30–60 giây.
+- Kafka, Redis: replica rải trên các AZ (rack awareness).
+
+**Mất cả vùng/datacenter:**
+- **Active-passive:** vùng dự phòng nhận sao chép bất đồng bộ → RPO vài giây (mất vài giây dữ liệu cuối), RTO vài phút tới vài chục phút, chuyển DNS. Rẻ hơn.
+- **Active-active:** cả hai vùng phục vụ, phải giải xung đột ghi; đắt và phức tạp, chỉ cho phần thật sự cần.
+
+**Dữ liệu chấp nhận mất:** số lượt xem, bộ đếm, cache, trạng thái online → chấp nhận mất vài giây. Tin nhắn, giao dịch tiền, tồn kho → không chấp nhận, cần sao chép đồng bộ hoặc client gửi lại được (idempotent).
+
+Và quan trọng nhất: **diễn tập** chuyển vùng định kỳ; kế hoạch chưa từng chạy thử thì coi như không có.
+@fu Backup khác replica thế nào?
+Replica sao chép cả lỗi (lỡ DELETE nhầm thì replica cũng mất ngay). Backup và PITR (khôi phục tới thời điểm) mới cứu được lỗi người hoặc lỗi phần mềm. Cần cả hai, và phải thử khôi phục.
+
+@q 131
+@time khoảng 60 giây
+@ans
+Em chỉ ra chi phí lớn nhất theo thứ tự thường gặp với hệ thống media:
+1. **Băng thông ra và CDN** (xem video, ảnh).
+2. **Lưu trữ** (nhiều bản transcode, nhân bản, giữ mãi).
+3. **Compute** cho transcode và cụm DB/Kafka/Redis luôn chạy.
+4. **Chi phí con người** vận hành nhiều thành phần.
+
+**Cách rẻ hơn mà vẫn đủ:**
+- Lưu trữ theo lớp nóng/lạnh, xóa bản transcode ít xem, chỉ tạo độ phân giải cao khi video có lượt xem.
+- Nén tốt hơn (AV1/HEVC cho video phổ biến), ảnh WebP/AVIF.
+- Bỏ thành phần chưa cần: **chưa cần Kafka** nếu bảng DB + job đủ; chưa cần Elasticsearch nếu `pg_trgm` đủ; chưa cần microservices nếu một service đủ.
+- Autoscale theo tải, máy giá rẻ (spot) cho worker transcode có thể làm lại.
+
+Em sẽ nói: “Thiết kế em vẽ là cho quy mô mục tiêu. **Bản đầu tiên** em sẽ làm đơn giản hơn nhiều, và đặt các **mốc số đo** để biết lúc nào thêm phức tạp.”
+
+@q 132
+@time khoảng 75 giây
+@ans
+Không, nếu làm hết ngay. Đội 5 người không vận hành nổi 10 service, Kafka, Cassandra, Elasticsearch cùng lúc. Em chia giai đoạn theo **số đo**:
+
+**Giai đoạn 1 (MVP, vài tuần):** một **modular monolith** Spring Boot, PostgreSQL có replica, Redis làm cache, object storage + CDN cho media, hàng đợi đơn giản (bảng DB + worker, `SKIP LOCKED`). CI/CD, metrics, log, alert cơ bản ngay từ đầu.
+
+**Giai đoạn 2 (khi đo thấy):**
+- DB đọc nặng → thêm cache, replica, tối ưu query.
+- Việc bất đồng bộ nhiều, cần replay, nhiều bên nghe cùng sự kiện → **Kafka** + outbox.
+- Một phần tải khác hẳn (transcode, gửi thông báo) → **tách service** đó ra trước.
+
+**Giai đoạn 3:** ghi vượt một DB → shard hoặc chuyển phần dữ liệu đó sang NoSQL; nhiều vùng.
+
+Mỗi lần thêm phức tạp đều có **lý do bằng số** (p99 vượt SLO, CPU DB 70% lúc đỉnh, lag tăng) và có người chịu trách nhiệm vận hành.
+
+Đây cũng là cách em làm Notification Hub ngược lại: em dùng nhiều thành phần vì mục tiêu học, nhưng em biết sản phẩm thật nên bắt đầu đơn giản hơn.
+@fu Làm sao biết đến lúc tách service?
+Khi một module có nhịp deploy riêng, tải hoặc tài nguyên khác hẳn, hoặc lỗi của nó thường kéo sập phần còn lại; và ranh giới dữ liệu của nó đã rõ.
+
+@cheat Cheat sheet C4 · Tự phản biện
+### SPOF
+- LB, DB primary, Redis, Kafka, job đơn lẻ, nhà cung cấp, cấu hình chung, một người duy nhất biết
+- Nhân bản theo tác động; thử failover
+### Mất AZ / vùng
+- Chốt RPO, RTO trước
+- 3 AZ, dư công suất ~1/3; DB replica đồng bộ ở AZ khác
+- Vùng: active-passive (rẻ) vs active-active (đắt)
+- Backup + PITR ≠ replica; diễn tập
+### Chi phí
+- Băng thông/CDN > lưu trữ > compute > con người
+- Lớp lạnh, nén, bỏ thành phần chưa cần, spot cho worker
+### Đội 5 người
+- Modular monolith + PG + Redis + object storage + CDN
+- Thêm Kafka/tách service/shard khi số đo yêu cầu
+- Câu chốt: “bản đầu đơn giản, có mốc số đo để thêm phức tạp”

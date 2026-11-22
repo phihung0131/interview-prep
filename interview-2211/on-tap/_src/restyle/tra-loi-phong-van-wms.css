@@ -1,0 +1,46 @@
+/* Bộ trả lời WMS – CSS viết lại theo design system chung (token ở assets/site.css) */
+:root{--fg:var(--ink);--code:var(--sunken)}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.7 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.dm{position:absolute;opacity:0;pointer-events:none}
+.dmb{display:none}
+.top{background:var(--surface);border-bottom:1px solid var(--line);padding-block:30px 26px;position:relative}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:-9px;height:8px;background:repeating-linear-gradient(-45deg,var(--hi) 0 12px,var(--ink) 12px 24px)}
+.eyebrow{margin:0 0 8px;font:700 12px/1.2 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{margin:0 0 12px;font:700 clamp(32px,6vw,56px)/1.05 var(--f-display);text-transform:uppercase;text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:70ch;font-size:17px}
+.nav{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);margin-top:8px}
+.nav .wrap{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.nav a{flex:0 0 auto;text-decoration:none;color:var(--muted);border:0;border-bottom:3px solid transparent;padding:13px 12px 11px;font:600 16px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.nav a:hover{color:var(--ink);border-bottom-color:var(--hi)}
+main{padding-block:26px 40px}
+h2{margin:0;font:700 26px/1.12 var(--f-display);text-transform:uppercase;text-wrap:balance}
+h3{margin:0 0 8px;font:700 12px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.facts{background:var(--surface);border:2px solid var(--ink);border-radius:6px;padding:0;margin-bottom:26px;overflow:hidden}
+.facts h2{background:var(--hi);color:#1B1400;padding:10px 16px;border-bottom:2px solid var(--ink);font-size:22px}
+.facts p{margin:10px 16px;color:var(--muted)}
+.facts table{width:100%;border-collapse:collapse}.facts th,.facts td{text-align:left;padding:8px 16px;border-top:1px solid var(--line);vertical-align:top}.facts th{width:36%;font:700 13px/1.5 var(--f-mono);color:var(--accent)}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px 22px 18px;margin-bottom:22px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.qh{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.qn{font:700 13px/1 var(--f-mono);border:2px solid var(--ink);color:var(--ink);background:none;padding:6px 8px;border-radius:3px;text-transform:uppercase}
+.chip{margin-left:auto;font:600 12px/1 var(--f-mono);color:var(--muted);background:var(--sunken);border:1px solid var(--line);padding:6px 9px;border-radius:3px}
+.want{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;color:var(--muted)}
+.want span{background:var(--sunken);border:1px solid var(--line);padding:2px 10px;border-radius:3px;color:var(--ink)}
+.ans{border-left:4px solid var(--accent);padding:4px 0 4px 18px;background:linear-gradient(90deg,var(--accent-soft),transparent 45%)}
+.ans p{margin:0 0 12px;max-width:76ch;font-size:16.5px}
+.ans b{color:var(--accent)}
+pre{margin:0 0 14px;background:var(--sunken);border:1px solid var(--line);border-radius:4px;padding:12px 14px;overflow-x:auto;font:13px/1.55 var(--f-mono);max-width:100%}
+code{font-family:var(--f-mono)}
+details{border:1px solid var(--line);border-radius:4px;background:var(--sunken);margin-bottom:6px}
+summary{cursor:pointer;padding:9px 12px;font-weight:600;list-style:none;display:flex;gap:10px;align-items:flex-start}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";font:700 16px/1.4 var(--f-mono);color:var(--accent);flex:0 0 auto;width:12px}
+details[open] summary::before{content:"−"}
+details p{margin:0;padding:0 14px 12px 34px;max-width:74ch}
+.trap{background:var(--bad-soft);border-left:4px solid var(--bad);padding:9px 14px;border-radius:3px;font-size:14.5px}
+.terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.term{border:1px solid var(--line);background:var(--surface);padding:10px 14px;border-radius:4px;display:flex;flex-direction:column;gap:2px;border-left:4px solid var(--accent)}
+.term span{color:var(--muted);font-size:14.5px}
+.foot{padding-block:0 30px;color:var(--muted);font-size:14px}
+@media (max-width:560px){.q{padding:16px 14px}.chip{margin-left:0}.facts th{width:46%}}

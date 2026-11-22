@@ -1,0 +1,118 @@
+@page c2
+@file c2-uoc-luong.html
+@code C2
+@group C
+@title Ước lượng tải và dung lượng
+@desc QPS, dung lượng lưu trữ, số shard, băng thông, cache, câu hỏi làm rõ, kiểm chứng 10× tải.
+@lede Ước lượng không cần chính xác, cần **có giả định rõ, làm tròn hợp lý và kiểm tra độ lớn**. Nói số ra thành tiếng và viết lên bảng.
+@intro
+**Số cần thuộc:** 1 ngày ≈ 86.400 giây ≈ **10⁵ giây** · 1 triệu request/ngày ≈ **12 rps** · 1 KB × 1 tỉ = **1 TB** · đỉnh ≈ **3–10 × trung bình** · đọc RAM ~100 ns, SSD ~100 µs, mạng cùng DC ~0,5 ms, liên lục địa ~150 ms · 1 PostgreSQL tốt: vài nghìn tới hơn chục nghìn query đơn giản/giây · 1 Redis: ~100 nghìn ops/giây.
+
+@q 116
+@time khoảng 60 giây
+@ans
+**Giả định:** 5 triệu DAU, mỗi người gửi 40 tin/ngày.
+
+- Tổng tin/ngày: 5 × 10⁶ × 40 = **2 × 10⁸** (200 triệu tin).
+- QPS ghi trung bình: 2 × 10⁸ / 86.400 ≈ **2.300 tin/giây**. (Nhẩm nhanh: 2 × 10⁸ / 10⁵ = 2.000, cùng độ lớn.)
+- **Đỉnh:** chat tập trung buổi tối, và có sự kiện (giao thừa) nên em lấy **× 5 đến × 10** → khoảng **12.000–23.000 tin/giây**. Thiết kế cho khoảng **25.000/giây** để có dư.
+
+Thêm các luồng phát sinh từ mỗi tin:
+- **Đọc:** mỗi tin được đọc bởi người nhận, nhóm thì nhiều người; giả sử tỉ lệ đọc:ghi 5:1 → đọc trung bình ~12.000/giây, nhưng phần lớn **đẩy qua kết nối websocket** chứ không phải người nhận hỏi DB.
+- **Fan-out:** tin nhóm trung bình 20 người thì số lần giao tới thiết bị lớn hơn nhiều số tin ghi.
+- **Push notification** cho người offline.
+
+Em ghi rõ giả định để người phỏng vấn sửa nếu khác.
+@fu 23.000 ghi/giây thì một PostgreSQL có chịu được không?
+Một node ghi tốt có thể vài nghìn tới hơn chục nghìn insert/giây tùy phần cứng và index, để cho đỉnh 25.000 an toàn thì cần **chia shard** (theo conversation_id) hoặc dùng hệ ghi mạnh như Cassandra, cộng gộp ghi theo lô.
+
+@q 117
+@time khoảng 75 giây
+@ans
+**Giả định:** 200 triệu tin/ngày (câu trên), nội dung trung bình 100–300 byte, cộng **metadata** (id tin 8 byte, id hội thoại, người gửi, thời gian, trạng thái, chỉ mục…) → làm tròn **~500 byte/tin** đã gồm overhead lưu trữ và index.
+
+- Mỗi ngày: 2 × 10⁸ × 500 B = **10¹¹ B = 100 GB/ngày**.
+- Một năm: 100 GB × 365 ≈ **36,5 TB**.
+- **Nhân bản 3 bản** (chịu lỗi): **~110 TB**.
+- Dư cho tăng trưởng và vận hành (compaction, snapshot) thêm 30–50%: **~150 TB**.
+
+(Ảnh, video không tính ở đây: chúng nằm ở object storage, tin chỉ giữ URL.)
+
+**Số shard:** nếu mỗi node lưu thoải mái **2–4 TB** dữ liệu (để còn chỗ cho compaction và thời gian khôi phục một node hợp lý), thì 110 TB / 2 TB ≈ **55 node**, làm tròn **khoảng 60 node** chia trong cụm (đã tính 3 bản sao). Kiểm tra theo tải: 25.000 ghi/giây × 3 bản / 60 node ≈ 1.250 ghi/giây mỗi node, dư sức.
+
+**Nóng/lạnh:** người dùng chủ yếu đọc tin vài tuần gần nhất; tin quá 3–6 tháng chuyển sang lưu trữ rẻ (nén, ổ HDD, object storage), giảm mạnh chi phí lớp nóng.
+@fu Nén thì sao?
+Văn bản nén được 2–4 lần; Cassandra và nhiều hệ lưu trữ nén mặc định, nên con số thực tế có thể thấp hơn. Em vẫn ước lượng chưa nén để có dư.
+
+@q 118
+@time khoảng 2 phút
+@ans
+Em chọn **dịch vụ xem ảnh trong feed**. Giả định: 10 triệu DAU, mỗi người xem 100 ảnh/ngày, đăng 2 ảnh/ngày; ảnh sau nén ~200 KB (bản hiển thị trong feed).
+
+**Tải:**
+- Đọc: 10⁷ × 100 = 10⁹ lượt/ngày → **~12.000/giây** TB, đỉnh ×5 → **60.000/giây**.
+- Ghi: 10⁷ × 2 = 2 × 10⁷/ngày → **~230/giây** → **đọc:ghi ≈ 50:1**. Kết luận: tối ưu đường đọc, cache mạnh.
+
+**Băng thông ra:** 60.000 × 200 KB = **12 GB/giây ≈ 96 Gbps** lúc đỉnh → bắt buộc **CDN**; với cache hit 95% thì origin chỉ còn ~5 Gbps.
+
+**Lưu trữ:** 2 × 10⁷ ảnh/ngày × (bản gốc ~1 MB + vài bản thu nhỏ ~0,5 MB) ≈ **30 TB/ngày**, ~11 PB/năm → object storage, lớp lạnh cho ảnh cũ.
+
+**Cache metadata** (ai đăng, chú thích, số like): theo quy tắc 80/20, 20% ảnh nóng nhận 80% lượt xem. Ảnh nóng trong ngày: 20% × 2 × 10⁷ = 4 × 10⁶ bản ghi × 1 KB = **4 GB**, vài ngày gần nhất cỡ chục GB → một cụm Redis nhỏ là đủ.
+
+**Server API:** 60.000 request metadata/giây đỉnh, một instance Java chịu ~2.000–5.000 rps cho API đọc cache → **15–30 instance**, thêm dư 50% và theo vùng.
+
+Sau mỗi con số em **kiểm tra độ lớn**: 96 Gbps không thể ra từ vài server, nên CDN là bắt buộc chứ không phải tùy chọn.
+@fu Làm tròn thế nào cho nhanh?
+Dùng lũy thừa 10: 86.400 ≈ 10⁵; 2,5 ≈ 3. Sai 2–3 lần không sao, sai 100 lần mới là vấn đề.
+
+@q 119
+@time khoảng 75 giây
+@ans
+| Câu hỏi | Ảnh hưởng kiến trúc |
+|---|---|
+| **Quy mô:** bao nhiêu DAU, tăng trưởng? | Một DB hay phải shard; một vùng hay nhiều vùng |
+| **Tỉ lệ đọc/ghi?** | Đọc nhiều → cache, CDN, replica, phi chuẩn hóa. Ghi nhiều → hàng đợi, gộp ghi, LSM store |
+| **Nhất quán cần tới đâu?** | Tiền/tồn kho → giao dịch, khóa, đồng bộ. Like/feed → nhất quán cuối cùng, bất đồng bộ |
+| **Độ trễ chấp nhận?** | <100 ms → cache gần người dùng, tính sẵn. Vài giây → xử lý nền |
+| **SLA/khả dụng:** 99,9 hay 99,99%? | Nhân bản, multi-AZ, failover tự động, chi phí tăng mạnh |
+| **Kích thước dữ liệu mỗi bản ghi?** Có media không? | Object storage + CDN, upload thẳng |
+| **Mẫu truy cập:** theo khóa, theo thời gian, tìm kiếm? | Chọn shard key, chỉ mục, Elasticsearch |
+| **Phạm vi tính năng** của buổi này? | Bỏ phần không cần, tập trung lõi |
+
+Em hỏi 4–5 câu quan trọng nhất trong 3–5 phút, **nói giả định nếu người phỏng vấn để em tự chọn**, rồi tóm tắt lại yêu cầu chức năng và phi chức năng trước khi vẽ.
+@trap Nhảy vào vẽ Kafka, Redis ngay khi chưa hỏi gì.
+
+@q 120
+@time khoảng 90 giây
+@ans
+Em trả lời: “**Em chưa thể nói có hay không trước khi đo**, nhưng em sẽ kiểm chứng thế này.”
+
+1. **Mô hình tải thực:** lấy tỉ lệ API từ log production (bao nhiêu % đọc feed, bao nhiêu % đăng), phân bố người dùng, dữ liệu cỡ thật (DB nhỏ cho kết quả đẹp giả).
+2. **Load test tăng dần** (k6, Gatling, JMeter) trên môi trường giống production: 1×, 2×, 5×, 10×. Theo dõi p99, error rate và **saturation** của từng thành phần.
+3. **Tìm điểm nghẽn đầu tiên:** thường là pool connection DB, một query thiếu index, một dòng nóng, CPU của một service, hạn mức của bên thứ ba. Sửa rồi chạy lại, tìm điểm nghẽn tiếp theo.
+4. **Tính headroom:** ví dụ ở 10× thì p99 vượt SLO ở DB; ở 6× vẫn ổn. Vậy năng lực hiện tại là 6×, cần làm gì để lên 10× và chi phí bao nhiêu.
+5. **Chế độ suy giảm** cho phần vượt quá: rate limit, tắt tính năng phụ (gợi ý, số đếm chính xác), trả cache cũ, hàng đợi cho việc không gấp. Tốt hơn sập toàn bộ.
+6. **Thử lỗi:** tắt một node, làm chậm dependency, xem hệ thống có tự phục hồi.
+
+Ở mức em đã làm: [[em chưa load test hệ thống production; ở Kestrel em dự đoán điểm nghẽn đầu tiên là gọi LLM và crawl (xem câu 32)]].
+@fu Autoscale có giải quyết được không?
+Chỉ cho tầng không trạng thái và chỉ nếu nghẽn ở đó. DB, Redis, hạn mức bên ngoài không tự nhân lên; scale tầng ứng dụng còn có thể làm DB sập nhanh hơn (thêm connection).
+
+@cheat Cheat sheet C2 · Ước lượng
+### Số nền
+- 1 ngày ≈ 10⁵ s; 1M/ngày ≈ 12 rps
+- Đỉnh × 3–10
+- 1 KB × 1 tỉ = 1 TB
+- RAM 100 ns · SSD 100 µs · DC 0,5 ms · liên lục địa 150 ms
+### Chat 5M DAU × 40
+- 2 × 10⁸ tin/ngày → 2.300/s TB → đỉnh ~25k/s
+- ~500 B/tin → 100 GB/ngày → 36,5 TB/năm → ×3 ≈ 110 TB
+- 2 TB/node → ~60 node; nóng/lạnh
+### Ảnh 10M DAU
+- Đọc 12k/s TB, 60k/s đỉnh; đọc:ghi 50:1
+- 96 Gbps đỉnh → CDN bắt buộc
+- Cache metadata nóng: vài GB tới chục GB
+### !Quy trình
+- Hỏi: quy mô, đọc/ghi, nhất quán, độ trễ, SLA, media, mẫu truy cập
+- Nói giả định → tính → làm tròn → kiểm tra độ lớn → kết luận kiến trúc
+- 10× tải: mô hình tải thật → load test tăng dần → điểm nghẽn đầu → headroom → degrade

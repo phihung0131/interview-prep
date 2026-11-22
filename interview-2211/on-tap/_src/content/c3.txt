@@ -1,0 +1,197 @@
+@page c3
+@file c3-thiet-ke-45-phut.html
+@code C3
+@group C
+@title Đề thiết kế 45 phút
+@desc 8 đề: media ngắn, feed, nhắn tin, push 50M, bộ đếm + top video, rút gọn link, rate limiter gateway, lưu trữ tệp.
+@lede Mỗi đề là một **dàn ý để tự luyện với đồng hồ**: 5′ làm rõ · 5′ ước lượng · 15′ thiết kế tổng thể · 15′ đào sâu 1–2 điểm nghẽn · 5′ vận hành và mở rộng. Đọc dàn ý, rồi tắt đi và tự vẽ lại trên giấy.
+@intro
+**Khung vẽ chung:** Client → CDN → Load balancer / API gateway (auth, rate limit) → các service không trạng thái → cache (Redis) → DB chính (+ replica) · Kafka cho việc bất đồng bộ · Object storage cho file · Worker. Sau đó chỉ ra **đường đọc nóng** và **đường ghi nóng**, rồi đào sâu đúng hai chỗ đó.
+
+@q 121
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** đăng ảnh và video ngắn (≤ 60 giây), xem trong feed và trang cá nhân, like/bình luận cơ bản. Ưu tiên: xem nhanh, mượt trên mạng di động. Giả định 10M DAU, mỗi người xem 50 media, đăng 0,5 media/ngày.
+
+**Ước lượng:** đọc ~6.000/s TB, đỉnh ~30.000/s; ghi ~60/s. Video 720p 60s ≈ 10 MB, nhiều độ phân giải ≈ 25 MB/video → 5 × 10⁶ × 25 MB ≈ **125 TB/ngày** (nếu toàn video) → object storage + lớp lạnh. Băng thông đỉnh hàng trăm Gbps → **CDN là trung tâm**.
+
+**Thiết kế:**
+- **Upload:** API cấp presigned URL multipart → client upload thẳng lên object storage → sự kiện → hàng đợi transcode → worker tạo HLS nhiều mức, thumbnail, kiểm duyệt → `media.status = READY`.
+- **Xem:** metadata qua Media API (cache Redis); video qua **CDN** với HLS, player chọn mức theo băng thông.
+- **Dữ liệu:** `media(id, owner_id, status, urls, created_at)` trong PostgreSQL shard theo `owner_id` hoặc NoSQL; like/bình luận như C1.
+
+**Đào sâu:**
+1. **Transcode:** tốn CPU/GPU nhất; hàng đợi ưu tiên (người nhiều follower trước), autoscale worker theo độ dài hàng đợi, job idempotent theo media_id; tạo trước bản 360p để đăng nhanh, bản cao làm sau.
+2. **Phát mượt:** đoạn HLS 2–4 giây, CDN cache theo segment, **prefetch** vài giây đầu video tiếp theo trong feed.
+
+**Vận hành:** đo thời gian từ upload tới READY, tỉ lệ rebuffer, CDN hit ratio; chi phí lưu trữ và băng thông là chi phí lớn nhất → lifecycle, nén AV1/HEVC cho video phổ biến.
+@fu Video bị xem nhiều đột biến?
+CDN gánh; origin shield (một tầng cache trung gian) để nhiều edge miss cùng lúc không đánh thẳng vào storage.
+
+@q 122
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** nhật ký bạn bè: bài viết (chữ, ảnh), like, bình luận; feed sắp theo thời gian (có thể chấm điểm sau). Giả định 20M DAU, mỗi người 200 bạn, đăng 1 bài/ngày, mở feed 10 lần/ngày.
+
+**Ước lượng:** đăng ~230/s; đọc feed 2 × 10⁸/ngày ≈ 2.300/s, đỉnh ~12.000/s. Fan-out on write: 230 × 200 = **46.000 lần ghi hộp feed/s** → chấp nhận được với Redis/Cassandra.
+
+**Thiết kế:**
+- **Post service:** lưu bài (DB shard theo `author_id`), phát sự kiện qua outbox → Kafka.
+- **Fan-out worker:** đọc danh sách bạn (Graph service), ghi `post_id` vào **hộp feed** từng người (Redis ZSet score = thời gian, giữ 500 mục mới nhất; bản bền ở Cassandra).
+- **Feed service:** đọc hộp feed → lấy nội dung bài theo lô từ **cache bài viết** → lấy số like/comment từ bộ đếm → trả kèm cursor.
+- **Like/bình luận:** bảng nguồn unique + bộ đếm gộp (như C1). Bình luận shard theo `post_id`, phân trang keyset.
+
+**Đào sâu:**
+1. **Người có rất nhiều bạn/follower:** hybrid, không push, kéo khi đọc và trộn.
+2. **Đọc hộp feed rồi lấy 20 bài:** multi-get từ Redis, bài thiếu thì đọc DB theo lô; tránh N+1.
+
+**Vận hành:** độ trễ từ lúc đăng tới lúc xuất hiện trong feed bạn bè (fan-out lag), p99 mở feed; quyền riêng tư (bài chỉ bạn bè, chặn) kiểm tra lúc đọc.
+@fu Xếp hạng feed thay vì theo thời gian?
+Gom ứng viên (vài trăm bài) từ hộp feed + nguồn kéo, chấm điểm bằng mô hình (tương tác, độ mới, quan hệ), cache kết quả ngắn hạn.
+
+@q 123
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** 1–1 và nhóm (tối đa vài trăm người), lưu lịch sử, đồng bộ nhiều thiết bị, trạng thái đã gửi/đã nhận/đã xem. Giả định 5M DAU × 40 tin (C2: ~25k tin/s đỉnh).
+
+**Thiết kế:**
+- **Kết nối:** client giữ **WebSocket** tới **Gateway** (giữ hàng trăm nghìn kết nối mỗi node, không trạng thái nghiệp vụ). Bảng **presence** trong Redis: `user → gateway node, thiết bị`.
+- **Gửi:** client gửi tin kèm `client_msg_id` → Chat service gán `message_id` (Snowflake), **ghi vào Message store** (Cassandra, partition `(conversation_id, bucket)`) → trả ack “đã gửi” → phát sự kiện vào Kafka (key = conversation_id để giữ thứ tự).
+- **Giao:** Delivery worker tra thành viên và presence; online thì đẩy qua gateway node của từng thiết bị; offline thì gửi **push notification**.
+- **Đồng bộ đa thiết bị:** mỗi thiết bị nhớ mốc đồng bộ cuối; kết nối lại thì xin “tin sau mốc” theo từng hội thoại, hoặc một **inbox theo user** có số thứ tự tăng dần.
+- **Đã nhận/đã xem:** lưu con trỏ `last_read_message_id` theo (user, conversation), không lưu trạng thái từng tin cho từng người.
+
+**Đào sâu:**
+1. **Không trùng, không mất:** client retry với cùng `client_msg_id` → unique trên `(conversation_id, client_msg_id)`; ack chỉ gửi sau khi ghi bền.
+2. **Nhóm lớn:** fan-out bằng worker; nhóm cực lớn (kênh) chuyển sang mô hình kéo.
+
+**Vận hành:** số kết nối mỗi gateway, độ trễ gửi-nhận p99, deploy gateway phải drain kết nối từ từ để client kết nối lại không dồn một lúc.
+@fu Gateway node chết?
+Client tự kết nối lại (backoff + jitter) vào node khác, presence cập nhật, đồng bộ lại từ mốc cuối nên không mất tin.
+
+@q 124
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** gửi thông báo đẩy tới 50M thiết bị; hai loại: **giao dịch** (tin nhắn, OTP, độ trễ vài giây) và **broadcast** (chiến dịch tới hàng chục triệu, trong vòng 30–60 phút). Không gửi trùng, tôn trọng cài đặt người dùng.
+
+**Ước lượng:** broadcast 50M trong 30 phút ≈ **28.000 thông báo/s**; giao dịch đỉnh vài nghìn/s. Bảng thiết bị: 50M × ~300 byte = 15 GB.
+
+**Thiết kế:** (mở rộng từ Notification Hub)
+- **Notification API:** nhận yêu cầu + idempotency key, kiểm tra cài đặt, ghi nhận, đẩy Kafka theo ưu tiên.
+- **Device registry:** `user → [device token, nền tảng, app version]`, cập nhật khi app mở; token hỏng thì xóa.
+- **Broadcast planner:** chia tập người nhận thành lô (theo khoảng user_id), đẩy vào topic `low` với tốc độ được điều tiết.
+- **Sender workers theo nền tảng:** APNs (HTTP/2, nhiều stream một kết nối), FCM; giữ kết nối lâu, gửi theo lô.
+- **Retry topic có trễ, DLQ, circuit breaker** theo nhà cung cấp; rate limit theo hạn mức nhà cung cấp.
+- **Ghi nhận kết quả** (gửi được, token hỏng, đã mở) vào kho phân tích qua Kafka.
+
+**Đào sâu:**
+1. **Không trùng khi worker chết giữa lô:** bảng `(campaign_id, device_id)` unique hoặc bitmap đã gửi theo chiến dịch; tiếp tục từ lô dở.
+2. **Broadcast không làm chậm OTP:** topic và worker pool tách biệt, hạn mức riêng.
+
+**Vận hành:** tốc độ gửi theo thời gian, tỉ lệ lỗi theo nhà cung cấp, độ trễ của luồng giao dịch, số token hỏng.
+@fu Lên lịch gửi theo múi giờ người dùng?
+Planner chia theo múi giờ, tạo các đợt đúng giờ địa phương; dùng scheduler bền (bảng lịch + worker quét) thay vì timer trong bộ nhớ.
+
+@q 125
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** đếm lượt xem video gần thời gian thực (trễ vài giây), bảng xếp hạng **top 100** theo giờ, ngày, toàn thời gian, có thể theo quốc gia. Lượt xem chấp nhận sai số nhỏ; chống lượt xem ảo cơ bản.
+
+**Ước lượng:** 10⁹ lượt xem/ngày → ~12.000/s TB, đỉnh ~60.000/s.
+
+**Thiết kế:**
+- **Ingest:** client gửi sự kiện xem (sau ≥ 3 giây xem) → API nhẹ → **Kafka** `view-events` (key = video_id).
+- **Chống ảo:** lọc theo (user/thiết bị, video) trong cửa sổ ngắn bằng Redis `SET NX EX` hoặc Bloom filter theo khung giờ.
+- **Gộp:** stream processor (Flink/Kafka Streams hoặc consumer tự viết) **gộp theo video theo cửa sổ 5–10 giây**, xả: `INCRBY views:{video}` và `ZINCRBY top:hour:{yyyyMMddHH} n video`.
+- **Bảng xếp hạng:** Redis **ZSet** cho từng khung giờ; top ngày = `ZUNIONSTORE` 24 khung giờ (chạy định kỳ, cache kết quả); hết hạn khung cũ bằng TTL.
+- **Bền vững:** số tổng xả định kỳ xuống DB; sự kiện thô lưu kho phân tích (để đối soát và tính lại).
+
+**Đào sâu:**
+1. **Video viral (hot key):** gộp trước ở consumer (giảm số lệnh), tách counter thành nhiều key con.
+2. **Toàn thời gian với hàng trăm triệu video:** ZSet một key quá lớn → chỉ giữ ứng viên (video có lượt xem gần đây cao) hoặc tính top-K theo lô từ kho phân tích.
+
+**Vận hành:** độ trễ từ sự kiện tới số hiển thị (consumer lag), đối soát giữa số gộp và sự kiện thô, phát hiện tăng đột biến bất thường.
+
+@q 126
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** tạo link ngắn (và mã mời) cho URL dài; chuyển hướng nhanh; 100 triệu bản ghi; có hạn dùng tùy chọn; thống kê lượt bấm. Đọc:ghi rất lệch (100:1).
+
+**Ước lượng:** 100M bản ghi × ~500 byte = **50 GB** → vừa một cụm PostgreSQL (có replica), cache phần nóng. Mã độ dài 7 ký tự base62: 62⁷ ≈ **3,5 × 10¹²** khả năng, dư rất nhiều.
+
+**Sinh mã:**
+- **Bộ đếm tăng dần → base62:** không bao giờ trùng. Dùng **dải id cấp sẵn** cho mỗi instance (mỗi lần lấy 10.000 id từ DB/sequence) để không nghẽn. Nhược: đoán được mã kế tiếp → xáo trộn bằng phép hoán vị khả nghịch nếu cần khó đoán (quan trọng với **mã mời**).
+- Hoặc **ngẫu nhiên 7–8 ký tự** + unique constraint, đụng thì sinh lại (xác suất cực thấp).
+- Tránh hash(URL) cắt ngắn: dễ đụng, và cùng URL của hai người dùng có thể cần hai mã khác.
+
+**Đường đọc:** `GET /{code}` → cache cục bộ → Redis → DB → trả **301** (trình duyệt cache, nhẹ server) hoặc **302** (đếm được mọi lượt bấm). Thống kê: đẩy sự kiện bấm vào Kafka, gộp bất đồng bộ, không ghi DB trên đường chuyển hướng.
+
+**Đào sâu:**
+1. **Cache:** quy luật 80/20, link mới tạo hay được bấm nhiều; mã không tồn tại thì cache rỗng (chống penetration).
+2. **Lạm dụng:** quét URL độc hại khi tạo, rate limit tạo link, mã mời có hạn dùng và số lần dùng (`UPDATE … SET used = used + 1 WHERE used < max_uses`).
+
+**Vận hành:** p99 chuyển hướng, hit ratio, job dọn link hết hạn.
+
+@q 127
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** rate limiter dùng chung cho mọi API sau gateway; luật theo API key/user/IP và theo endpoint; cấu hình thay đổi được không cần deploy; thêm độ trễ dưới 1–2 ms; gateway có hàng chục instance, tổng 500.000 rps.
+
+**Thiết kế:**
+- **Rule store:** luật trong DB/config service (`key_type, endpoint, limit, window, burst`), gateway nạp và **cache cục bộ**, nghe sự kiện thay đổi.
+- **Bộ đếm:** **Redis Cluster**, key `rl:{rule}:{subject}`, **token bucket** viết bằng **Lua** (đọc token còn lại và thời điểm nạp cuối, tính token mới, trừ, ghi, đặt TTL) → một vòng mạng, nguyên tử.
+- **Giảm tải Redis:** với ngưỡng lớn, mỗi gateway giữ **hạn mức cục bộ** và đồng bộ theo lô mỗi 100–500 ms (chấp nhận sai số nhỏ); chỉ dùng Redis từng request cho luật nhạy cảm (đăng nhập, OTP).
+- **Phản hồi:** 429 + `Retry-After` + header còn lại.
+
+**Đào sâu:**
+1. **Redis chậm hoặc chết:** timeout rất ngắn (vài ms), **fail-open** về giới hạn cục bộ thô của từng instance (tổng ngưỡng chia số instance); luật bảo vệ chi phí thì fail-closed.
+2. **Hot key** (một API key cực lớn): token bucket phân tầng: cấp cho mỗi gateway một “phần token” theo lô thay vì trừ từng token ở Redis.
+
+**Vận hành:** số request bị chặn theo luật, độ trễ thêm của limiter, có **chế độ dry-run** (chỉ log, không chặn) khi thử luật mới.
+
+@q 128
+@time 45 phút · dàn ý
+@ans
+**Làm rõ:** người dùng tải lên, tải xuống, chia sẻ tệp (ảnh, tài liệu, video), xem trên nhiều thiết bị; hạn mức dung lượng; tệp tới vài GB; chia sẻ bằng link hoặc cho người cụ thể.
+
+**Ước lượng:** 10M người dùng hoạt động, trung bình 2 GB → **20 PB** → object storage, chống trùng lặp và lớp lạnh là bắt buộc về chi phí.
+
+**Thiết kế:**
+- **Metadata service** (PostgreSQL shard theo `owner_id`): cây thư mục `file(id, owner_id, parent_id, name, size, content_hash, version, status)`, quyền chia sẻ `share(file_id, grantee, role)`.
+- **Upload:** chia **chunk 4–8 MB**, mỗi chunk có hash → hỏi server chunk nào đã có (**dedup theo nội dung**, kể cả giữa người dùng) → upload phần thiếu qua presigned URL → commit tạo phiên bản mới. Đứt mạng thì tiếp tục từ chunk dở.
+- **Download / xem:** URL có ký, qua CDN; ảnh/video tạo bản xem trước bằng worker.
+- **Đồng bộ thiết bị:** **change log** theo user (số thứ tự tăng), thiết bị hỏi “thay đổi sau mốc X”; đẩy thông báo qua kết nối dài để thiết bị biết có thay đổi.
+- **Hạn mức:** cập nhật dung lượng đã dùng nguyên tử khi commit (`UPDATE … WHERE used + :size <= quota`).
+
+**Đào sâu:**
+1. **Xung đột khi hai thiết bị sửa cùng tệp offline:** dựa trên version; không ghi đè mà tạo “bản xung đột” cho người dùng chọn.
+2. **Xóa:** thùng rác 30 ngày; xóa thật thì giảm **số tham chiếu** của chunk, chunk về 0 mới xóa khỏi storage (job dọn rác).
+
+**Vận hành:** chi phí lưu trữ theo lớp, tỉ lệ dedup, thời gian đồng bộ; bảo mật link chia sẻ (hạn dùng, mật khẩu), quét mã độc.
+
+@cheat Cheat sheet C3 · 8 đề
+### Nhịp 45 phút
+- 5′ làm rõ · 5′ ước lượng · 15′ tổng thể · 15′ đào sâu 2 điểm · 5′ vận hành
+- Luôn chỉ ra đường đọc nóng và đường ghi nóng
+### Media ngắn
+- Presigned multipart → transcode HLS → CDN; 360p trước
+- Đào sâu: hàng đợi transcode, prefetch
+### Feed
+- Outbox → Kafka → fan-out vào ZSet; hybrid cho người nổi tiếng
+- Multi-get bài theo lô
+### Nhắn tin
+- WebSocket gateway + presence Redis
+- message_id Snowflake, Cassandra (conv, bucket); client_msg_id unique
+- Con trỏ last_read; đồng bộ từ mốc
+### Push 50M
+- Planner chia lô, topic tách ưu tiên, APNs/FCM HTTP/2
+- (campaign, device) unique; retry topic, DLQ, breaker
+### Đếm & top
+- Kafka → gộp cửa sổ 5–10 s → INCRBY + ZINCRBY theo giờ
+- ZUNIONSTORE cho ngày; chống ảo bằng SET NX EX
+### Link ngắn
+- Dải id + base62 (7 ký tự = 3,5 × 10¹²); 301 vs 302
+- Mã mời: khó đoán, hạn dùng, `used < max_uses`
+### Rate limiter & lưu trữ tệp
+- Token bucket Lua trên Redis Cluster + hạn mức cục bộ; fail-open; dry-run
+- Chunk + hash dedup, change log đồng bộ, đếm tham chiếu khi xóa

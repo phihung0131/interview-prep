@@ -1,0 +1,210 @@
+@page b2
+@file b2-concurrency-jvm.html
+@code B2
+@group B
+@title Concurrency và JVM
+@desc synchronized/Lock/volatile/Atomic, deadlock, thread pool, Little's law, happens-before, OOM, G1, virtual thread.
+@lede Đây là phần JD ghi rõ “concurrency cơ bản”. Câu nào cũng nên nối về chuyện thật: khay 30 ký ở WMS (check-then-act), pool connection cạn, batch chạy chồng.
+
+@q 55
+@time khoảng 90 giây
+@ans
+Phân biệt hai tính chất: **visibility** (thread này ghi, thread kia có thấy không) và **atomicity** (một chuỗi thao tác có bị chen ngang không).
+
+| | Visibility | Atomic | Ghi chú |
+|---|---|---|---|
+| `volatile` | Có | Không (chỉ đọc/ghi đơn) | Cờ dừng, trạng thái công bố một lần |
+| `synchronized` | Có | Có | Đơn giản, tự nhả khóa khi lỗi |
+| `ReentrantLock` | Có | Có | tryLock có timeout, ngắt được, nhiều Condition, fair |
+| `AtomicInteger`… | Có | Có cho một biến | CAS, không khóa |
+
+`count++` gồm ba bước đọc, cộng, ghi. Đánh dấu `volatile` chỉ đảm bảo thấy giá trị mới nhất, **hai thread vẫn cùng đọc 5 và cùng ghi 6**. Muốn đúng thì `AtomicInteger.incrementAndGet()` (CAS: so sánh rồi đổi, thất bại thì thử lại) hoặc `synchronized`. Đếm cực nhiều thread thì `LongAdder` nhanh hơn vì chia nhỏ bộ đếm.
+
+Chọn: biến đơn → Atomic; nhiều biến phải đổi cùng nhau → synchronized; cần chờ có hạn hoặc ngắt được → ReentrantLock.
+
+Nhưng ở backend nhiều instance, **khóa trong JVM không bảo vệ được dữ liệu dùng chung**. Bài khay 30 ký ở WMS em giải ở tầng DB bằng conditional update, không bằng synchronized.
+@fu CAS có nhược điểm gì?
+Tranh chấp cao thì thử lại liên tục, tốn CPU; vấn đề ABA (giá trị đổi A→B→A, CAS tưởng không đổi), giải bằng `AtomicStampedReference` có version.
+@fu synchronized còn chậm không?
+Từ Java 6 có nhiều tối ưu, không tranh chấp thì rất rẻ. Java 21 virtual thread chạy synchronized có thể bị “pin” vào thread hệ điều hành (đã cải thiện ở Java 24), nên code virtual thread hay dùng ReentrantLock.
+@trap Nói volatile làm `count++` an toàn.
+
+@q 56
+@time khoảng 75 giây
+@ans
+**Race condition:** kết quả phụ thuộc thứ tự chạy của các thread. Ví dụ điển hình là check-then-act: hai trạm cùng đọc khay 22 ký, cùng thấy cộng 6 ký vẫn dưới 30, cùng ghi, ra 34 ký.
+
+**Deadlock:** hai bên giữ khóa và chờ khóa của nhau. Thread A giữ khóa X chờ Y, thread B giữ Y chờ X. Bốn điều kiện: độc quyền, giữ và chờ, không bị cướp, chờ vòng tròn. Phá một điều kiện là hết deadlock.
+
+**Phát hiện:**
+- Trong JVM: `jstack <pid>` in thread dump, cuối dump có mục **“Found one Java-level deadlock”** chỉ rõ thread nào giữ khóa nào. Hoặc thấy nhiều thread `BLOCKED` cùng chờ một monitor.
+- Trong PostgreSQL: lỗi `40P01 deadlock detected`, log ghi hai câu lệnh liên quan; xem `pg_locks` và `pg_stat_activity`.
+
+**Phòng:**
+1. **Thứ tự khóa nhất quán:** ở WMS, batch và API luôn khóa đơn → việc nhặt theo id tăng dần → tồn kho.
+2. **tryLock có timeout** hoặc `lock_timeout` ở DB, quá hạn thì bỏ và thử lại.
+3. Giữ khóa ngắn, không gọi I/O khi đang giữ khóa.
+@fu Livelock và starvation là gì?
+Livelock: các thread không bị chặn nhưng cứ nhường nhau mãi, không tiến được (thường do retry cùng nhịp, sửa bằng jitter). Starvation: một thread không bao giờ được chạy vì thread khác luôn giành trước (khóa không fair).
+@fu Tái hiện race condition thế nào?
+Như em làm ở WMS: test tích hợp với DB thật, hai thread chờ ở `CountDownLatch` rồi thả cùng lúc, lặp vài trăm lần; chèn một độ trễ nhỏ giữa đọc và ghi để lỗi hiếm thành lỗi chắc chắn.
+
+@q 57
+@time khoảng 75 giây
+@ans
+Các tham số: `corePoolSize`, `maximumPoolSize`, `keepAliveTime`, **hàng đợi** (`workQueue`), `ThreadFactory`, và **RejectedExecutionHandler**.
+
+Thứ tự xử lý dễ nhầm: task mới → nếu chưa đủ core thì tạo thread → nếu đủ core thì **cho vào hàng đợi** → **chỉ khi hàng đợi đầy** mới tạo thêm tới max → max rồi mà vẫn đầy thì **reject**.
+
+Vì sao không dùng `Executors.newFixedThreadPool`: nó dùng `LinkedBlockingQueue` **không giới hạn**. Khi task đến nhanh hơn xử lý, hàng đợi phình mãi, **OOM**, và trước đó độ trễ tăng không kiểm soát mà không có lỗi nào báo. `newCachedThreadPool` thì ngược lại: tạo thread không giới hạn. Cả hai đều che mất backpressure.
+
+Production em tự tạo:
+
+```
+new ThreadPoolExecutor(8, 16, 60, SECONDS,
+    new ArrayBlockingQueue<>(500),
+    new ThreadFactoryBuilder().setNameFormat("export-%d").build(),
+    new ThreadPoolExecutor.CallerRunsPolicy());
+```
+
+- **Hàng đợi có giới hạn** để biết khi nào quá tải.
+- **Rejection policy** rõ ràng: `CallerRunsPolicy` làm chậm bên gửi (backpressure tự nhiên), hoặc `AbortPolicy` rồi trả 503.
+- **Đặt tên thread** để đọc thread dump và log biết pool nào.
+- Đo kích thước hàng đợi, số thread active, số task bị reject.
+@fu Nhớ tắt executor không?
+Có, khi ứng dụng tắt gọi `shutdown()` rồi `awaitTermination`. Executor do Spring quản lý (ThreadPoolTaskExecutor) thì Spring tự tắt.
+@fu Task ném exception trong `submit` thì sao?
+Bị giữ trong Future, không ai `get()` thì lỗi im lặng biến mất. Dùng `execute` để lỗi ra handler, hoặc bọc try/catch và log trong task.
+
+@q 58
+@time khoảng 75 giây
+@ans
+**Little's law:** số request đồng thời trung bình **L = λ × W**, với λ là tốc độ đến (request/giây), W là thời gian xử lý mỗi request.
+
+Ví dụ: 200 rps, mỗi request 50 ms → cần khoảng **10** request đang xử lý cùng lúc. Lúc cao điểm 600 rps và p99 200 ms thì phải chịu tới 120. Đó là cách ra con số thay vì đoán.
+
+**Thread pool:**
+- **CPU-bound:** khoảng số core (cộng một), thêm thread chỉ tăng chuyển ngữ cảnh.
+- **I/O-bound:** `số core × (1 + thời gian chờ / thời gian tính)`. Request chờ DB 90% thời gian thì số thread có thể gấp nhiều lần số core.
+
+**Connection pool DB:** không theo số thread mà theo **sức của DB**. Công thức khởi điểm của HikariCP: `số core của DB × 2 + số đĩa`, thường chỉ 10–30 connection mỗi instance là đủ. Nhớ nhân với **số instance**: 10 pod × 30 = 300 connection có thể vượt `max_connections` của PostgreSQL.
+
+Cuối cùng phải **đo** bằng load test: tăng dần tải, xem lúc nào p99 gãy và thời gian chờ lấy connection tăng.
+@fu Vì sao pool lớn không nhanh hơn?
+DB chỉ có từng ấy core và đĩa; thêm connection thì chúng tranh nhau, chuyển ngữ cảnh và tranh khóa nhiều hơn, mỗi query chậm đi. Pool nhỏ, request xếp hàng ngắn ở ứng dụng thường cho throughput tốt hơn.
+@fu Nhiều instance thì quản connection thế nào?
+Tính tổng connection mọi instance dưới giới hạn DB, hoặc đặt PgBouncer ở chế độ transaction pooling phía trước.
+
+@q 59
+@time khoảng 60 giây
+@ans
+**Happens-before** là quy tắc của Java Memory Model: nếu A happens-before B thì **mọi thứ A ghi đều được B nhìn thấy**, và không bị sắp xếp lại vượt qua mốc đó. Không có quan hệ này thì compiler và CPU được phép **reorder** lệnh và giữ giá trị trong cache, nên thread khác có thể thấy giá trị cũ hoặc thứ tự lạ.
+
+Các mốc tạo happens-before: nhả khóa → lấy cùng khóa đó; ghi volatile → đọc cùng biến volatile; `Thread.start()`; `join()`; hoàn tất Future.
+
+**Double-checked locking:**
+
+```
+private static volatile Config instance;
+static Config get() {
+  if (instance == null) {
+    synchronized (Config.class) {
+      if (instance == null) instance = new Config();
+    }
+  }
+  return instance;
+}
+```
+
+`instance = new Config()` gồm cấp phát, chạy constructor, gán tham chiếu. Không có volatile, bước gán có thể **xảy ra trước** khi constructor chạy xong. Thread khác ở lần kiểm tra thứ nhất (ngoài khóa) thấy `instance != null` và dùng một **object chưa khởi tạo xong**. `volatile` cấm reorder đó.
+
+Thực tế em dùng holder class hoặc enum, hoặc để Spring quản lý singleton, khỏi cần tự viết.
+@fu Holder class là gì?
+Class tĩnh lồng bên trong chứa instance; JVM chỉ nạp class đó khi được gọi lần đầu, và việc nạp class đã an toàn đa luồng, nên vừa lazy vừa đúng mà không cần khóa.
+
+@q 60
+@time khoảng 90 giây
+@ans
+Vùng nhớ JVM:
+- **Heap:** chứa object, chia thế hệ trẻ (Eden, Survivor) và già. Dùng chung giữa các thread.
+- **Stack:** mỗi thread một stack chứa frame của method, biến cục bộ. Đệ quy quá sâu → `StackOverflowError`.
+- **Metaspace:** metadata của class (ngoài heap). Sinh class động liên tục (proxy, script) → `OutOfMemoryError: Metaspace`.
+- Ngoài ra **direct memory** (NIO, Netty) và code cache.
+
+OOM hay gặp: `Java heap space` (rò rỉ hoặc nạp dữ liệu quá lớn), `GC overhead limit exceeded` (GC chạy liên tục mà thu hồi rất ít), `Metaspace`, `unable to create native thread` (quá nhiều thread).
+
+**Cách điều tra:**
+1. Bật sẵn `-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=…` và GC log.
+2. Mở heap dump bằng **Eclipse MAT**, xem **dominator tree**: object nào giữ nhiều bộ nhớ nhất, và đường tham chiếu tới GC root.
+3. So hai heap dump cách nhau vài giờ để thấy cái gì tăng.
+
+Thủ phạm quen thuộc: **cache tự viết bằng static HashMap không giới hạn**, listener đăng ký mà không hủy, ThreadLocal không `remove()` trong thread pool, **nạp cả bảng vào List** thay vì đọc theo trang. Ở WMS, batch em luôn xử lý theo chunk cũng để không nạp vài triệu dòng vào heap cùng lúc.
+@fu Rò rỉ bộ nhớ trong Java nghĩa là gì khi đã có GC?
+Object không còn dùng nhưng vẫn còn tham chiếu từ GC root (static field, cache, thread đang sống), nên GC không thu được.
+@fu Container bị kill nhưng không thấy OOM trong log?
+Có thể là OOM killer của hệ điều hành/Kubernetes vì tổng bộ nhớ process (heap + metaspace + stack + direct) vượt limit của container. Đặt `-XX:MaxRAMPercentage` khoảng 70–75% để chừa phần ngoài heap.
+
+@q 61
+@time khoảng 75 giây
+@ans
+**G1** chia heap thành nhiều **region** bằng nhau (1–32 MB), mỗi region đóng vai Eden, Survivor hoặc Old tùy lúc. Mục tiêu là **thời gian dừng dự đoán được** (`MaxGCPauseMillis`, mặc định 200 ms).
+
+- **Young GC:** dừng ứng dụng, copy object còn sống từ Eden sang Survivor hoặc Old. Nhanh vì phần lớn object chết trẻ.
+- **Concurrent marking:** khi Old đầy tới ngưỡng, G1 đánh dấu song song với ứng dụng.
+- **Mixed GC:** dọn Young kèm các region Old **nhiều rác nhất trước** (vì vậy gọi là Garbage First).
+- **Full GC:** khi không kịp dọn (copy thất bại, heap gần đầy), dừng toàn bộ, rất chậm. Thấy Full GC liên tục là dấu hiệu xấu.
+
+**Full GC liên tục thường do:** heap quá nhỏ so với dữ liệu sống, **rò rỉ bộ nhớ** (sau mỗi GC, mức heap còn lại cứ tăng dần), **allocation rate** quá cao (tạo object tạm hàng loạt), hoặc object khổng lồ (humongous, lớn hơn nửa region).
+
+**Đọc GC log** (`-Xlog:gc*`): xem thời gian dừng mỗi lần, tần suất, **heap sau GC** theo thời gian. Heap sau GC đi ngang là ổn; heap sau GC đi lên như bậc thang là rò rỉ. Em thường xem qua metric JVM trên Datadog trước, cần mới mở log chi tiết.
+
+Đặt `-Xms` bằng `-Xmx` để tránh heap co giãn; đừng tăng heap vô tội vạ vì GC mỗi lần phải xử lý nhiều hơn.
+@fu Khi nào chọn ZGC?
+Khi cần thời gian dừng rất ngắn (dưới mili giây) với heap lớn, ví dụ dịch vụ nhạy độ trễ. Đổi lại tốn CPU hơn và throughput thấp hơn chút.
+
+@q 62
+@time khoảng 60 giây
+@ans
+Thread truyền thống ánh xạ **1–1 với thread hệ điều hành**, mỗi thread tốn khoảng 1 MB stack và chi phí chuyển ngữ cảnh, nên một server chỉ chạy được vài nghìn thread. Khi thread chờ DB hay HTTP, nó **ngồi không** mà vẫn chiếm tài nguyên.
+
+**Virtual thread** (Java 21) do **JVM quản lý**, rất nhẹ, có thể tạo hàng triệu. Khi virtual thread gặp I/O chặn, JVM **tháo nó khỏi thread hệ điều hành** (carrier) và cho virtual thread khác chạy. Ta vẫn viết code tuần tự, dễ đọc, dễ debug, mà có khả năng chịu đồng thời gần như lập trình bất đồng bộ.
+
+**Async/reactive** (CompletableFuture, WebFlux) cũng giải bài toán đó nhưng bằng callback hoặc chuỗi toán tử: hiệu quả nhưng khó đọc, stack trace rời rạc, khó debug.
+
+**Hợp:** dịch vụ **I/O-bound** nhiều request chờ mạng/DB. **Không giúp:** việc CPU-bound. Cần lưu ý: tài nguyên phía sau vẫn có giới hạn (pool DB vẫn 20 connection, nên phải giới hạn bằng semaphore), ThreadLocal tốn bộ nhớ khi có hàng triệu thread, và `synchronized` quanh I/O có thể ghim thread ở các bản Java cũ.
+
+Em mới tìm hiểu và thử ở dự án cá nhân, chưa dùng ở production.
+@fu Spring Boot bật virtual thread thế nào?
+Từ Spring Boot 3.2: `spring.threads.virtual.enabled=true`, Tomcat và executor dùng virtual thread.
+@fu Có nên dùng pool cho virtual thread không?
+Không, chúng rẻ nên tạo mới cho mỗi task. Muốn giới hạn đồng thời thì dùng Semaphore, không dùng pool.
+
+@cheat Cheat sheet B2 · Concurrency & JVM
+### Công cụ đồng bộ
+- volatile: thấy, không atomic (count++ sai)
+- synchronized: thấy + atomic, đơn giản
+- ReentrantLock: tryLock(timeout), ngắt được, Condition
+- Atomic*/CAS: một biến; LongAdder khi đếm nóng
+- Nhiều instance → khóa ở DB/Redis, không ở JVM
+### Deadlock
+- 4 điều kiện; phá vòng chờ bằng thứ tự khóa nhất quán
+- jstack: “Found one Java-level deadlock”; PG: 40P01
+- lock_timeout, tryLock; không giữ khóa khi gọi I/O
+### Thread pool
+- core → queue → max → reject
+- Không dùng newFixedThreadPool (queue vô hạn → OOM)
+- Queue có giới hạn, CallerRunsPolicy, đặt tên thread
+### Kích thước
+- Little: L = λ × W (200 rps × 50 ms = 10)
+- CPU: ≈ số core; I/O: core × (1 + chờ/tính)
+- Pool DB: core DB × 2 + đĩa; nhân số instance
+### JMM
+- happens-before: unlock→lock, ghi→đọc volatile, start, join
+- DCL cần volatile vì gán tham chiếu có thể trước constructor
+### JVM & GC
+- Heap / stack / metaspace / direct
+- HeapDumpOnOutOfMemoryError + MAT dominator tree
+- Thủ phạm: static map, listener, ThreadLocal, nạp cả bảng
+- G1: region, young → mark → mixed; Full GC = xấu
+- Heap sau GC đi lên bậc thang = rò rỉ
+- Virtual thread: I/O-bound, giới hạn bằng Semaphore

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notification Hub – Ôn phỏng vấn</title>
+<style>
+/* Notification Hub – CSS viết lại theo design system chung (token ở assets/site.css) */
+:root{--warn:var(--hi-ink);--warn-soft:var(--hi-soft);--code-bg:var(--sunken)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.68 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right,0px)) 30px max(16px,env(safe-area-inset-left,0px))}
+header.top{padding:30px 0 14px;border-bottom:1px solid var(--line)}
+h1{font:700 clamp(30px,5.6vw,52px)/1.05 var(--f-display);text-transform:uppercase;margin:0 0 10px;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:72ch;font-size:16.5px}
+nav.tabs{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:4px;padding:0;margin-top:0;flex-wrap:wrap}
+nav.tabs button{font:600 16px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;border:0;border-bottom:3px solid transparent;background:none;color:var(--muted);padding:14px 12px 11px;cursor:pointer;border-radius:0}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--hi);background:none}
+nav.tabs .spacer{flex:1}
+nav.tabs .theme{display:none}
+section.panel{display:none}
+section.panel.on{display:block}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0 8px}
+.toc a{font:600 13px/1.2 var(--f-body);text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);padding:6px 10px;border-radius:4px}
+.toc a:hover{border-color:var(--ink)}
+article.q{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px 22px 10px;margin:22px 0;scroll-margin-top:70px;border-top:4px solid var(--accent)}
+article.q h2{font:600 26px/1.15 var(--f-display);margin:0 0 6px;text-wrap:balance}
+article.q h2 .n{display:inline-grid;place-items:center;min-width:42px;height:32px;border:2px solid var(--ink);border-radius:3px;margin-right:10px;font:700 20px/1 var(--f-display);color:var(--ink);vertical-align:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
+.chip{font:600 11.5px/1 var(--f-mono);background:var(--accent-soft);color:var(--accent);padding:5px 8px;border-radius:3px;letter-spacing:.02em}
+h3{font:700 12px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 8px}
+p{margin:8px 0}
+ul,ol{margin:6px 0 10px;padding-left:22px}
+li{margin:3px 0}
+code{background:var(--sunken);border:1px solid var(--line);padding:0 5px;border-radius:3px;font:500 .86em var(--f-mono)}
+.box{border-radius:4px;padding:10px 14px;margin:12px 0;font-size:15px}
+.box.code{background:var(--ok-soft);border-left:4px solid var(--ok)}
+.box.warn{background:var(--hi-soft);border:1px solid var(--hi);border-left-width:4px}
+.box b.t{display:block;font:700 11.5px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.box.code b.t{color:var(--ok)}.box.warn b.t{color:var(--hi-ink)}
+details{border-top:1px solid var(--line);padding:2px 0}
+details summary{cursor:pointer;font-weight:600;padding:10px 0;list-style:none;display:flex;gap:10px}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"＋";color:var(--accent);font-weight:700;flex:none}
+details[open] summary::before{content:"－"}
+details .a{padding:0 0 12px 26px;color:var(--ink)}
+pre{background:var(--sunken);border:1px solid var(--line);padding:12px 14px;border-radius:4px;overflow-x:auto;font:12.5px/1.5 var(--f-mono);margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:10px 0}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--sunken);font:700 12px/1.3 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.scroll{overflow-x:auto;background:var(--sunken);border:1px solid var(--line);border-radius:6px;padding:8px}
+svg{max-width:100%;height:auto}
+@media (max-width:700px){.scroll svg{max-width:none;width:700px}}
+svg text{fill:var(--ink);font:12px var(--f-body)}
+svg .bx{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+svg .hot{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+svg .ar{stroke:var(--muted);stroke-width:1.5;fill:none}
+svg .lbl{fill:var(--muted);font-size:10.5px}
+.cheat-grid{display:grid;grid-template-columns:1fr;gap:14px;margin:18px 0}
+@media(min-width:760px){.cheat-grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;border-top:4px solid var(--accent)}
+.card h4{margin:0 0 6px;font:600 20px/1.15 var(--f-display)}
+.card h4 .n{color:var(--accent);font-family:var(--f-mono);font-size:15px;margin-right:4px}
+.card .one{font-weight:600;margin:4px 0 8px}
+.card ul{padding-left:18px;font-size:14.5px;margin:4px 0}
+.card .trap{font-size:13.5px;color:var(--bad);background:var(--bad-soft);border-radius:3px;padding:6px 10px;margin-top:10px}
+.card .trap::before{content:"⚠ "}
+h2.sec{font:700 26px/1.1 var(--f-display);text-transform:uppercase;margin:32px 0 6px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.flash{border:1px solid var(--line);border-radius:4px;margin:8px 0;background:var(--surface);padding:0 14px}
+.flash summary{padding:10px 0}
+.kbd{font:600 12px var(--f-mono);color:var(--muted)}
+
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body>
+<div class="wrap">
+<header class="top">
+  <h1>Notification Hub – Ôn phỏng vấn (văn nói)</h1>
+  <p class="sub">8 câu (33–40). Viết như lời nói thật: không dùng tên class trong code, chỉ mô tả bằng vai trò để người nghe hình dung. Đọc to thử từng đoạn.</p>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-tab="full">Trả lời đầy đủ</button>
+  <button role="tab" aria-selected="false" data-tab="cheat">Cheat sheet</button>
+  <span class="spacer"></span>
+  <button class="theme" id="theme" type="button">Sáng/Tối</button>
+</nav>
+
+<section class="panel on" id="full">
+<div class="toc">
+  <a href="#q33">33 Kiến trúc</a><a href="#q34">34 Kafka</a><a href="#q35">35 Idempotency</a><a href="#q36">36 DLQ</a>
+  <a href="#q37">37 Saga</a><a href="#q38">38 Rate limit</a><a href="#q39">39 50k/s</a><a href="#q40">40 gRPC</a>
+</div>
+
+<div class="box warn"><b class="t">Quy tắc khi nói</b>
+Gọi các service theo vai trò: <b>cổng vào (gateway)</b>, <b>service nhận yêu cầu</b>, <b>service tenant/quota</b>, <b>service gửi</b>, <b>service thống kê</b>. Khi bị hỏi sâu mới nói thuật ngữ. Chỗ nào chưa làm thì nói thẳng “phần này em chưa làm, nếu làm em sẽ…”.</div>
+
+<!-- Q33 -->
+<article class="q" id="q33">
+<h2><span class="n">33.</span>Kiến trúc &amp; luồng dữ liệu</h2>
+<div class="chips"><span class="chip">vẽ trong 1 phút</span><span class="chip">topic</span><span class="chip">partition</span><span class="chip">consumer</span></div>
+
+<h3>Sơ đồ</h3>
+<div class="scroll">
+<svg viewBox="0 0 860 330" role="img" aria-label="Sơ đồ kiến trúc Notification Hub">
+  <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8a857a"/></marker></defs>
+  <rect class="bx" x="10" y="120" width="70" height="44" rx="8"/><text x="26" y="147">Client</text>
+  <rect class="hot" x="110" y="120" width="110" height="44" rx="8"/><text x="124" y="140">Gateway :9000</text><text class="lbl" x="124" y="155">API key · rate limit</text>
+  <rect class="bx" x="270" y="120" width="130" height="44" rx="8"/><text x="282" y="140">Notification :9002</text><text class="lbl" x="282" y="155">ingest · outbox</text>
+  <rect class="bx" x="270" y="10" width="130" height="44" rx="8"/><text x="288" y="30">Tenant :9001</text><text class="lbl" x="284" y="45">gRPC · quota · API key</text>
+  <rect class="bx" x="270" y="230" width="130" height="44" rx="8"/><text x="288" y="250">Postgres + Redis</text><text class="lbl" x="284" y="265">notif+outbox / idem</text>
+  <rect class="hot" x="450" y="120" width="150" height="44" rx="8"/><text x="462" y="139">Kafka</text><text class="lbl" x="462" y="154">notification.requested ×12</text>
+  <rect class="bx" x="650" y="60" width="130" height="44" rx="8"/><text x="662" y="80">Delivery :9003</text><text class="lbl" x="662" y="95">lanes · adapters · retry</text>
+  <rect class="bx" x="650" y="180" width="130" height="44" rx="8"/><text x="662" y="200">Analytics :9004</text><text class="lbl" x="662" y="215">history · query API</text>
+  <rect class="bx" x="450" y="250" width="150" height="44" rx="8"/><text x="462" y="269">notification.result ×12</text><text class="lbl" x="462" y="284">SENT / FAILED</text>
+  <rect class="bx" x="450" y="10" width="150" height="44" rx="8"/><text x="462" y="29">retry.5s/30s/2m · dlq</text><text class="lbl" x="462" y="44">delay tiers → DLQ ×3</text>
+  <path class="ar" d="M80 142H108" marker-end="url(#ah)"/><path class="ar" d="M220 142H268" marker-end="url(#ah)"/>
+  <path class="ar" d="M335 120V56" marker-end="url(#ah)"/><text class="lbl" x="340" y="92">gRPC reserve (1s)</text>
+  <path class="ar" d="M335 164V228" marker-end="url(#ah)"/>
+  <path class="ar" d="M400 142H448" marker-end="url(#ah)"/><text class="lbl" x="395" y="135">outbox relay</text>
+  <path class="ar" d="M600 135L648 90" marker-end="url(#ah)"/><path class="ar" d="M600 150L648 195" marker-end="url(#ah)"/>
+  <path class="ar" d="M700 104V120H640" /><path class="ar" d="M650 82H610V40H602" marker-end="url(#ah)"/>
+  <path class="ar" d="M715 104V250H602" marker-end="url(#ah)"/>
+  <path class="ar" d="M450 272H335" /><path class="ar" d="M335 272V166" marker-end="url(#ah)" stroke-dasharray="4 3"/>
+  <text class="lbl" x="400" y="318">result → Analytics (history) + Tenant (commit/release quota)</text>
+  <path class="ar" d="M525 250V230H700V226" stroke-dasharray="4 3"/>
+</svg>
+</div>
+
+<h3>Nói như sau</h3>
+<p>“Em vẽ nhanh luồng đi của một thông báo nhé. Khách hàng gọi vào <b>cổng vào</b> kèm API key. Cổng này hỏi service quản lý khách hàng xem key có hợp lệ không, kết quả được nhớ lại 30 giây cho đỡ hỏi lại. Sau đó nó giới hạn tốc độ theo từng khách hàng, dùng Redis.”</p>
+<p>“Qua cổng rồi thì tới <b>service nhận yêu cầu</b>. Nó làm ba việc: giữ chỗ hạn mức gửi của khách, kiểm tra yêu cầu này có bị gửi trùng không, rồi lưu thông báo vào database. Điểm quan trọng là lưu thông báo và lưu một dòng ‘việc cần đẩy lên Kafka’ <b>trong cùng một transaction</b>. Xong là trả ngay mã 202 cho khách, không chờ gửi thật.”</p>
+<p>“Một tiến trình nền đọc những dòng đó rồi đẩy sự kiện lên Kafka, topic tên <i>notification requested</i>, 12 partition. Có hai nhóm consumer đọc độc lập: <b>service gửi</b> thì gọi nhà cung cấp email hay push để gửi thật, <b>service thống kê</b> thì ghi lịch sử. Gửi xong, service gửi bắn một sự kiện kết quả sang topic thứ hai. Service thống kê dùng nó để cập nhật trạng thái, còn service quản lý khách hàng dùng nó để chốt hạn mức: gửi được thì tính, gửi hỏng thì trả lại chỗ đã giữ.”</p>
+<p>“Gửi lỗi tạm thì thử lại sau 5 giây, 30 giây, 2 phút. Vẫn hỏng thì vào hàng đợi chết, tên là DLQ, 3 partition. Cả hệ thống chạy kiểu <b>at-least-once</b>, tức có thể nhận lại một tin hai lần, nên phía xử lý phải chịu được trùng.”</p>
+
+<div class="box warn"><b class="t">Điểm yếu nên tự nói</b>
+Mình chọn id khách hàng làm khoá partition nên thứ tự trong cùng khách được giữ, nhưng khách rất lớn sẽ dồn vào một partition. Môi trường dev chỉ có 1 bản sao dữ liệu Kafka; production phải là 3.</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Sao chọn 12 partition?</summary><div class="a">“12 là số tối đa consumer chạy song song trong một nhóm, vì mỗi partition chỉ một consumer đọc. Em chọn 12 vì chia hết cho 2, 3, 4, 6 nên dễ chia instance. Em có thử giảm xuống 4 partition ở mức 100 request/giây thì kết quả gần như không đổi. Nghĩa là nút thắt lúc đó là CPU và database, chứ không phải partition. Tăng partition sau này thì cách chia tin theo khoá đổi, thứ tự cũ bị xáo, nên nên chọn dư ngay từ đầu.”</div></details>
+<details><summary>Sao service thống kê và service gửi không gọi trực tiếp nhau mà cùng đọc Kafka?</summary><div class="a">“Để tách rời nhau. Service gửi chậm hay chết thì thống kê vẫn không mất dữ liệu, vì mỗi bên giữ vị trí đọc riêng và đọc lại được. Cái giá là dữ liệu chỉ nhất quán sau một lúc, và có khi tin kết quả đến trước tin yêu cầu nên phía thống kê phải chịu được việc đảo thứ tự.”</div></details>
+<details><summary>Kafka chết lúc đang nhận yêu cầu thì sao?</summary><div class="a">“Ở chế độ mặc định thì yêu cầu vẫn được lưu an toàn trong database cùng dòng ‘việc cần đẩy’, tiến trình nền sẽ đẩy lại khi Kafka sống. Em có làm thêm một chế độ khác là ghi thẳng vào Kafka trước; chế độ đó thì Kafka chết là trả lỗi 503. Hai chế độ này chọn bằng cấu hình.”</div></details>
+<details><summary>Chạy nhiều bản tiến trình nền đẩy tin thì có đẩy trùng không?</summary><div class="a">“Nó lấy từng lô dòng bằng cách khoá dòng và bỏ qua dòng đang bị khoá, nên hai bản không lấy cùng dòng. Nếu đẩy xong mà sập trước khi đánh dấu đã gửi thì có thể đẩy lại một lần, nhưng phía nhận đã chịu được trùng.”</div></details>
+</article>
+
+<!-- Q34 -->
+<article class="q" id="q34">
+<h2><span class="n">34.</span>Vì sao Kafka, không RabbitMQ hay bảng DB + job</h2>
+<div class="chips"><span class="chip">log bền vững</span><span class="chip">replay</span><span class="chip">thông lượng</span><span class="chip">khi nào không cần</span></div>
+
+<h3>Nói như sau</h3>
+<p>“Em có ba lý do, và cả ba đều đúng với bài toán này.”</p>
+<p>“Một là <b>một sự kiện có nhiều bên đọc độc lập</b>. Service gửi và service thống kê đều cần đọc cùng một tin. Kafka cho mỗi bên một vị trí đọc riêng, tin không biến mất sau khi ai đó đọc. RabbitMQ thì phải dựng thêm hàng đợi cho từng bên, và tin xoá đi khi được xác nhận.”</p>
+<p>“Hai là <b>log được giữ lại</b>, nên đọc lại được. Em dùng điều này để đem tin trong DLQ gửi lại sau khi sửa lỗi, và để dựng lại lịch sử khi cần.”</p>
+<p>“Ba là <b>thông lượng và thứ tự</b>. Kafka ghi tuần tự, gom lô, nén, và mở rộng bằng cách thêm partition. Cùng khoá thì cùng partition nên giữ được thứ tự theo khách hàng.”</p>
+<p>“Còn bảng database kèm job quét: em không dùng làm hàng đợi chính vì quét liên tục đè tải lên database, khó cho nhiều bên cùng đọc, và phải tự làm hết phần theo dõi vị trí, khoá, thử lại. Nhưng em vẫn dùng một bảng ở đúng một chỗ, là <b>outbox</b>, vì chỗ đó cần ‘lưu thông báo và có sự kiện’ xảy ra cùng lúc hoặc không cái nào.”</p>
+
+<div class="box warn"><b class="t">Khi nào không cần Kafka (nên nói trước)</b>
+“Nếu tải thấp, chỉ vài chục đến vài trăm tin mỗi giây, một bên đọc, không cần đọc lại, thì RabbitMQ hay SQS, thậm chí bảng database, đơn giản và rẻ hơn nhiều. Cần hẹn giờ, ưu tiên, định tuyến từng tin thì RabbitMQ có sẵn. Kafka không có hẹn giờ gốc nên em phải tự dựng ba topic trễ 5 giây, 30 giây, 2 phút. Và nói thật, tải em đo được chỉ khoảng 50 request/giây trên laptop, nên Kafka ở đây là chọn cho thiết kế và khả năng mở rộng, chưa phải vì tải bắt buộc.”</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Kafka có exactly-once không, bạn dùng gì?</summary><div class="a">“Em không dựa vào exactly-once. Producer bật chế độ chống trùng khi gửi lại và chờ đủ bản sao xác nhận. Phía đọc em dùng <b>at-least-once cộng xử lý chịu được trùng</b>: mỗi tin có một mã duy nhất, lưu vào database với ràng buộc không cho trùng. Em chọn vậy vì việc gửi email nằm ngoài Kafka, exactly-once của Kafka không bao được nó.”</div></details>
+<details><summary>Consumer bị chậm, lag tăng thì làm gì?</summary><div class="a">“Em xem Grafana có biểu đồ lag, xác định chậm do nhà cung cấp hay do database. Thêm consumer chỉ có tác dụng tới bằng số partition. Với đường thử lại, chỉ luồng riêng của đường đó phải chờ, không chặn luồng chính.”</div></details>
+<details><summary>Rebalance xảy ra thì tin đang xử lý thế nào?</summary><div class="a">“Em chỉ xác nhận vị trí đọc sau khi xử lý xong. Tin chưa xác nhận sẽ được giao lại, và vì xử lý chịu được trùng nên an toàn. Với nhà cung cấp HTTP em gửi kèm mã duy nhất của thông báo để họ tự chống trùng. Riêng SMTP không có cơ chế đó nên còn một cửa sổ rất nhỏ có thể gửi trùng một email, em đã ghi rõ trong tài liệu thiết kế.”</div></details>
+</article>
+
+<!-- Q35 -->
+<article class="q" id="q35">
+<h2><span class="n">35.</span>Idempotency: khoá, upsert, race, dọn dữ liệu</h2>
+<div class="chips"><span class="chip">unique constraint</span><span class="chip">ON CONFLICT</span><span class="chip">race</span><span class="chip">TTL</span></div>
+
+<h3>Nói như sau</h3>
+<p>“Idempotency của em có <b>hai tầng</b>, mỗi tầng chống một kiểu trùng.”</p>
+<p>“Tầng thứ nhất ở <b>lúc nhận yêu cầu</b>: khách gửi cùng một yêu cầu hai lần, ví dụ do mạng chập chờn nên bấm gửi lại. Khoá là cặp <b>(khách hàng, mã Idempotency-Key trong header)</b>. Nếu khách không gửi mã, khách hàng nào bật chế độ riêng thì em tạo mã bằng cách băm nội dung yêu cầu trong một khoảng thời gian. Em dùng Redis để chặn nhanh: lệnh ‘đặt nếu chưa có’ chỉ cho đúng một người thắng. Nhưng Redis chỉ là lớp chặn sớm. <b>Người phán quyết cuối là database</b>: một unique index trên (khách hàng, mã), nên dù Redis mất hay hết hạn thì hai yêu cầu cùng lúc cũng chỉ một cái được ghi.”</p>
+<p>“Tầng thứ hai ở <b>lúc gửi</b>: Kafka giao một tin hai lần. Khoá là mã thông báo. Việc đầu tiên service gửi làm là chèn một dòng với mã đó, kèm <code>ON CONFLICT DO NOTHING</code>. Chèn được tức là mình thắng, đi gửi. Không chèn được tức là có người làm rồi, thì xem dòng đó đang ở trạng thái nào: nếu đã gửi rồi thì bỏ qua, không gửi lại.”</p>
+<p><b>Race giữa hai bên cùng lúc:</b> unique index buộc Postgres xếp hàng, đúng một bên chèn được. Bên thua đọc dòng cũ lên. Ở tầng nhận yêu cầu, em so thêm <b>dấu vân tay của nội dung</b>: giống thì trả đúng kết quả lần trước, khác thì từ chối vì cùng mã mà nội dung khác.”</p>
+<p><b>Dọn dữ liệu:</b> “Mã trong Redis sống 24 giờ. Một job chạy 10 phút một lần, với dòng cũ hơn 24 giờ thì <b>xoá giá trị mã đi nhưng giữ lại thông báo</b>. Unique index chỉ áp lên dòng có mã, nên khi mã bị xoá thì ràng buộc tự hết. Cửa sổ 24 giờ ở Redis và database khớp nhau. Các dòng ‘việc cần đẩy’ đã đẩy xong thì xoá sau một giờ.”</p>
+
+<div class="box warn"><b class="t">Điểm yếu nên tự nói</b>
+“Có một tình huống em biết: nếu dòng trạng thái đang ở ‘đang gửi’ vì lần trước sập giữa chừng thì lần giao lại sẽ tiếp tục gửi. Như vậy đúng để phục hồi sau sập, nhưng nếu hai worker thật sự xử lý cùng lúc một tin thì có thể gửi hai lần. Em giảm nhẹ bằng việc cùng khoá thì cùng partition tức cùng một consumer, và nhà cung cấp có mã chống trùng. Cửa sổ ‘nhà cung cấp đã nhận nhưng mình chưa kịp ghi đã gửi’ là ranh giới của at-least-once, không xoá hẳn được. Ngoài ra bảng trạng thái gửi chưa có job dọn, sẽ phình theo thời gian.”</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Đã có unique index rồi sao còn cần Redis?</summary><div class="a">“Để chặn sớm. Phần lớn yêu cầu trùng bị loại ngay ở Redis bằng một lần gọi rẻ, trước khi tốn hạn mức, gọi mạng hay ghi database. Index vẫn là sự thật cuối nếu Redis mất dữ liệu.”</div></details>
+<details><summary>Cùng mã nhưng nội dung khác thì sao?</summary><div class="a">“Em lưu dấu vân tay nội dung cùng dòng. Khác thì từ chối, không trả kết quả cũ, vì trả sai còn tệ hơn. Cách này giống Stripe.”</div></details>
+<details><summary>Vì sao dùng DO NOTHING mà không DO UPDATE?</summary><div class="a">“Em không muốn ghi đè trạng thái, chỉ cần biết ‘đã có ai nhận việc này chưa’. DO NOTHING trả về số dòng chèn, 0 hay 1, đủ làm tín hiệu thắng thua, và không sinh dòng chết như update.”</div></details>
+<details><summary>Sao xoá giá trị mã mà không xoá cả dòng?</summary><div class="a">“Dòng thông báo còn là lịch sử, thống kê còn dùng. Em chỉ muốn bỏ ràng buộc chứ không muốn mất dữ liệu.”</div></details>
+<details><summary>Kiểm chứng thế nào?</summary><div class="a">“Em có kịch bản load test bắn cùng một mã 20 lần đồng thời, rồi một công cụ đối soát kiểm tra kết quả phải đúng một thông báo và một email.”</div></details>
+</article>
+
+<!-- Q36 -->
+<article class="q" id="q36">
+<h2><span class="n">36.</span>DLQ</h2>
+<div class="chips"><span class="chip">lỗi tạm vs vĩnh viễn</span><span class="chip">số lần retry</span><span class="chip">giám sát</span><span class="chip">replay</span></div>
+
+<h3>Nói như sau</h3>
+<p>“Đầu tiên em phân loại lỗi. <b>Lỗi vĩnh viễn</b> là loại thử lại bao nhiêu lần cũng hỏng: tin hỏng định dạng không đọc được, thiếu mã thông báo, hoặc nhà cung cấp báo thẳng là không gửi được. Loại này em đưa <b>thẳng vào DLQ</b>, không thử lại. <b>Lỗi tạm thời</b> là nhà cung cấp quá tải, timeout, mạng: thử lại sau <b>5 giây, rồi 30 giây, rồi 2 phút</b>. Ba lần đều hỏng thì vào DLQ. Nếu nhà cung cấp bảo ‘chờ 60 giây’ thì em chọn mức chờ ngắn nhất mà đủ dài.”</p>
+<p>“Chỗ này em làm khác bản đầu. Bản đầu em để luồng đọc <b>ngủ rồi thử lại</b>. Hậu quả là cả partition bị kẹt, nhà cung cấp chậm làm kẹt hết luồng, và nếu đang ngủ mà bị cân bằng lại thì tin giao lại, gửi trùng. Giờ mỗi mức chờ là một topic riêng. Tin thất bại được chuyển sang topic trễ, và một luồng riêng giữ tin đó tới đúng thời điểm mới xử lý. Luồng chính không bao giờ phải chờ.”</p>
+<p>“Mỗi tin vào DLQ đều kèm thông tin: lý do lỗi, loại lỗi, topic gốc, thời điểm, số lần thử. Nhờ đó người vận hành biết vì sao hỏng.”</p>
+<p><b>Có replay.</b> “Em viết một chức năng đọc DLQ theo lô tối đa 500 tin, đặt lại trạng thái, rồi gửi về topic gốc, đi lại từ mức chờ đầu tiên. Để khỏi lặp vô hạn, mỗi tin chỉ được replay <b>một lần</b>. Hỏng tiếp thì nằm yên trong DLQ chờ người xử lý. Nó chỉ xác nhận vị trí đọc sau khi đã gửi lại xong. Để giám sát em dùng giao diện Kafka UI, biểu đồ lag trên Grafana, và đặt cảnh báo khi DLQ có tin.”</p>
+
+<div class="box warn"><b class="t">Điểm yếu nên tự nói</b>
+“Khoá ‘mỗi lần một replay’ hiện chỉ có tác dụng trong một tiến trình; chạy nhiều bản thì cần khoá phân tán. Mức chờ cố định nên chưa có ngẫu nhiên hoá, retry đồng loạt có thể dồn cục. Và việc replay hiện là thao tác thủ công, chưa có quy trình tự động.”</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Thử lại có làm gửi trùng không?</summary><div class="a">“Có thể nhận lại tin, nhưng service gửi kiểm tra bảng trạng thái trước. Nếu đã gửi rồi thì bỏ qua, chỉ phát lại kết quả nếu lần trước chưa phát được.”</div></details>
+<details><summary>Nhà cung cấp sập kéo dài thì sao?</summary><div class="a">“Em có cầu dao tự ngắt: khi hơn nửa số lần gọi gần đây hỏng, trong cửa sổ 20 lần gọi, thì ngắt 15 giây rồi thử dè dặt 3 lần. Mỗi kênh gửi cũng bị giới hạn 8 lần gọi đồng thời để một kênh chậm không nuốt hết luồng. Có thể cấu hình kênh dự phòng. Lúc cầu dao mở, lỗi được coi là tạm thời nên đi vào các mức thử lại.”</div></details>
+<details><summary>Tin hỏng có làm kẹt partition không?</summary><div class="a">“Không, tin không đọc được đi thẳng DLQ. Nhưng em từng bị kẹt thật: cột lưu tên kênh chỉ chứa 32 ký tự trong khi nhận tới 255, tin dài làm lỗi ghi database và service thống kê thử lại vô hạn, kẹt partition. Em phát hiện khi chạy cả hệ thống cùng lúc và sửa bằng migration mở rộng cột.”</div></details>
+</article>
+
+<!-- Q37 -->
+<article class="q" id="q37">
+<h2><span class="n">37.</span>Saga cơ bản</h2>
+<div class="chips"><span class="chip">nói đúng mức cơ bản</span><span class="chip">choreography</span><span class="chip">bù trừ lỗi</span></div>
+
+<h3>Nói như sau</h3>
+<p>“Em nói thật là cái này <b>rất cơ bản</b>, gần với mẫu ‘giữ chỗ rồi xác nhận hoặc huỷ’ hơn là một saga đầy đủ. Em chỉ có <b>một tài nguyên</b> cần giữ nhất quán là hạn mức gửi của khách, và <b>hai kết cục</b>.”</p>
+<p>“<b>Bước một, giữ chỗ.</b> Trước khi nhận yêu cầu, service nhận gọi sang service quản lý khách hàng để giữ một đơn vị hạn mức. Việc kiểm tra ‘còn hạn mức không’ và ‘ghi giữ chỗ’ làm trong một script Lua trên Redis nên không ai chen ngang được. Chỗ giữ có hạn 15 phút.”</p>
+<p>“<b>Bước hai, xác nhận.</b> Khi service gửi báo đã gửi thành công, service khách hàng chốt: <b>ghi vào database trước</b>, rồi mới cập nhật Redis. Làm ngược lại thì sập giữa chừng sẽ lệch, còn thứ tự này thì sập ở đâu cũng chạy lại được mà không sai.”</p>
+<p>“<b>Bước bù trừ em đã làm thật</b> có hai chỗ: nếu yêu cầu bị huỷ trước khi lưu được thì trả lại chỗ đã giữ ngay; nếu gửi thất bại thì kết quả ‘thất bại’ cũng kích hoạt trả lại chỗ.”</p>
+<p><b>Nếu bước bù trừ cũng lỗi:</b> “Gọi trả chỗ lỗi thì em chỉ ghi log cảnh báo, và chỗ giữ sẽ <b>tự hết hạn sau 15 phút</b>, đó là lưới an toàn. Phía nhận kết quả thì chỉ xác nhận vị trí đọc sau khi đã ghi database xong; lỗi thì tin được giao lại, và mọi bước đều chạy lại được không hại. Nếu Redis mất dữ liệu thì bộ đếm được dựng lại từ database.”</p>
+<p><b>Orchestration hay choreography:</b> “Choreography: không có bộ điều phối trung tâm, các service chỉ phản ứng với sự kiện kết quả.”</p>
+
+<div class="box warn"><b class="t">Nói rõ cái KHÔNG có</b>
+“Em không có bộ điều phối, không có bảng ghi trạng thái saga, và không có bù trừ qua nhiều service. Cũng không thể ‘hoàn tác’ một email đã gửi. Nếu sau này thêm nhiều bước như thanh toán, hoàn tiền thì em sẽ chuyển sang bộ điều phối có trạng thái và timeout rõ ràng, ví dụ Temporal. Ngoài ra nếu chỗ giữ hết hạn trước khi kết quả về thì có thể vượt hạn mức một chút; hệ thống chặt lúc nhận, chính xác sau khi đã gửi, tức nhất quán sau một lúc.”</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Hai yêu cầu cùng giành đơn vị hạn mức cuối cùng?</summary><div class="a">“Script Lua chạy nguyên khối trên Redis nên chỉ một bên được. Em có test chạy song song để chứng minh không vượt hạn mức, và công cụ đối soát so số đã tính với số đã gửi thành công.”</div></details>
+<details><summary>Redis chết thì giữ chỗ thế nào?</summary><div class="a">“Em chọn <b>đóng cửa</b>: trả 503 chứ không cho vượt hạn mức khi không chắc. Ngược lại với giới hạn tốc độ ở cổng vào, ở đó em chọn <b>mở cửa</b> để không chặn cả hệ thống. Khác nhau có chủ đích: hạn mức liên quan tiền và hợp đồng, còn giới hạn tốc độ chỉ là bảo vệ tải.”</div></details>
+<details><summary>Sao ghi database trước Redis?</summary><div class="a">“Database là nguồn sự thật bền. Ghi Redis trước rồi sập thì Redis lệch mà database không biết gì.”</div></details>
+</article>
+
+<!-- Q38 -->
+<article class="q" id="q38">
+<h2><span class="n">38.</span>Giới hạn tốc độ bằng Redis</h2>
+<div class="chips"><span class="chip">token bucket</span><span class="chip">Lua atomic</span><span class="chip">biên cửa sổ</span><span class="chip">nhiều node</span></div>
+
+<h3>Nói như sau</h3>
+<p>“Em dùng <b>token bucket</b>, tức cái xô token. Hình dung mỗi khách hàng có một cái xô chứa tối đa 200 token. Mỗi giây xô được châm thêm 100 token. Mỗi request lấy đi 1 token. Hết token thì trả 429. Nhờ vậy khách có thể bắn dồn một đợt tới 200 request, nhưng về lâu dài chỉ được 100 mỗi giây.”</p>
+<p>“Việc tính ‘đã châm bao nhiêu, còn bao nhiêu, có cho qua không’ nằm trong <b>một script Lua trên Redis</b>, nên chạy nguyên khối, hai request cùng lúc không dẫm lên nhau. Cổng vào chạy nhiều bản đều dùng chung một Redis nên cái xô là chung, giới hạn vẫn đúng.”</p>
+<p>“Khoá của xô là <b>id khách hàng</b>, lấy từ header do chính cổng vào gắn sau khi xác thực. Header khách tự gửi bị gạt bỏ trước nên không giả được. Request ẩn danh như đăng nhập thì tính theo địa chỉ IP, để người lạ không ăn mất xô của khách.”</p>
+<p>“<b>Khi Redis lỗi hoặc chậm quá 200 mili giây</b>, em chọn cho request đi qua và đếm lại số lần như vậy. Em ưu tiên hệ thống còn chạy; hạn mức phía sau vẫn chính xác.”</p>
+<p><b>So sánh các thuật toán:</b> “Fixed window thì đếm trong mỗi phút rồi reset, đơn giản nhưng cuối phút này cộng đầu phút sau có thể lọt gấp đôi. Sliding window log chính xác nhưng phải lưu từng request nên tốn bộ nhớ. Token bucket chỉ lưu hai con số mỗi khoá và cho phép dồn đợt có kiểm soát nên em chọn nó.”</p>
+
+<div class="box warn"><b class="t">Điểm yếu nên tự nói</b>
+“Cho phép dồn đợt 200 là chủ đích, nhưng phía sau phải chịu nổi. Thời gian trong script do ứng dụng gửi vào, nên nếu đồng hồ các node cổng vào lệch nhau thì có sai số nhỏ. Redis này là điểm đơn, và vì chọn mở cửa nên khi nó sập thì không còn bảo vệ, chỉ còn hạn mức. Cuối cùng em chỉ giới hạn theo khách hàng, chưa theo từng API key hay từng loại request.”</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Sao không tự viết script?</summary><div class="a">“Script của Spring Cloud Gateway đã được kiểm chứng và đủ cho token bucket. Em chỉ bọc thêm timeout, mở cửa khi lỗi và đếm số liệu. Muốn thuật toán khác, như sliding window, thì em mới tự viết.”</div></details>
+<details><summary>Redis đơn luồng có thành nút cổ chai không?</summary><div class="a">“Mỗi request chỉ một lệnh nhỏ, vài chục nghìn lệnh mỗi giây là bình thường. Cần hơn thì chia theo khách hàng, khoá đã thiết kế để chia được. Trước đó em đã giảm tải bằng cách nhớ kết quả xác thực 30 giây.”</div></details>
+<details><summary>Kiểm tra thế nào?</summary><div class="a">“Có test cho trường hợp Redis lỗi hoặc timeout phải cho qua. Có kịch bản load test hàng xóm ồn ào: một khách bắn 300 request mỗi giây, khách khác chỉ 10, và kiểm tra khách bình thường vẫn nhanh. 429 em coi là phản hồi đúng, không tính là lỗi.”</div></details>
+</article>
+
+<!-- Q39 -->
+<article class="q" id="q39">
+<h2><span class="n">39.</span>Lên 50.000 thông báo/giây</h2>
+<div class="chips"><span class="chip">đo trước</span><span class="chip">partition</span><span class="chip">batch</span><span class="chip">kết nối nhà cung cấp</span><span class="chip">backpressure</span></div>
+
+<h3>Nói như sau</h3>
+<p>“Việc đầu tiên em làm là <b>đo, không đoán</b>. Số thật của em hiện chỉ khoảng <b>40 đến 60 request mỗi giây</b> trên laptop 4 nhân, và máy đang quá tải nên em cũng chưa biết trần thật là bao nhiêu. Em nói vậy để không ai nghĩ em đã chạm 50 nghìn.”</p>
+<p>“Nhưng em học được hai điều từ việc đo. Một, log mức DEBUG ghi đồng bộ làm hàng trăm luồng chờ nhau; tắt đi thì số request nhận được tăng từ 647 lên 2.097, gấp hơn ba lần mà chưa sửa kiến trúc gì. Hai, giảm partition từ 12 xuống 4 gần như không đổi, tức nút thắt không phải ở partition. Em đo bằng k6 tăng tải theo bậc, xem Grafana để biết service nào đầy trước, và có công cụ đối soát để chắc rằng không mất hay trùng tin.”</p>
+<p>“Sau khi có số, em đổi theo thứ tự này:”</p>
+<ol>
+<li><b>Đường nhận yêu cầu.</b> Hiện mỗi yêu cầu tốn nhiều bước: gọi gRPC giữ hạn mức, kiểm tra Redis, ghi database. Em sẽ cho khách gửi <b>nhiều người nhận trong một yêu cầu</b>, xin hạn mức theo lô thay vì từng cái, và ghi database theo lô. Có thể dùng chế độ ghi thẳng Kafka để bỏ database khỏi đường nóng.</li>
+<li><b>Kafka.</b> Số partition tính bằng tải đích chia cho tốc độ một consumer xử lý được; ví dụ 50 nghìn chia 1–2 nghìn thì cỡ 32 đến 64 partition. Thêm broker, 3 bản sao, gom lô khi gửi và nén. Cân nhắc khoá khác id khách hàng để tránh khách lớn dồn một partition.</li>
+<li><b>Service gửi.</b> Xử lý theo lô, dùng I/O bất đồng bộ hoặc virtual thread, và bỏ việc chèn database từng dòng ở đường nóng.</li>
+<li><b>Nhà cung cấp, thường là trần thật.</b> Push thì dùng kết nối HTTP/2 nhiều luồng, pool lớn, API gửi theo lô. SMS và email thì nhà cung cấp tự giới hạn tốc độ nên cần nhiều tài khoản, nhiều nhà cung cấp, có dự phòng. Gửi 50 nghìn email mỗi giây mà không có hạ tầng chuyên dụng là không thực tế.</li>
+<li><b>Backpressure.</b> Em đã có giới hạn 8 lần gọi đồng thời mỗi kênh, cầu dao, và ba làn ưu tiên cao, thường, thấp. Em thêm giới hạn tốc độ gửi theo từng nhà cung cấp, tạm dừng consumer khi nhà cung cấp chậm, và trả 429 hay 503 ở cửa nhận khi lag vượt ngưỡng để không nhận thêm việc không kịp làm.</li>
+</ol>
+
+<div class="box warn"><b class="t">Đừng nói</b>
+“Cứ tăng partition là xong”, và đừng đưa con số 50 nghìn như đã đạt. Nói rõ chưa chạm trần và điều đã đo được.</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Cần bao nhiêu máy?</summary><div class="a">“Em không ước lượng khi chưa đo. Công thức là 50 nghìn chia cho số mỗi máy chịu được ở khoảng 80% CPU mà đối soát vẫn đạt. Số trên laptop không ngoại suy được, phải đo lại trên hạ tầng thật.”</div></details>
+<details><summary>Ngân sách có hạn thì làm gì trước?</summary><div class="a">“Một, đo và tối ưu rẻ như log, GC, khoá, vì em đã thấy gấp ba lần. Hai, bớt số bước trên đường nóng bằng cách gom lô. Ba, thêm máy cho các service không giữ trạng thái. Bốn mới tới Kafka. Năm là nhà cung cấp.”</div></details>
+<details><summary>Gom lô có còn tránh trùng được không?</summary><div class="a">“Có, vẫn dựa vào ràng buộc duy nhất và DO NOTHING. Xác nhận vị trí đọc sau khi cả lô ghi xong. Mất xác nhận thì giao lại cả lô, và vì chịu được trùng nên an toàn.”</div></details>
+<details><summary>Công bằng giữa các khách khi tải cao?</summary><div class="a">“Ba làn ưu tiên bảo vệ tin quan trọng. Giới hạn tốc độ và hạn mức theo khách chặn hàng xóm ồn ào. Khách quá lớn thì thêm hậu tố ngẫu nhiên vào khoá để rải ra nhiều partition, đổi lại mất thứ tự chặt trong khách đó.”</div></details>
+</article>
+
+<!-- Q40 -->
+<article class="q" id="q40">
+<h2><span class="n">40.</span>gRPC giữa các service</h2>
+<div class="chips"><span class="chip">HTTP/2</span><span class="chip">protobuf</span><span class="chip">deadline</span><span class="chip">retry chỉ với thao tác idempotent</span></div>
+
+<h3>Nói như sau</h3>
+<p>“Em dùng gRPC cho các lần gọi nội bộ ở đường nóng vì ba lý do. <b>Một</b>, nó chạy trên HTTP/2 nên nhiều lần gọi dùng chung một kết nối bền, không phải bắt tay lại mỗi request. <b>Hai</b>, dữ liệu là protobuf dạng nhị phân, nhỏ và parse nhanh hơn JSON. <b>Ba</b>, hợp đồng giữa các service viết trong một file .proto dùng chung, sinh code cho mọi bên, nên đổi hợp đồng là build lỗi ngay chứ không đợi chạy mới biết. Đường này bị gọi cho mọi request: xác thực API key ở cổng vào, giữ hạn mức ở service nhận. Còn API ra ngoài cho khách và webhook em vẫn dùng REST, vì dễ debug và ai cũng gọi được.”</p>
+<p><b>Timeout và deadline:</b> “Mọi lần gọi đều có <b>deadline</b>. Từ service nhận sang service quản lý khách là 1 giây, từ cổng vào là 2 giây. Deadline khác timeout ở chỗ nó là một mốc thời gian tuyệt đối, truyền theo chuỗi để các bên sau biết còn bao nhiêu thời gian và dừng việc khi bên gọi đã bỏ. Hết deadline hay lỗi mạng thì em trả 503, tức <b>đóng cửa</b>: không chắc thì không cho vượt hạn mức.”</p>
+<p><b>Retry, em nói đúng hiện trạng:</b> “Hiện client gRPC của em <b>chưa cấu hình retry</b>. Lỗi thì trả 503 và để phía gọi mình tự thử lại. Nếu thêm, nguyên tắc là chỉ retry thao tác idempotent, và chỉ với lỗi tạm như dịch vụ chưa sẵn sàng hay hết deadline, trong phần thời gian còn lại, có backoff ngẫu nhiên và giới hạn tổng số retry để khỏi gây bão. Tin tốt là giữ chỗ và trả chỗ của em vốn đã idempotent theo mã giữ chỗ, nên retry an toàn.”</p>
+
+<div class="box warn"><b class="t">Điểm yếu nên tự nói</b>
+“Deadline của em chưa thật sự truyền theo chuỗi, mỗi bước đặt riêng; hiện chuỗi chỉ sâu một bước nên chưa lộ, nhưng nếu service kia gọi tiếp service khác thì phải truyền deadline còn lại. Khi cổng vào mới khởi động, kênh gRPC chưa ‘ấm’ nên request đầu tiên bị 503, em cần bước làm nóng. Ngoài ra gRPC khó debug hơn REST vì dữ liệu nhị phân, cân bằng tải HTTP/2 kết nối dài cần proxy tầng 7 hoặc cân bằng phía client, và hiện đang chạy không mã hoá, chưa mTLS.”</div>
+
+<h3>Câu hỏi thêm</h3>
+<details><summary>Sao 1 giây?</summary><div class="a">“Đây là bước đồng bộ trên đường nhận yêu cầu có mục tiêu p95 dưới 500 mili giây. Một giây đủ chịu dao động mà không giữ luồng HTTP quá lâu. Giá trị chỉnh được bằng biến môi trường.”</div></details>
+<details><summary>Server gRPC quá tải thì client làm gì?</summary><div class="a">“Client nhận lỗi hết hạn hoặc không sẵn sàng thì trả 503 chứ không xếp hàng vô hạn. Có thể thêm cầu dao phía client, và giới hạn số lần gọi đồng thời mỗi kết nối phía server.”</div></details>
+<details><summary>Khi nào vẫn chọn REST?</summary><div class="a">“API công khai cho khách, webhook, số lần gọi ít, cần debug bằng curl hay trình duyệt, hoặc bên gọi không hỗ trợ gRPC.”</div></details>
+</article>
+</section>
+
+<!-- ============ CHEAT ============ -->
+<section class="panel" id="cheat">
+<div class="box warn"><b class="t">Cách dùng</b>
+Đọc “Câu 1 dòng” thành tiếng, liếc “Từ khoá”, chốt bằng “Bẫy”. Cuối trang có flashcard: che đáp án, trả lời miệng rồi mở ra đối chiếu.</div>
+
+<h2 class="sec">Sơ đồ 60 giây (nói theo mũi tên)</h2>
+<pre>Khách → Cổng vào ─ kiểm tra API key (hỏi service khách hàng, nhớ 30s)
+                  └ giới hạn tốc độ (Redis, token bucket 100/s, đợt 200, lỗi thì cho qua)
+      → Service nhận ─ giữ hạn mức (gRPC, 1s) ─ chống trùng (Redis)
+                  └ 1 transaction: lưu thông báo + dòng "việc cần đẩy" → trả 202
+      → Tiến trình nền đẩy lên Kafka (12 partition, khoá = id khách)
+                  ├→ Service gửi: 3 làn ưu tiên → nhà cung cấp → thử lại 5s/30s/2m → DLQ
+                  └→ Service thống kê: ghi lịch sử
+      Service gửi → topic kết quả → thống kê + service khách hàng (gửi được: chốt, hỏng: trả chỗ)</pre>
+
+<h2 class="sec">Con số cần thuộc</h2>
+<div class="scroll"><table>
+<tr><th>Cái gì</th><th>Giá trị</th></tr>
+<tr><td>Partition</td><td>topic chính 12 · DLQ 3 · dev chỉ 1 bản sao</td></tr>
+<tr><td>Thử lại</td><td>5s → 30s → 2m → DLQ (3 lần) · replay tối đa 1 lần, lô ≤ 500</td></tr>
+<tr><td>Làn ưu tiên</td><td>cao/thường/thấp = 6/4/2 luồng</td></tr>
+<tr><td>Chịu lỗi nhà cung cấp</td><td>8 lần gọi đồng thời/kênh · cầu dao ngắt khi ≥50% hỏng (cửa sổ 20) · ngắt 15s · thử dè dặt 3 lần</td></tr>
+<tr><td>Giới hạn tốc độ</td><td>100/giây, đợt 200, timeout Redis 200ms, lỗi thì cho qua</td></tr>
+<tr><td>Chống trùng</td><td>Redis 24h · job xoá mã mỗi 10 phút · dòng đã đẩy xoá sau 1h</td></tr>
+<tr><td>Hạn mức</td><td>giữ chỗ 15 phút · deadline gRPC 1s (service nhận), 2s (cổng vào) · nhớ xác thực 30s</td></tr>
+<tr><td>Đo thật</td><td>~10 rps: p95 67ms · bão hoà ~40–60 rps (laptop 4 nhân) · tắt log DEBUG: 647→2097 · 4 hay 12 partition: không đổi</td></tr>
+</table></div>
+
+<h2 class="sec">8 câu – phản xạ</h2>
+<div class="cheat-grid">
+<div class="card"><h4><span class="n">33</span> Kiến trúc</h4>
+<p class="one">Cổng vào → service nhận → (outbox) Kafka → service gửi + thống kê; topic kết quả quay về thống kê và service khách hàng.</p>
+<ul><li>5 service · 12 partition · 2 nhóm consumer độc lập</li><li>At-least-once, xử lý chịu trùng</li></ul>
+<p class="trap">Khách lớn dồn 1 partition; dev chỉ 1 bản sao.</p></div>
+
+<div class="card"><h4><span class="n">34</span> Vì sao Kafka</h4>
+<p class="one">Một tin nhiều bên đọc độc lập, log giữ để đọc lại, mở rộng bằng partition.</p>
+<ul><li>Đọc lại DLQ, dựng lại lịch sử</li><li>Outbox vẫn là bảng database</li><li>Không cần khi: tải thấp, một bên đọc, cần hẹn giờ/ưu tiên</li></ul>
+<p class="trap">Kafka không có hẹn giờ → tự dựng 3 topic trễ. Tải thật chỉ ~50 rps.</p></div>
+
+<div class="card"><h4><span class="n">35</span> Idempotency</h4>
+<p class="one">Hai tầng: Redis chặn sớm + unique index chốt; lúc gửi dùng chèn có <code>ON CONFLICT DO NOTHING</code>.</p>
+<ul><li>Khoá: (khách, mã header) · dấu vân tay nội dung</li><li>Thua race → đọc dòng cũ → trả lại kết quả</li><li>24h xoá giá trị mã, giữ dòng</li></ul>
+<p class="trap">Dòng “đang gửi” cũ vẫn đi tiếp → có thể gửi trùng; SMTP không có mã chống trùng.</p></div>
+
+<div class="card"><h4><span class="n">36</span> DLQ</h4>
+<p class="one">Lỗi vĩnh viễn → thẳng DLQ; lỗi tạm → 5s, 30s, 2m rồi DLQ. Có replay, chống lặp.</p>
+<ul><li>Kèm lý do, loại lỗi, topic gốc</li><li>Replay 1 lần/tin, về topic gốc</li><li>Giám sát: Kafka UI, lag Grafana, cảnh báo</li><li>Topic trễ thay vì ngủ trong luồng đọc</li></ul>
+<p class="trap">Khoá replay chỉ trong 1 tiến trình; chưa ngẫu nhiên hoá mức chờ.</p></div>
+
+<div class="card"><h4><span class="n">37</span> Saga</h4>
+<p class="one">Thực chất “giữ chỗ → xác nhận/huỷ” cho hạn mức. Không bộ điều phối.</p>
+<ul><li>Trả chỗ khi huỷ hoặc gửi hỏng</li><li>Trả chỗ lỗi → tự hết hạn 15 phút</li><li>Xác nhận: database trước, Redis sau</li></ul>
+<p class="trap">Không phải saga đầy đủ; không hoàn tác email.</p></div>
+
+<div class="card"><h4><span class="n">38</span> Rate limit</h4>
+<p class="one">Token bucket, Lua nguyên khối trên Redis, theo khách, 100/s đợt 200, lỗi thì cho qua.</p>
+<ul><li>Fixed window: gấp đôi ở biên</li><li>Sliding log: chính xác nhưng tốn RAM</li><li>Nhiều node: chung 1 Redis</li></ul>
+<p class="trap">Cho dồn đợt 200 · lệch đồng hồ · Redis là điểm đơn.</p></div>
+
+<div class="card"><h4><span class="n">39</span> 50k/s</h4>
+<p class="one">ĐO trước (~50 rps hiện tại). Rồi: gom lô đường nhận → Kafka → gửi theo lô → nhà cung cấp → backpressure.</p>
+<ul><li>Partition = tải đích ÷ tốc độ 1 consumer</li><li>Đã có: bulkhead, cầu dao, làn ưu tiên</li></ul>
+<p class="trap">Đừng bịa 50k; nhà cung cấp thường là trần thật.</p></div>
+
+<div class="card"><h4><span class="n">40</span> gRPC</h4>
+<p class="one">HTTP/2 một kết nối bền, protobuf nhỏ, hợp đồng typed, có deadline. Hết hạn → 503 đóng cửa.</p>
+<ul><li>Retry chỉ với thao tác idempotent</li><li>REST cho API ngoài và webhook</li></ul>
+<p class="trap">Chưa có retry · deadline chưa truyền chuỗi · kênh nguội 503 · chưa mTLS.</p></div>
+</div>
+
+<h2 class="sec">Ba câu hỏi vặn hay gặp</h2>
+<ul>
+<li><b>“Exactly-once à?”</b> → Không. At-least-once cộng xử lý chịu trùng. Ranh giới nhà cung cấp là chỗ không xoá hẳn được.</li>
+<li><b>“Mở cửa hay đóng cửa khi lỗi?”</b> → Giới hạn tốc độ: mở cửa (ưu tiên hệ thống chạy). Hạn mức: đóng cửa (liên quan tiền). Khác nhau có chủ đích.</li>
+<li><b>“Số liệu thật?”</b> → ~40–60 rps trên laptop quá tải, chưa thấy trần; so outbox với ghi-thẳng-Kafka thì chưa kết luận được vì nhiễu.</li>
+</ul>
+
+<h2 class="sec">Flashcard (bấm để mở)</h2>
+<details class="flash"><summary>Khoá chống trùng lúc nhận yêu cầu?</summary><div class="a">(Khách hàng, mã Idempotency-Key). Không có mã thì băm nội dung trong một khoảng thời gian. Unique index là người chốt.</div></details>
+<details class="flash"><summary>Khoá chống trùng lúc gửi?</summary><div class="a">Mã thông báo; chèn <code>ON CONFLICT DO NOTHING</code>, chèn được là mình thắng.</div></details>
+<details class="flash"><summary>Cùng mã khác nội dung?</summary><div class="a">Dấu vân tay khác → từ chối.</div></details>
+<details class="flash"><summary>Sao xoá giá trị mã sau 24h mà giữ dòng?</summary><div class="a">Bỏ ràng buộc nhưng giữ lịch sử; khớp với hạn Redis.</div></details>
+<details class="flash"><summary>Mấy lần thử lại trước DLQ?</summary><div class="a">3 lần: 5s, 30s, 2m. Lỗi vĩnh viễn thẳng DLQ.</div></details>
+<details class="flash"><summary>Replay chống lặp vô hạn?</summary><div class="a">Đếm số lần replay, tối đa 1; không replay vào chính DLQ; đi lại từ mức chờ đầu.</div></details>
+<details class="flash"><summary>Sao bỏ ngủ-rồi-thử-lại?</summary><div class="a">Kẹt partition, kẹt luồng, cân bằng lại gây gửi trùng. Giờ dùng topic trễ.</div></details>
+<details class="flash"><summary>Giữ chỗ hạn mức nguyên khối bằng gì?</summary><div class="a">Script Lua trên Redis, giữ chỗ có hạn 15 phút, giờ lấy từ Redis.</div></details>
+<details class="flash"><summary>Trả chỗ lỗi thì sao?</summary><div class="a">Ghi log; chỗ giữ tự hết hạn 15 phút.</div></details>
+<details class="flash"><summary>Thứ tự khi chốt hạn mức?</summary><div class="a">Database trước, rồi Redis, rồi mới xác nhận vị trí đọc Kafka.</div></details>
+<details class="flash"><summary>Thuật toán giới hạn tốc độ?</summary><div class="a">Token bucket, Lua, 100/s đợt 200 theo khách, lỗi/chậm quá 200ms thì cho qua và đếm.</div></details>
+<details class="flash"><summary>Fixed window yếu ở đâu?</summary><div class="a">Gấp đôi lượng ở biên cửa sổ.</div></details>
+<details class="flash"><summary>Nhiều bản đẩy tin từ outbox có trùng?</summary><div class="a">Khoá dòng và bỏ qua dòng đang khoá nên không lấy chung; trùng do sập giữa chừng thì phía nhận chịu được.</div></details>
+<details class="flash"><summary>Deadline gRPC hiện tại?</summary><div class="a">1s từ service nhận, 2s từ cổng vào; lỗi → 503 đóng cửa.</div></details>
+<details class="flash"><summary>Giữ/trả chỗ retry được không?</summary><div class="a">Được vì idempotent theo mã giữ chỗ, nhưng client chưa cấu hình retry.</div></details>
+<details class="flash"><summary>Bài học đo hiệu năng lớn nhất?</summary><div class="a">Log DEBUG đồng bộ: 647 → 2097. Đổi 12 → 4 partition không khác.</div></details>
+<details class="flash"><summary>Lên 50k/s làm gì trước?</summary><div class="a">Đo → bớt bước ở đường nóng (gom lô, xin hạn mức theo lô) → thêm máy → Kafka → nhà cung cấp → backpressure.</div></details>
+</section>
+</div>
+
+<script>
+(function(){
+  var tabs=document.querySelectorAll('nav.tabs [data-tab]'),panels=document.querySelectorAll('section.panel');
+  function show(id){
+    tabs.forEach(function(b){b.setAttribute('aria-selected',b.dataset.tab===id)});
+    panels.forEach(function(p){p.classList.toggle('on',p.id===id)});
+    try{localStorage.setItem('nh-tab',id)}catch(e){}
+    window.scrollTo(0,0);
+  }
+  tabs.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.tab)})});
+  try{var t=localStorage.getItem('nh-tab');if(t==='cheat'||t==='full')show(t)}catch(e){}
+  document.getElementById('theme').addEventListener('click',function(){
+    var r=document.documentElement,cur=r.getAttribute('data-theme');
+    if(!cur){cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}
+    r.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+})();
+</script>
+</body>
+</html>

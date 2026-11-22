@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>C2 · Ước lượng tải và dung lượng</title><meta name="description" content="QPS, dung lượng lưu trữ, số shard, băng thông, cache, câu hỏi làm rõ, kiểm chứng 10× tải."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">C · Use case &amp; system design</p><h1>C2 · Ước lượng tải và dung lượng</h1><p class="lede">Ước lượng không cần chính xác, cần <b>có giả định rõ, làm tròn hợp lý và kiểm tra độ lớn</b>. Nói số ra thành tiếng và viết lên bảng.</p><div class="mast-meta"><span>5 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q116">116</a><a href="#q117">117</a><a href="#q118">118</a><a href="#q119">119</a><a href="#q120">120</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<div class="intro-box"><p><b>Số cần thuộc:</b> 1 ngày ≈ 86.400 giây ≈ <b>10⁵ giây</b> · 1 triệu request/ngày ≈ <b>12 rps</b> · 1 KB × 1 tỉ = <b>1 TB</b> · đỉnh ≈ <b>3–10 × trung bình</b> · đọc RAM ~100 ns, SSD ~100 µs, mạng cùng DC ~0,5 ms, liên lục địa ~150 ms · 1 PostgreSQL tốt: vài nghìn tới hơn chục nghìn query đơn giản/giây · 1 Redis: ~100 nghìn ops/giây.</p></div>
+<article class="qa" id="q116" data-q="q116">
+<div class="qa-h"><span class="qa-n">116</span><h3>5 triệu DAU, mỗi người gửi 40 tin/ngày: tính QPS trung bình và đỉnh.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> 5M × 40 / 86.400 ≈ 2.300 QPS, đỉnh × 5–10, ghi rõ giả định.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p><b>Giả định:</b> 5 triệu DAU, mỗi người gửi 40 tin/ngày.</p>
+<ul><li>Tổng tin/ngày: 5 × 10⁶ × 40 = <b>2 × 10⁸</b> (200 triệu tin).</li><li>QPS ghi trung bình: 2 × 10⁸ / 86.400 ≈ <b>2.300 tin/giây</b>. (Nhẩm nhanh: 2 × 10⁸ / 10⁵ = 2.000, cùng độ lớn.)</li><li><b>Đỉnh:</b> chat tập trung buổi tối, và có sự kiện (giao thừa) nên em lấy <b>× 5 đến × 10</b> → khoảng <b>12.000–23.000 tin/giây</b>. Thiết kế cho khoảng <b>25.000/giây</b> để có dư.</li></ul>
+<p>Thêm các luồng phát sinh từ mỗi tin:</p>
+<ul><li><b>Đọc:</b> mỗi tin được đọc bởi người nhận, nhóm thì nhiều người; giả sử tỉ lệ đọc:ghi 5:1 → đọc trung bình ~12.000/giây, nhưng phần lớn <b>đẩy qua kết nối websocket</b> chứ không phải người nhận hỏi DB.</li><li><b>Fan-out:</b> tin nhóm trung bình 20 người thì số lần giao tới thiết bị lớn hơn nhiều số tin ghi.</li><li><b>Push notification</b> cho người offline.</li></ul>
+<p>Em ghi rõ giả định để người phỏng vấn sửa nếu khác.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>23.000 ghi/giây thì một PostgreSQL có chịu được không?</summary><div class="a"><p>Một node ghi tốt có thể vài nghìn tới hơn chục nghìn insert/giây tùy phần cứng và index, để cho đỉnh 25.000 an toàn thì cần <b>chia shard</b> (theo conversation_id) hoặc dùng hệ ghi mạnh như Cassandra, cộng gộp ghi theo lô.</p></div></details></div>
+</article>
+<article class="qa" id="q117" data-q="q117">
+<div class="qa-h"><span class="qa-n">117</span><h3>Lưu trữ 1 năm cho tin nhắn trên: bao nhiêu TB? Cần bao nhiêu shard?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> (300 byte + metadata) × số tin × 365, nhân bản, dữ liệu nóng/lạnh.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Giả định:</b> 200 triệu tin/ngày (câu trên), nội dung trung bình 100–300 byte, cộng <b>metadata</b> (id tin 8 byte, id hội thoại, người gửi, thời gian, trạng thái, chỉ mục…) → làm tròn <b>~500 byte/tin</b> đã gồm overhead lưu trữ và index.</p>
+<ul><li>Mỗi ngày: 2 × 10⁸ × 500 B = <b>10¹¹ B = 100 GB/ngày</b>.</li><li>Một năm: 100 GB × 365 ≈ <b>36,5 TB</b>.</li><li><b>Nhân bản 3 bản</b> (chịu lỗi): <b>~110 TB</b>.</li><li>Dư cho tăng trưởng và vận hành (compaction, snapshot) thêm 30–50%: <b>~150 TB</b>.</li></ul>
+<p>(Ảnh, video không tính ở đây: chúng nằm ở object storage, tin chỉ giữ URL.)</p>
+<p><b>Số shard:</b> nếu mỗi node lưu thoải mái <b>2–4 TB</b> dữ liệu (để còn chỗ cho compaction và thời gian khôi phục một node hợp lý), thì 110 TB / 2 TB ≈ <b>55 node</b>, làm tròn <b>khoảng 60 node</b> chia trong cụm (đã tính 3 bản sao). Kiểm tra theo tải: 25.000 ghi/giây × 3 bản / 60 node ≈ 1.250 ghi/giây mỗi node, dư sức.</p>
+<p><b>Nóng/lạnh:</b> người dùng chủ yếu đọc tin vài tuần gần nhất; tin quá 3–6 tháng chuyển sang lưu trữ rẻ (nén, ổ HDD, object storage), giảm mạnh chi phí lớp nóng.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Nén thì sao?</summary><div class="a"><p>Văn bản nén được 2–4 lần; Cassandra và nhiều hệ lưu trữ nén mặc định, nên con số thực tế có thể thấp hơn. Em vẫn ước lượng chưa nén để có dư.</p></div></details></div>
+</article>
+<article class="qa" id="q118" data-q="q118">
+<div class="qa-h"><span class="qa-n">118</span><h3>Tỉ lệ đọc:ghi, băng thông, số server, kích thước cache cho một hệ thống bạn chọn.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> quy trình ước lượng, làm tròn hợp lý, kiểm tra bằng độ lớn.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 2 phút</span></p><p>Em chọn <b>dịch vụ xem ảnh trong feed</b>. Giả định: 10 triệu DAU, mỗi người xem 100 ảnh/ngày, đăng 2 ảnh/ngày; ảnh sau nén ~200 KB (bản hiển thị trong feed).</p>
+<p><b>Tải:</b></p>
+<ul><li>Đọc: 10⁷ × 100 = 10⁹ lượt/ngày → <b>~12.000/giây</b> TB, đỉnh ×5 → <b>60.000/giây</b>.</li><li>Ghi: 10⁷ × 2 = 2 × 10⁷/ngày → <b>~230/giây</b> → <b>đọc:ghi ≈ 50:1</b>. Kết luận: tối ưu đường đọc, cache mạnh.</li></ul>
+<p><b>Băng thông ra:</b> 60.000 × 200 KB = <b>12 GB/giây ≈ 96 Gbps</b> lúc đỉnh → bắt buộc <b>CDN</b>; với cache hit 95% thì origin chỉ còn ~5 Gbps.</p>
+<p><b>Lưu trữ:</b> 2 × 10⁷ ảnh/ngày × (bản gốc ~1 MB + vài bản thu nhỏ ~0,5 MB) ≈ <b>30 TB/ngày</b>, ~11 PB/năm → object storage, lớp lạnh cho ảnh cũ.</p>
+<p><b>Cache metadata</b> (ai đăng, chú thích, số like): theo quy tắc 80/20, 20% ảnh nóng nhận 80% lượt xem. Ảnh nóng trong ngày: 20% × 2 × 10⁷ = 4 × 10⁶ bản ghi × 1 KB = <b>4 GB</b>, vài ngày gần nhất cỡ chục GB → một cụm Redis nhỏ là đủ.</p>
+<p><b>Server API:</b> 60.000 request metadata/giây đỉnh, một instance Java chịu ~2.000–5.000 rps cho API đọc cache → <b>15–30 instance</b>, thêm dư 50% và theo vùng.</p>
+<p>Sau mỗi con số em <b>kiểm tra độ lớn</b>: 96 Gbps không thể ra từ vài server, nên CDN là bắt buộc chứ không phải tùy chọn.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Làm tròn thế nào cho nhanh?</summary><div class="a"><p>Dùng lũy thừa 10: 86.400 ≈ 10⁵; 2,5 ≈ 3. Sai 2–3 lần không sao, sai 100 lần mới là vấn đề.</p></div></details></div>
+</article>
+<article class="qa" id="q119" data-q="q119">
+<div class="qa-h"><span class="qa-n">119</span><h3>Đầu tiên bạn hỏi những câu gì để làm rõ yêu cầu, và mỗi câu trả lời ảnh hưởng kiến trúc thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> quy mô, tỉ lệ đọc/ghi, yêu cầu nhất quán, độ trễ, SLA.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><div class="tw"><table><thead><tr><th>Câu hỏi</th><th>Ảnh hưởng kiến trúc</th></tr></thead><tbody><tr><td><b>Quy mô:</b> bao nhiêu DAU, tăng trưởng?</td><td>Một DB hay phải shard; một vùng hay nhiều vùng</td></tr><tr><td><b>Tỉ lệ đọc/ghi?</b></td><td>Đọc nhiều → cache, CDN, replica, phi chuẩn hóa. Ghi nhiều → hàng đợi, gộp ghi, LSM store</td></tr><tr><td><b>Nhất quán cần tới đâu?</b></td><td>Tiền/tồn kho → giao dịch, khóa, đồng bộ. Like/feed → nhất quán cuối cùng, bất đồng bộ</td></tr><tr><td><b>Độ trễ chấp nhận?</b></td><td>&lt;100 ms → cache gần người dùng, tính sẵn. Vài giây → xử lý nền</td></tr><tr><td><b>SLA/khả dụng:</b> 99,9 hay 99,99%?</td><td>Nhân bản, multi-AZ, failover tự động, chi phí tăng mạnh</td></tr><tr><td><b>Kích thước dữ liệu mỗi bản ghi?</b> Có media không?</td><td>Object storage + CDN, upload thẳng</td></tr><tr><td><b>Mẫu truy cập:</b> theo khóa, theo thời gian, tìm kiếm?</td><td>Chọn shard key, chỉ mục, Elasticsearch</td></tr><tr><td><b>Phạm vi tính năng</b> của buổi này?</td><td>Bỏ phần không cần, tập trung lõi</td></tr></tbody></table></div>
+<p>Em hỏi 4–5 câu quan trọng nhất trong 3–5 phút, <b>nói giả định nếu người phỏng vấn để em tự chọn</b>, rồi tóm tắt lại yêu cầu chức năng và phi chức năng trước khi vẽ.</p></div>
+<div class="trap">Nhảy vào vẽ Kafka, Redis ngay khi chưa hỏi gì.</div>
+</article>
+<article class="qa" id="q120" data-q="q120">
+<div class="qa-h"><span class="qa-n">120</span><h3>“Hệ thống có chịu được gấp 10 lần tải không?” – bạn trả lời và kiểm chứng thế nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> load test, tìm điểm nghẽn đầu tiên, headroom, chế độ suy giảm.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Em trả lời: “<b>Em chưa thể nói có hay không trước khi đo</b>, nhưng em sẽ kiểm chứng thế này.”</p>
+<ol><li><b>Mô hình tải thực:</b> lấy tỉ lệ API từ log production (bao nhiêu % đọc feed, bao nhiêu % đăng), phân bố người dùng, dữ liệu cỡ thật (DB nhỏ cho kết quả đẹp giả).</li><li><b>Load test tăng dần</b> (k6, Gatling, JMeter) trên môi trường giống production: 1×, 2×, 5×, 10×. Theo dõi p99, error rate và <b>saturation</b> của từng thành phần.</li><li><b>Tìm điểm nghẽn đầu tiên:</b> thường là pool connection DB, một query thiếu index, một dòng nóng, CPU của một service, hạn mức của bên thứ ba. Sửa rồi chạy lại, tìm điểm nghẽn tiếp theo.</li><li><b>Tính headroom:</b> ví dụ ở 10× thì p99 vượt SLO ở DB; ở 6× vẫn ổn. Vậy năng lực hiện tại là 6×, cần làm gì để lên 10× và chi phí bao nhiêu.</li><li><b>Chế độ suy giảm</b> cho phần vượt quá: rate limit, tắt tính năng phụ (gợi ý, số đếm chính xác), trả cache cũ, hàng đợi cho việc không gấp. Tốt hơn sập toàn bộ.</li><li><b>Thử lỗi:</b> tắt một node, làm chậm dependency, xem hệ thống có tự phục hồi.</li></ol>
+<p>Ở mức em đã làm: <mark>em chưa load test hệ thống production; ở Kestrel em dự đoán điểm nghẽn đầu tiên là gọi LLM và crawl (xem câu 32)</mark>.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Autoscale có giải quyết được không?</summary><div class="a"><p>Chỉ cho tầng không trạng thái và chỉ nếu nghẽn ở đó. DB, Redis, hạn mức bên ngoài không tự nhân lên; scale tầng ứng dụng còn có thể làm DB sập nhanh hơn (thêm connection).</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet C2 · Ước lượng</h2><span>C2</span></div><div class="cheat-b"><div><h4>Số nền</h4>
+<ul><li>1 ngày ≈ 10⁵ s; 1M/ngày ≈ 12 rps</li><li>Đỉnh × 3–10</li><li>1 KB × 1 tỉ = 1 TB</li><li>RAM 100 ns · SSD 100 µs · DC 0,5 ms · liên lục địa 150 ms</li></ul></div><div><h4>Chat 5M DAU × 40</h4>
+<ul><li>2 × 10⁸ tin/ngày → 2.300/s TB → đỉnh ~25k/s</li><li>~500 B/tin → 100 GB/ngày → 36,5 TB/năm → ×3 ≈ 110 TB</li><li>2 TB/node → ~60 node; nóng/lạnh</li></ul></div><div><h4>Ảnh 10M DAU</h4>
+<ul><li>Đọc 12k/s TB, 60k/s đỉnh; đọc:ghi 50:1</li><li>96 Gbps đỉnh → CDN bắt buộc</li><li>Cache metadata nóng: vài GB tới chục GB</li></ul></div><div class="full"><h4>Quy trình</h4>
+<ul><li>Hỏi: quy mô, đọc/ghi, nhất quán, độ trễ, SLA, media, mẫu truy cập</li><li>Nói giả định → tính → làm tròn → kiểm tra độ lớn → kết luận kiến trúc</li><li>10× tải: mô hình tải thật → load test tăng dần → điểm nghẽn đầu → headroom → degrade</li></ul></div></div></section>
+</main>
+</body></html>

@@ -1,0 +1,245 @@
+@page b6
+@file b6-microservices-phan-tan.html
+@code B6
+@group B
+@title Microservices và hệ phân tán
+@desc Monolith vs microservices, CAP/PACELC, retry/breaker, Kafka, exactly-once, lag, outbox, Saga, sharding, rate limit, discovery, observability.
+@lede Notification Hub là dự án giúp bạn nói phần này bằng kinh nghiệm thật. Mỗi câu nên có một câu “ở Notification Hub em…” và một câu “nếu ở quy mô Zalo thì…”.
+
+@q 89
+@time khoảng 75 giây
+@ans
+Em không coi microservices là mặc định. **Nên tách khi** lợi ích lớn hơn chi phí:
+- Nhiều đội làm song song, muốn **deploy độc lập** mà không chờ nhau.
+- Phần hệ thống có **tải hoặc yêu cầu khác hẳn** (xử lý media nặng CPU, gửi thông báo tải đột biến) cần mở rộng riêng.
+- **Ranh giới nghiệp vụ rõ** (bounded context) và ổn định.
+- Cần cô lập lỗi: phần phụ chết không kéo sập phần chính.
+
+**Không nên** khi đội nhỏ, nghiệp vụ còn đổi nhiều, ranh giới chưa rõ. Chi phí thật của microservices: gọi mạng thay gọi hàm (chậm, có thể lỗi), **giao dịch phân tán**, trace, deploy và giám sát nhiều thứ, dữ liệu trùng lặp. Tách sai ranh giới thì thành “distributed monolith”: tách ra mà vẫn phải deploy cùng nhau.
+
+Hướng em thích: **modular monolith** trước, chia module rõ trong một codebase, mỗi module sở hữu bảng của mình, gọi nhau qua interface; khi đo thấy một module cần tách thì tách.
+
+Notification Hub em làm microservices một phần vì **muốn học** Kafka, gRPC, Saga. Nếu là sản phẩm thật với một người làm, em sẽ bắt đầu bằng monolith có hàng đợi.
+@fu Mỗi service một DB riêng có bắt buộc không?
+Về nguyên tắc nên vậy, để service khác không phụ thuộc vào cấu trúc bảng của mình. Có thể chung một cụm DB nhưng schema và quyền riêng; tuyệt đối không cho service khác ghi thẳng vào bảng của mình.
+
+@q 90
+@time khoảng 75 giây
+@ans
+**CAP:** khi **mạng bị chia cắt** (P, chắc chắn sẽ xảy ra), hệ thống phải chọn giữa **nhất quán** (C: từ chối phục vụ để không trả dữ liệu sai) và **sẵn sàng** (A: vẫn phục vụ dù dữ liệu có thể cũ).
+
+Ví dụ:
+- **Trừ tiền, trừ tồn kho flash sale:** chọn **C**. Bên bị cắt khỏi đa số thì từ chối giao dịch, còn hơn bán quá số lượng.
+- **Số like, feed, trạng thái online:** chọn **A**. Hiển thị số like hơi cũ vẫn tốt hơn báo lỗi.
+
+**PACELC** bổ sung trường hợp **bình thường**: **E**lse, khi không có sự cố vẫn phải chọn giữa **độ trễ** (L) và **nhất quán** (C). Ví dụ ghi đồng bộ sang replica ở datacenter khác thì nhất quán nhưng chậm thêm một RTT; ghi bất đồng bộ thì nhanh nhưng đọc replica có thể thấy dữ liệu cũ (replica lag, người dùng vừa đăng bài không thấy bài).
+
+DynamoDB hoặc Cassandra mặc định là PA/EL; hệ dùng đồng thuận như etcd hoặc Spanner là PC/EC. Một hệ thống thật thường **chọn khác nhau cho từng loại dữ liệu**.
+@fu “CA” có tồn tại không?
+Chỉ khi không có phân mảnh mạng, tức chạy trên một máy. Trong hệ phân tán thì P là bắt buộc, chỉ còn chọn C hay A khi P xảy ra.
+
+@q 91
+@time khoảng 90 giây
+@ans
+| | Giải quyết | Ghi chú |
+|---|---|---|
+| **Timeout** | Không chờ vô hạn, giải phóng thread và connection | Đặt theo p99 của dependency, có ngân sách tổng (deadline) |
+| **Retry** | Lỗi tạm thời (mạng chập, 503) | Chỉ thao tác **idempotent**, số lần giới hạn |
+| **Backoff + jitter** | Không dồn retry cùng một nhịp | 100 ms, 200, 400… cộng ngẫu nhiên |
+| **Circuit breaker** | Dependency đang chết thì **ngừng gọi**, trả lỗi nhanh hoặc dữ liệu dự phòng | Đóng → mở → nửa mở thử lại vài request |
+| **Bulkhead** | Một dependency chậm không chiếm hết tài nguyên chung | Pool thread hoặc semaphore riêng cho từng dependency |
+
+**Retry sai gây hại:**
+- **Retry storm:** dependency đang quá tải, mọi client retry 3 lần → tải gấp 3–4 lần, dependency không thể hồi phục. Nếu nhiều tầng cùng retry 3 lần thì tầng dưới cùng nhận **3 × 3 × 3 = 27** lần.
+- Retry **thao tác không idempotent** (trừ tiền, gửi SMS): làm hai lần.
+- Retry lỗi **4xx** vô ích.
+
+Cách đúng: retry ở **một tầng**, có **retry budget** (ví dụ retry không vượt 10% số request), backoff + jitter, kết hợp breaker. Ở Notification Hub, gọi nhà cung cấp lỗi tạm thời thì retry với backoff, hết lượt thì đưa vào DLQ thay vì retry mãi.
+@fu Timeout đặt bao nhiêu?
+Nhìn p99 của dependency khi khỏe và ngân sách của cả request. Ví dụ API có SLA 1 giây, gọi hai dependency nối tiếp thì mỗi cái không thể được 1 giây. Truyền deadline xuống các tầng dưới.
+
+@q 92
+@time khoảng 90 giây
+@ans
+- **Topic:** luồng sự kiện cùng loại, ví dụ `notification.requested`.
+- **Partition:** topic chia thành nhiều partition; mỗi partition là **log chỉ ghi nối thêm**, có thứ tự, mỗi tin có **offset** tăng dần. Partition là đơn vị song song và đơn vị nhân bản (leader, follower, ISR).
+- **Consumer group:** các consumer cùng group **chia nhau partition**, mỗi partition chỉ một consumer trong group đọc. Nhiều group khác nhau thì mỗi group đọc đủ toàn bộ (fan-out).
+- **Offset và commit:** consumer ghi lại đã xử lý tới đâu. Commit sau khi xử lý xong thì là at-least-once; commit trước thì có thể mất.
+
+**Thứ tự chỉ đảm bảo trong một partition.** Muốn các sự kiện của cùng một thực thể đúng thứ tự thì gửi **cùng key** (ví dụ `user_id`), producer băm key để chọn partition. Ở Notification Hub em dùng key là người nhận để thông báo cho một người không bị đảo thứ tự.
+
+**Số consumer hữu ích ≤ số partition.** Consumer thứ 13 trong group với 12 partition sẽ ngồi không. Vì vậy chọn số partition dư cho tương lai, vì tăng partition sau sẽ làm đổi ánh xạ key → partition, phá thứ tự của key đó trong giai đoạn chuyển.
+
+Producer nên `acks=all`, `enable.idempotence=true` để không mất và không ghi trùng khi retry.
+@fu Một key quá nóng (một tenant gửi cực nhiều) thì sao?
+Dồn hết vào một partition, consumer đó nghẽn. Có thể thêm hậu tố vào key nếu không cần thứ tự toàn cục cho tenant đó, hoặc tách tenant lớn sang topic riêng.
+
+@q 93
+@time khoảng 75 giây
+@ans
+- **At-most-once:** commit offset **trước** khi xử lý. Lỗi giữa chừng thì **mất** tin. Chấp nhận được với số liệu thống kê không quan trọng.
+- **At-least-once:** xử lý xong **mới** commit. Lỗi sau xử lý nhưng trước commit thì tin được **giao lại**, xử lý hai lần. Không mất, có thể trùng. Mặc định nên chọn.
+- **Exactly-once:** mỗi tin có tác dụng đúng một lần.
+
+**Kafka exactly-once** (idempotent producer + transaction) chỉ đúng trong phạm vi **đọc từ Kafka, ghi vào Kafka** (kiểu Kafka Streams). Khi tác dụng nằm **bên ngoài** (ghi DB, gọi API gửi SMS) thì Kafka không bao được.
+
+Thực tế em đạt “hiệu quả như exactly-once” bằng **at-least-once + consumer idempotent**: mỗi sự kiện có `event_id`, consumer ghi kết quả bằng upsert hoặc bảng `processed_events` có unique constraint, **trong cùng transaction** với thay đổi nghiệp vụ. Tin bị giao lại thì đụng unique và bỏ qua. Đó là cách Notification Hub làm.
+
+Với bên ngoài không có idempotency (một số nhà cung cấp SMS), vẫn có khe nhỏ: gửi xong nhưng chưa kịp ghi nhận thì chết. Giảm bằng cách gửi kèm idempotency key nếu nhà cung cấp hỗ trợ, và chấp nhận rủi ro rất nhỏ đó.
+@fu Lưu offset trong DB thay vì Kafka được không?
+Được: lưu offset cùng transaction với kết quả, khi khởi động seek tới offset trong DB. Đây cũng là một cách để tác dụng và offset nhất quán.
+
+@q 94
+@time khoảng 90 giây
+@ans
+Lag tăng nghĩa là **tốc độ xử lý < tốc độ đến**. Em đi theo thứ tự:
+
+1. **Lag tăng đều mọi partition hay một partition?** Một partition là **hot key** hoặc **poison message** (một tin làm consumer lỗi và retry mãi tại chỗ, các tin sau đứng chờ).
+2. **Thời gian xử lý mỗi tin:** có tăng không, chậm ở đâu: gọi DB, gọi nhà cung cấp bên ngoài?
+3. **Rebalance có liên tục không** (log “revoked/assigned”).
+
+**Xử lý:**
+- Tối ưu xử lý: gom **theo lô** (ghi DB batch), gọi ngoài **bất đồng bộ** có giới hạn đồng thời.
+- **Thêm consumer** tới bằng số partition; hết thì **tăng partition** (cẩn thận thứ tự).
+- Poison message: bắt lỗi, retry vài lần rồi **đẩy vào DLQ**, không chặn partition.
+- Chấp nhận trễ: thông báo marketing ưu tiên thấp có thể đi topic riêng.
+
+**Rebalance gây vấn đề:** khi consumer vào ra hoặc **xử lý quá `max.poll.interval.ms`** (mặc định 5 phút) bị coi là chết, group phải chia lại partition; trong lúc đó **không ai xử lý** (eager rebalance), và tin đã xử lý nhưng chưa commit sẽ bị **xử lý lại** → cần idempotent. Vòng lặp tệ: xử lý chậm → bị đá ra → rebalance → lại chậm.
+
+Sửa: giảm `max.poll.records`, tăng `max.poll.interval.ms` cho hợp, dùng **cooperative sticky assignor** (chỉ dời partition cần dời), static membership khi deploy lăn.
+@fu Đo lag bằng gì?
+Lag tính bằng số tin (`log end offset − committed offset`) và quan trọng hơn là **thời gian trễ** của tin cũ nhất. Công cụ: Burrow, metric `records-lag-max`, Datadog Kafka integration.
+
+@q 95
+@time khoảng 75 giây
+@ans
+**Dual write** là: ghi DB, rồi gửi Kafka, trong code liên tiếp. Không có giao dịch chung giữa hai hệ thống, nên:
+- Ghi DB xong, **app chết hoặc Kafka lỗi** → đơn đã tạo nhưng **không có sự kiện**, service khác không biết.
+- Gửi Kafka trước, **DB rollback** → sự kiện về một đơn **không tồn tại**.
+- Gửi Kafka trong transaction DB → Kafka chậm làm giữ transaction lâu, và DB vẫn có thể rollback sau khi đã gửi.
+
+**Outbox pattern:** trong **cùng transaction DB** với thay đổi nghiệp vụ, ghi thêm một dòng vào bảng `outbox(id, aggregate_id, type, payload, created_at)`. Hai thứ cùng commit hoặc cùng rollback. Một **relay** tách riêng đọc outbox và publish lên Kafka, đánh dấu đã gửi:
+- **Polling:** quét bảng outbox mỗi vài trăm ms (`FOR UPDATE SKIP LOCKED` nếu nhiều relay).
+- **CDC:** Debezium đọc WAL của PostgreSQL, độ trễ thấp và không tải truy vấn.
+
+Relay có thể gửi trùng (gửi xong chưa kịp đánh dấu thì chết) → **at-least-once**, nên consumer phải idempotent theo id của sự kiện. Thứ tự giữ theo `aggregate_id` làm key.
+@fu Bảng outbox phình thì sao?
+Xóa hoặc partition theo thời gian các dòng đã gửi sau vài ngày. Với CDC có thể xóa ngay sau khi ghi vì Debezium đọc từ WAL.
+
+@q 96
+@time khoảng 90 giây
+@ans
+**Saga:** chuỗi **giao dịch cục bộ** trên từng service, mỗi bước có **bước bù trừ**; bước nào thất bại thì chạy bù trừ các bước trước theo thứ tự ngược. Kết quả là **nhất quán cuối cùng**, không có khóa toàn cục.
+
+- **Choreography:** mỗi service nghe sự kiện và tự phát sự kiện tiếp. Ít thành phần, phù hợp luồng 2–3 bước; nhiều bước thì **khó thấy cả luồng**, khó truy vết, dễ vòng lặp.
+- **Orchestration:** một **bộ điều phối** giữ trạng thái saga, ra lệnh cho từng service và quyết định bù trừ. Dễ theo dõi, dễ thêm bước; bộ điều phối là thành phần phải giữ bền vững.
+
+**Bù trừ** là hành động nghiệp vụ, không phải rollback: “hoàn tiền” chứ không xóa giao dịch trừ tiền; “trả lại quota” chứ không xóa lịch sử. Bước bù trừ phải **idempotent và có retry**, vì nó cũng có thể lỗi. Bù trừ lỗi mãi thì đưa vào hàng đợi xử lý tay và cảnh báo.
+
+**2PC:** coordinator hỏi mọi bên “sẵn sàng?”, tất cả đồng ý mới commit. Đảm bảo nguyên tử thật, nhưng **chặn** khi coordinator chết, giữ khóa lâu, nhiều hệ thống (Kafka, API bên ngoài) không hỗ trợ. Chỉ dùng trong phạm vi hẹp, ví dụ hai DB cùng loại trong nội bộ, khi bắt buộc nguyên tử tức thì.
+
+Ở Notification Hub em làm **Saga cơ bản**: [[giữ quota của tenant → gửi → nếu gửi thất bại vĩnh viễn thì hoàn quota]], dạng choreography qua Kafka. Em nói rõ là cơ bản: chưa có bộ điều phối và chưa xử lý mọi trường hợp bù trừ lỗi.
+@fu Trong lúc saga đang chạy, người khác thấy trạng thái dở dang thì sao?
+Đúng, Saga thiếu tính cô lập. Dùng trạng thái trung gian rõ ràng (PENDING) để người khác biết, và thiết kế để đọc dở dang không gây hại (semantic lock).
+
+@q 97
+@time khoảng 75 giây
+@ans
+**Sharding** chia dữ liệu theo **shard key** ra nhiều DB. Chọn key theo ba tiêu chí:
+1. **Phân bố đều** dữ liệu và tải (không có hot shard).
+2. **Truy vấn chính chỉ chạm một shard**: dữ liệu hay đọc cùng nhau nằm cùng shard.
+3. Ổn định, không đổi.
+
+Ví dụ chat: shard theo `conversation_id`, vì đọc tin nhắn luôn theo một cuộc hội thoại. Shard theo `user_id` thì một cuộc chat hai người nằm hai nơi.
+
+**Cách băm:**
+- `hash(key) % N`: đơn giản nhưng **đổi N là gần như mọi key đổi chỗ**, phải di chuyển gần hết dữ liệu.
+- **Consistent hashing:** đặt node và key lên một vòng băm, key thuộc node gần nhất theo chiều kim đồng hồ. Thêm node chỉ chuyển **khoảng 1/N** dữ liệu. Dùng **virtual node** (mỗi máy nhiều điểm trên vòng) để chia đều và chia tải khi một node rời đi.
+- **Bảng ánh xạ / nhiều shard logic:** băm vào 1.024 shard logic cố định, ánh xạ shard logic → máy vật lý; resharding chỉ là chuyển nguyên shard logic sang máy khác.
+
+**Resharding:** ghi kép hoặc sao chép nền shard đang chuyển, đồng bộ phần thay đổi, chuyển đọc rồi chuyển ghi, cuối cùng dọn dữ liệu cũ.
+
+Đổi lại: truy vấn **xuyên shard** (thống kê toàn bộ) phải scatter-gather, JOIN và giao dịch xuyên shard khó.
+@fu Hot shard xử lý thế nào?
+Tách shard đó, hoặc với một key quá nóng (người nổi tiếng) thì thêm hậu tố để rải ra, kèm cache phía trước.
+
+@q 98
+@time khoảng 75 giây
+@ans
+- **Token bucket:** xô chứa tối đa B token, nạp r token mỗi giây; mỗi request lấy một token, hết thì từ chối. **Cho phép burst** tới B mà vẫn giữ tốc độ trung bình r. Hợp cho API công khai.
+- **Sliding window log:** lưu thời điểm từng request trong ZSet, đếm trong cửa sổ trượt. Chính xác nhưng tốn bộ nhớ.
+- **Sliding window counter:** cộng có trọng số hai cửa sổ cố định liền nhau. Gần đúng, rẻ, tránh **burst gấp đôi ở biên** của fixed window (99 request lúc 59 giây và 100 request lúc 61 giây đều lọt).
+
+**Phân tán:** mọi instance dùng chung trạng thái trong **Redis**, thao tác đọc và cập nhật bằng **Lua script** để atomic. Key theo user, IP, API key hoặc tenant. Với tải rất lớn: mỗi instance giữ hạn mức cục bộ và đồng bộ định kỳ, chấp nhận sai số.
+
+**Đặt ở đâu:**
+- **Gateway:** chặn sớm theo IP và API key, bảo vệ toàn hệ thống, chống lạm dụng.
+- **Service:** giới hạn theo nghiệp vụ (mỗi tenant 1.000 thông báo/phút, bảo vệ nhà cung cấp SMS). Notification Hub em đặt ở service cho quota tenant.
+
+Trả **429 + `Retry-After`**. Redis chết: fail-open cho giới hạn chống spam (kèm giới hạn cục bộ), fail-closed cho giới hạn bảo vệ chi phí.
+@fu Notification Hub em dùng thuật toán nào, điểm yếu?
+Xem chi tiết ở trang A6 (câu 38). Tóm tắt: [[cửa sổ trượt bằng ZSet + Lua]]; điểm yếu là tốn bộ nhớ theo số request, và mọi kiểm tra đều đi Redis.
+
+@q 99
+@time khoảng 75 giây
+@ans
+**Service discovery:** instance thay đổi liên tục (scale, deploy), nên không gọi bằng IP cố định.
+- **Phía server:** gọi qua một tên ổn định, hạ tầng định tuyến. Trong Kubernetes, Service có DNS `orders.default.svc` và kube-proxy chia tải tới các pod sẵn sàng.
+- **Phía client:** client hỏi registry (Consul, Eureka) danh sách instance rồi tự chọn. gRPC hay làm cách này để cân bằng theo từng request.
+
+**Load balancing:**
+- **L4** (TCP): chia theo kết nối, nhanh, không hiểu HTTP. Với gRPC/HTTP/2, một kết nối dài mang nhiều request nên **L4 chia không đều**.
+- **L7** (HTTP): hiểu path, header; định tuyến theo URL, retry, cân bằng theo request. Envoy, Nginx, API gateway.
+- Thuật toán: round robin, least connections, consistent hash (giữ cùng user về cùng instance cho cache).
+
+**Health check:**
+- **Liveness:** process còn sống không; fail thì **khởi động lại**. Không kiểm tra DB ở đây, nếu không DB chậm sẽ làm restart hàng loạt.
+- **Readiness:** sẵn sàng nhận traffic chưa (đã nạp xong, kết nối được dependency); fail thì **rút khỏi load balancer**, không restart.
+
+**Draining khi deploy:** nhận SIGTERM → báo not ready → chờ load balancer cập nhật → xử lý xong request đang chạy (graceful shutdown) → tắt. Spring Boot có `server.shutdown=graceful`.
+
+@q 100
+@time khoảng 90 giây
+@ans
+Ba trụ:
+- **Metrics:** số theo thời gian, rẻ, để **phát hiện** và cảnh báo.
+- **Logs:** chi tiết từng sự kiện, để tìm **nguyên nhân**. Log có cấu trúc (JSON) kèm `traceId`.
+- **Traces:** đường đi một request qua nhiều service, để **khoanh vùng** chỗ chậm. OpenTelemetry truyền trace context qua HTTP header và header Kafka.
+
+**RED** cho service: **R**ate (request/giây), **E**rrors (tỉ lệ lỗi), **D**uration (độ trễ theo phân vị).
+**USE** cho tài nguyên: **U**tilization, **S**aturation (hàng đợi, pool đang chờ), **E**rrors.
+
+**p99 khác trung bình:** trung bình bị các request nhanh kéo xuống, che mất đuôi. p99 = 1% request chậm hơn mức này. Trong hệ nhiều tầng, một trang gọi 20 service thì p99 của từng service trở thành chuyện thường gặp của người dùng (**tail latency** cộng dồn). Không lấy trung bình của các p99 giữa nhiều máy, phải tính từ histogram.
+
+**Alert theo SLO:** ví dụ 99,9% request dưới 300 ms trong 30 ngày → có **error budget**. Cảnh báo theo **burn rate** (budget đang cháy nhanh gấp 14 lần trong 1 giờ thì gọi người), không cảnh báo theo từng điểm CPU. Mỗi cảnh báo phải hành động được.
+
+**Correlation id:** sinh ở gateway, truyền qua mọi service và vào mọi dòng log (MDC), để từ một lỗi người dùng báo tìm ra toàn bộ đường đi.
+@fu Log quá nhiều thì sao?
+Tốn tiền và khó tìm. Log mức INFO có chọn lọc, lấy mẫu trace (giữ 100% trace lỗi và chậm, lấy mẫu phần còn lại), metric thay cho log khi chỉ cần đếm.
+
+@cheat Cheat sheet B6 · Hệ phân tán
+### Kiến trúc
+- Tách khi: nhiều đội, tải khác biệt, ranh giới rõ
+- Modular monolith trước; tránh distributed monolith
+- CAP khi phân mảnh; PACELC lúc bình thường: trễ vs nhất quán
+- Tiền/tồn kho: C; like/feed: A
+### Chống lỗi
+- Timeout theo p99 + deadline
+- Retry chỉ idempotent, 1 tầng, budget, backoff + jitter
+- Breaker: đóng → mở → nửa mở; bulkhead: pool riêng
+- 3 tầng × 3 retry = 27 lần
+### Kafka
+- Thứ tự chỉ trong partition; key = thực thể
+- Consumer ≤ partition; acks=all, idempotence
+- At-least-once + consumer idempotent (event_id unique)
+- Lag: hot partition, poison → DLQ, max.poll, cooperative rebalance
+### Nhất quán
+- Dual write sai → outbox cùng transaction + relay/CDC
+- Saga: bù trừ nghiệp vụ, idempotent; orchestration vs choreography
+- 2PC: chặn, chỉ phạm vi hẹp
+### Mở rộng & vận hành
+- Shard key: đều, một shard cho truy vấn chính, ổn định
+- Consistent hashing + virtual node; shard logic cố định
+- Rate limit: token bucket (burst), sliding window; Redis + Lua; 429
+- Liveness (restart) vs readiness (rút khỏi LB); graceful shutdown
+- RED/USE, p99 từ histogram, SLO + burn rate, correlation id

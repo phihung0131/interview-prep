@@ -1,0 +1,118 @@
+@page a2
+@file a2-wms-bo-sung.html
+@code A2+
+@group A
+@title WMS · câu bổ sung
+@desc Phần việc riêng, index, viết lại join, MyBatis vs JPA, Redis trong WMS.
+@lede Năm câu trong nhóm A2 chưa có trong trang “WMS · 8 câu trả lời chính”. Số liệu dùng chung với trang đó: 15 kho, mỗi kho một DB, bảng kiện ASN 5–10 triệu dòng, khay robot 30 ký, lượt nhặt 150 ký.
+
+@q 5
+@time khoảng 60 giây
+@ans
+Team WMS [[khoảng 8–10 người]] chia theo khâu. Phần **em trực tiếp sở hữu** là hai thành phần:
+
+1. **API ghi kết quả đổ khay** ở khâu cất hàng: nhân viên đổ hàng từ thùng sang khay robot, API ghi số lượng, trừ thùng, cộng khay, kiểm giới hạn 30 ký. Đây là nơi em sửa lỗi đồng thời hai trạm cùng ghi một khay.
+2. **Batch tạo lệnh nhặt** ở khâu xuất: gom việc nhặt theo dãy kệ, không quá 150 ký mỗi lượt, chạy đồng thời với API ghi kết quả nhặt. Đây là nơi em áp dụng chunk, thứ tự khóa và `SKIP LOCKED`.
+
+Với hai thành phần đó em làm trọn: làm rõ yêu cầu với vendor, implement, unit test đạt cổng 90%, review PR, và điều tra sự cố. **Thiết kế tổng thể** do tech lead và vendor chốt; phần em quyết định là **cơ chế xử lý đồng thời** và **cách tối ưu truy vấn** trên hai thành phần này.
+
+Ngoài ra em tham gia sửa lỗi ở các khâu khác khi được phân công, và tối ưu API quét thùng ở bến nhận.
+@fu Có phần nào em quyết định mà người khác phản đối?
+Chọn conditional update thay vì Redis lock cho bài khay 30 ký (câu chuyện bất đồng ở câu 153).
+@trap “Em làm tất cả các khâu” – không ai tin, và bị hỏi sâu là lộ.
+
+@q 7
+@time khoảng 75 giây
+@ans
+**Cách em thêm index** (ví dụ API quét thùng):
+1. Lấy đúng câu truy vấn, chạy `EXPLAIN (ANALYZE, BUFFERS)` trên bản sao cỡ thật → thấy Seq Scan bỏ ~10 triệu dòng.
+2. Chọn loại index: mã thùng chọn lọc rất cao, trạng thái chỉ vài giá trị → **partial index** `ON asn_carton (carton_code) WHERE status = 'EXPECTED'`, nhỏ và chỉ chứa thùng đang chờ.
+3. Đo tác động lên ghi trên staging (script chèn 100 nghìn dòng): chậm thêm vài phần trăm.
+4. Production: `CREATE INDEX CONCURRENTLY` ngoài giờ cao điểm, `lock_timeout` ngắn, kiểm index hợp lệ, `ANALYZE`, xác nhận lại bằng EXPLAIN, có đường lùi `DROP INDEX CONCURRENTLY`.
+
+**Mặt trái của index:** mỗi INSERT/UPDATE phải cập nhật thêm index (ghi chậm, WAL nhiều hơn), tốn đĩa và RAM cache, cột hay đổi giá trị còn làm mất HOT update và gây bloat.
+
+**Composite và thứ tự cột:** cột so sánh bằng trước, cột khoảng sau; chỉ dùng được từ cột đầu (leftmost prefix); range ở cột giữa chặn các cột sau.
+
+**Khi index không được dùng:** bọc cột trong hàm, `LIKE '%x'`, ép kiểu, selectivity thấp (lấy quá nhiều dòng), thống kê cũ, và partial index khi điều kiện truyền bằng tham số mà planner không chứng minh được bao hàm.
+
+Chi tiết và hoạt họa: trang [Case SQL: index & JOIN](case-mau-index-join.html) và câu 4 trang [WMS](tra-loi-phong-van-wms.html#q4).
+
+@q 8
+@time khoảng 75 giây
+@ans
+Em kể **job phân bổ đơn cuối ngày** (chi tiết ở trang [Case job phân bổ chậm](case-hieu-nang-phan-bo.html)).
+
+**Triệu chứng:** job chạy cuối ngày để kịp giờ xe lấy hàng, thời gian chạy **tăng đều theo số đơn** qua từng tuần, có nguy cơ trễ giờ cắt đơn.
+
+**Tìm nguyên nhân:** em bật log đo thời gian từng bước, thấy phần lớn thời gian ở bước tra thông tin khu vực kho, được viết thành **truy vấn con tương quan** lồng trong câu chính: với mỗi đơn, DB tính lại từ đầu, dù kết quả gần như giống nhau cả đợt.
+
+**Viết lại:**
+```
+-- Trước: subquery chạy lại cho từng dòng đơn
+SELECT o.order_id, (SELECT … FROM zone z JOIN location l … WHERE l.sku = o.sku) AS zone
+FROM order_line o WHERE o.batch_date = :d;
+
+-- Sau: tính một lần bằng CTE rồi JOIN
+WITH sku_zone AS (
+  SELECT l.sku, min(z.zone_code) AS zone
+  FROM location l JOIN zone z ON z.zone_id = l.zone_id
+  WHERE l.status = 'ACTIVE' GROUP BY l.sku)
+SELECT o.order_id, sz.zone
+FROM order_line o JOIN sku_zone sz ON sz.sku = o.sku
+WHERE o.batch_date = :d;
+```
+EXPLAIN sau khi sửa chuyển từ Nested Loop chạy subquery hàng chục nghìn lần sang một Hash Join. Kết quả: [[từ khoảng X phút xuống Y phút]].
+
+Các kiểu viết lại join khác em hay dùng: bỏ **join thừa** (join bảng chỉ để lọc mà đã có cột ở bảng chính), đổi N+1 trong vòng lặp thành một query `= ANY(:ids)`, `EXISTS` thay `IN (subquery lớn)` hoặc `DISTINCT` sau join.
+@fu Vì sao không cache ở ứng dụng?
+Có cân nhắc, nhưng phải lo làm mới khi dữ liệu khu vực đổi giữa đợt; viết lại truy vấn xử lý đúng gốc, không thêm tầng phải quản lý.
+@honest Điền số trước/sau thật của bạn vào chỗ tô vàng (trang Case job phân bổ chậm có ô để điền và bấm giờ).
+
+@q 14
+@time khoảng 60 giây
+@ans
+MyBatis là lựa chọn **có sẵn của dự án**, và em thấy nó hợp với WMS vì:
+- **Kiểm soát SQL hoàn toàn:** truy vấn kho rất phức tạp (nhiều bảng lớn, CTE, `FOR UPDATE SKIP LOCKED`, `ON CONFLICT`, partial index cần điều kiện là hằng số). Viết SQL tay thì biết chính xác câu gì chạy, tối ưu và đọc EXPLAIN trực tiếp.
+- **Không có hành vi ngầm:** không lazy loading bất ngờ, không N+1 ẩn, không dirty checking tự động flush.
+- Batch xử lý hàng trăm nghìn dòng: dễ dùng batch executor và cursor.
+
+**Nhược điểm:** phải tự viết và bảo trì nhiều SQL và `resultMap`; đổi cột phải sửa nhiều nơi; CRUD đơn giản cũng phải viết; không có cache cấp 1/2 hay quản lý trạng thái entity. Lỗi SQL chỉ phát hiện khi chạy, nên cần test tích hợp. Và phải cẩn thận **`${}` gây SQL injection**, luôn dùng `#{}`.
+
+**JPA/Hibernate** hợp với ứng dụng CRUD, mô hình domain phong phú, làm nhanh; nhưng truy vấn phức tạp dễ sinh SQL khó kiểm soát. Ở Apollogix em gặp đúng chuyện đó: join Hibernate phức tạp gây chậm, em phải chuyển sang PostgreSQL view/function (câu 24).
+
+Nếu chọn cho dự án mới, em sẽ dựa vào tỉ lệ CRUD so với truy vấn phức tạp; nhiều dự án dùng JPA cho CRUD và native query/jOOQ cho phần nặng.
+
+@q 15
+@time khoảng 60 giây
+@ans
+Có, WMS dùng Redis nhưng **không làm nguồn sự thật cho tồn kho**. [[Các chỗ em biết:]]
+- **Cache dữ liệu tham chiếu** ít đổi và đọc nhiều: thông tin SKU, cấu hình kho, vị trí kệ, quy tắc khu vực. TTL vài phút tới vài giờ.
+- **Khóa ngắn hạn** cho một số thao tác của người dùng trên trạm, ví dụ một nhân viên đang thao tác trên một lô thì người khác không mở được.
+- [[Lưu phiên hoặc token tạm của thiết bị quét.]]
+
+**Invalidate:** theo **cache-aside**: cập nhật DB trước rồi **xóa key**, lần đọc sau tự nạp lại; luôn đặt **TTL** làm lưới an toàn. Dữ liệu cấu hình sửa qua màn hình quản trị thì màn hình đó xóa cache ngay. Dữ liệu cần chính xác như **tồn kho, trọng lượng khay** thì **luôn đọc DB** và kiểm tra bằng conditional update, không tin cache.
+
+**Nhất quán:** chấp nhận cache tham chiếu lệch tối đa bằng TTL; nếu cần đổi gấp thì có thao tác xóa cache thủ công cho vận hành.
+@honest Phần tô vàng là giả định về cách dự án dùng Redis. Hãy kiểm tra lại với code thật của dự án và chỉ nói những gì bạn đã thấy.
+@fu Mỗi kho một DB, Redis có chung không?
+Nói theo thực tế dự án. Nếu dùng chung một cụm thì key phải có tiền tố mã kho để không lẫn dữ liệu giữa các kho.
+
+@cheat Cheat sheet A2+ · WMS bổ sung
+### Phần của em
+- API đổ khay (cất) + batch tạo lệnh nhặt (xuất)
+- Làm trọn: làm rõ, code, test 90%, review, sự cố
+- Quyết định: cơ chế đồng thời, cách tối ưu truy vấn
+### Index
+- EXPLAIN → partial index (carton_code) WHERE status='EXPECTED'
+- Đo ghi trên staging; CONCURRENTLY + lock_timeout; đường lùi
+- Mặt trái: ghi chậm, WAL, đĩa, mất HOT update
+### Viết lại join
+- Subquery tương quan → CTE tính một lần + Hash Join
+- Bỏ join thừa; N+1 → = ANY; EXISTS thay IN
+### MyBatis vs JPA
+- MyBatis: SQL tường minh, không N+1 ẩn; tự bảo trì SQL, `#{}` không `${}`
+- JPA: CRUD nhanh; truy vấn phức tạp khó kiểm soát (bài học Apollogix)
+### Redis ở WMS
+- Cache tham chiếu + khóa ngắn hạn; không làm nguồn sự thật tồn kho
+- Cache-aside: DB rồi xóa key, TTL

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>B2 · Concurrency và JVM</title><meta name="description" content="synchronized/Lock/volatile/Atomic, deadlock, thread pool, Little&#x27;s law, happens-before, OOM, G1, virtual thread."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body class="g-page">
+<header class="mast"><div class="wrap"><p class="eyebrow">B · Kỹ thuật nền tảng</p><h1>B2 · Concurrency và JVM</h1><p class="lede">Đây là phần JD ghi rõ “concurrency cơ bản”. Câu nào cũng nên nối về chuyện thật: khay 30 ký ở WMS (check-then-act), pool connection cạn, batch chạy chồng.</p><div class="mast-meta"><span>8 câu</span><span>Mỗi câu 60–120 giây</span></div></div></header><div class="tape"></div><nav class="tabs" aria-label="Các câu trong trang"><div class="wrap"><a href="#q55">55</a><a href="#q56">56</a><a href="#q57">57</a><a href="#q58">58</a><a href="#q59">59</a><a href="#q60">60</a><a href="#q61">61</a><a href="#q62">62</a><a href="#cheat">Cheat sheet</a></div></nav>
+<main class="g-main wrap">
+<div class="study-bar"><div class="prog"><div class="meter"><i></i></div><span></span></div><button class="btn sm" id="st-quiz" type="button">Tự kiểm tra (ẩn đáp án)</button><button class="btn sm" id="st-all" type="button">Mở hết follow-up</button><button class="btn sm" id="st-reset" type="button" title="Bỏ đánh dấu mọi câu trong trang">Đặt lại</button></div>
+<article class="qa" id="q55" data-q="q55">
+<div class="qa-h"><span class="qa-n">55</span><h3>synchronized, ReentrantLock, volatile, Atomic: khác nhau thế nào và dùng khi nào?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> tính hiển thị và tính nguyên tử, CAS, volatile không đảm bảo atomic cho count++.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Phân biệt hai tính chất: <b>visibility</b> (thread này ghi, thread kia có thấy không) và <b>atomicity</b> (một chuỗi thao tác có bị chen ngang không).</p>
+<div class="tw"><table><thead><tr><th></th><th>Visibility</th><th>Atomic</th><th>Ghi chú</th></tr></thead><tbody><tr><td><code>volatile</code></td><td>Có</td><td>Không (chỉ đọc/ghi đơn)</td><td>Cờ dừng, trạng thái công bố một lần</td></tr><tr><td><code>synchronized</code></td><td>Có</td><td>Có</td><td>Đơn giản, tự nhả khóa khi lỗi</td></tr><tr><td><code>ReentrantLock</code></td><td>Có</td><td>Có</td><td>tryLock có timeout, ngắt được, nhiều Condition, fair</td></tr><tr><td><code>AtomicInteger</code>…</td><td>Có</td><td>Có cho một biến</td><td>CAS, không khóa</td></tr></tbody></table></div>
+<p><code>count++</code> gồm ba bước đọc, cộng, ghi. Đánh dấu <code>volatile</code> chỉ đảm bảo thấy giá trị mới nhất, <b>hai thread vẫn cùng đọc 5 và cùng ghi 6</b>. Muốn đúng thì <code>AtomicInteger.incrementAndGet()</code> (CAS: so sánh rồi đổi, thất bại thì thử lại) hoặc <code>synchronized</code>. Đếm cực nhiều thread thì <code>LongAdder</code> nhanh hơn vì chia nhỏ bộ đếm.</p>
+<p>Chọn: biến đơn → Atomic; nhiều biến phải đổi cùng nhau → synchronized; cần chờ có hạn hoặc ngắt được → ReentrantLock.</p>
+<p>Nhưng ở backend nhiều instance, <b>khóa trong JVM không bảo vệ được dữ liệu dùng chung</b>. Bài khay 30 ký ở WMS em giải ở tầng DB bằng conditional update, không bằng synchronized.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>CAS có nhược điểm gì?</summary><div class="a"><p>Tranh chấp cao thì thử lại liên tục, tốn CPU; vấn đề ABA (giá trị đổi A→B→A, CAS tưởng không đổi), giải bằng <code>AtomicStampedReference</code> có version.</p></div></details><details class="fu"><summary>synchronized còn chậm không?</summary><div class="a"><p>Từ Java 6 có nhiều tối ưu, không tranh chấp thì rất rẻ. Java 21 virtual thread chạy synchronized có thể bị “pin” vào thread hệ điều hành (đã cải thiện ở Java 24), nên code virtual thread hay dùng ReentrantLock.</p></div></details></div>
+<div class="trap">Nói volatile làm <code>count++</code> an toàn.</div>
+</article>
+<article class="qa" id="q56" data-q="q56">
+<div class="qa-h"><span class="qa-n">56</span><h3>Race condition và deadlock là gì? Cho ví dụ và cách phát hiện (thread dump).</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> thứ tự khóa nhất quán, tryLock/timeout, jstack.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Race condition:</b> kết quả phụ thuộc thứ tự chạy của các thread. Ví dụ điển hình là check-then-act: hai trạm cùng đọc khay 22 ký, cùng thấy cộng 6 ký vẫn dưới 30, cùng ghi, ra 34 ký.</p>
+<p><b>Deadlock:</b> hai bên giữ khóa và chờ khóa của nhau. Thread A giữ khóa X chờ Y, thread B giữ Y chờ X. Bốn điều kiện: độc quyền, giữ và chờ, không bị cướp, chờ vòng tròn. Phá một điều kiện là hết deadlock.</p>
+<p><b>Phát hiện:</b></p>
+<ul><li>Trong JVM: <code>jstack &lt;pid&gt;</code> in thread dump, cuối dump có mục <b>“Found one Java-level deadlock”</b> chỉ rõ thread nào giữ khóa nào. Hoặc thấy nhiều thread <code>BLOCKED</code> cùng chờ một monitor.</li><li>Trong PostgreSQL: lỗi <code>40P01 deadlock detected</code>, log ghi hai câu lệnh liên quan; xem <code>pg_locks</code> và <code>pg_stat_activity</code>.</li></ul>
+<p><b>Phòng:</b></p>
+<ol><li><b>Thứ tự khóa nhất quán:</b> ở WMS, batch và API luôn khóa đơn → việc nhặt theo id tăng dần → tồn kho.</li><li><b>tryLock có timeout</b> hoặc <code>lock_timeout</code> ở DB, quá hạn thì bỏ và thử lại.</li><li>Giữ khóa ngắn, không gọi I/O khi đang giữ khóa.</li></ol></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Livelock và starvation là gì?</summary><div class="a"><p>Livelock: các thread không bị chặn nhưng cứ nhường nhau mãi, không tiến được (thường do retry cùng nhịp, sửa bằng jitter). Starvation: một thread không bao giờ được chạy vì thread khác luôn giành trước (khóa không fair).</p></div></details><details class="fu"><summary>Tái hiện race condition thế nào?</summary><div class="a"><p>Như em làm ở WMS: test tích hợp với DB thật, hai thread chờ ở <code>CountDownLatch</code> rồi thả cùng lúc, lặp vài trăm lần; chèn một độ trễ nhỏ giữa đọc và ghi để lỗi hiếm thành lỗi chắc chắn.</p></div></details></div>
+</article>
+<article class="qa" id="q57" data-q="q57">
+<div class="qa-h"><span class="qa-n">57</span><h3>ThreadPoolExecutor: tham số nào quan trọng? Vì sao không nên dùng Executors.newFixedThreadPool trong production?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> queue vô hạn gây OOM, rejection policy, đặt tên thread.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p>Các tham số: <code>corePoolSize</code>, <code>maximumPoolSize</code>, <code>keepAliveTime</code>, <b>hàng đợi</b> (<code>workQueue</code>), <code>ThreadFactory</code>, và <b>RejectedExecutionHandler</b>.</p>
+<p>Thứ tự xử lý dễ nhầm: task mới → nếu chưa đủ core thì tạo thread → nếu đủ core thì <b>cho vào hàng đợi</b> → <b>chỉ khi hàng đợi đầy</b> mới tạo thêm tới max → max rồi mà vẫn đầy thì <b>reject</b>.</p>
+<p>Vì sao không dùng <code>Executors.newFixedThreadPool</code>: nó dùng <code>LinkedBlockingQueue</code> <b>không giới hạn</b>. Khi task đến nhanh hơn xử lý, hàng đợi phình mãi, <b>OOM</b>, và trước đó độ trễ tăng không kiểm soát mà không có lỗi nào báo. <code>newCachedThreadPool</code> thì ngược lại: tạo thread không giới hạn. Cả hai đều che mất backpressure.</p>
+<p>Production em tự tạo:</p>
+<pre><code>new ThreadPoolExecutor(8, 16, 60, SECONDS,
+    new ArrayBlockingQueue&lt;&gt;(500),
+    new ThreadFactoryBuilder().setNameFormat("export-%d").build(),
+    new ThreadPoolExecutor.CallerRunsPolicy());</code></pre>
+<ul><li><b>Hàng đợi có giới hạn</b> để biết khi nào quá tải.</li><li><b>Rejection policy</b> rõ ràng: <code>CallerRunsPolicy</code> làm chậm bên gửi (backpressure tự nhiên), hoặc <code>AbortPolicy</code> rồi trả 503.</li><li><b>Đặt tên thread</b> để đọc thread dump và log biết pool nào.</li><li>Đo kích thước hàng đợi, số thread active, số task bị reject.</li></ul></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Nhớ tắt executor không?</summary><div class="a"><p>Có, khi ứng dụng tắt gọi <code>shutdown()</code> rồi <code>awaitTermination</code>. Executor do Spring quản lý (ThreadPoolTaskExecutor) thì Spring tự tắt.</p></div></details><details class="fu"><summary>Task ném exception trong <code>submit</code> thì sao?</summary><div class="a"><p>Bị giữ trong Future, không ai <code>get()</code> thì lỗi im lặng biến mất. Dùng <code>execute</code> để lỗi ra handler, hoặc bọc try/catch và log trong task.</p></div></details></div>
+</article>
+<article class="qa" id="q58" data-q="q58">
+<div class="qa-h"><span class="qa-n">58</span><h3>Đặt kích thước thread pool/connection pool thế nào? Công thức Little’s law.</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> số đồng thời = rps × thời gian xử lý; CPU-bound và I/O-bound khác nhau.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>Little's law:</b> số request đồng thời trung bình <b>L = λ × W</b>, với λ là tốc độ đến (request/giây), W là thời gian xử lý mỗi request.</p>
+<p>Ví dụ: 200 rps, mỗi request 50 ms → cần khoảng <b>10</b> request đang xử lý cùng lúc. Lúc cao điểm 600 rps và p99 200 ms thì phải chịu tới 120. Đó là cách ra con số thay vì đoán.</p>
+<p><b>Thread pool:</b></p>
+<ul><li><b>CPU-bound:</b> khoảng số core (cộng một), thêm thread chỉ tăng chuyển ngữ cảnh.</li><li><b>I/O-bound:</b> <code>số core × (1 + thời gian chờ / thời gian tính)</code>. Request chờ DB 90% thời gian thì số thread có thể gấp nhiều lần số core.</li></ul>
+<p><b>Connection pool DB:</b> không theo số thread mà theo <b>sức của DB</b>. Công thức khởi điểm của HikariCP: <code>số core của DB × 2 + số đĩa</code>, thường chỉ 10–30 connection mỗi instance là đủ. Nhớ nhân với <b>số instance</b>: 10 pod × 30 = 300 connection có thể vượt <code>max_connections</code> của PostgreSQL.</p>
+<p>Cuối cùng phải <b>đo</b> bằng load test: tăng dần tải, xem lúc nào p99 gãy và thời gian chờ lấy connection tăng.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Vì sao pool lớn không nhanh hơn?</summary><div class="a"><p>DB chỉ có từng ấy core và đĩa; thêm connection thì chúng tranh nhau, chuyển ngữ cảnh và tranh khóa nhiều hơn, mỗi query chậm đi. Pool nhỏ, request xếp hàng ngắn ở ứng dụng thường cho throughput tốt hơn.</p></div></details><details class="fu"><summary>Nhiều instance thì quản connection thế nào?</summary><div class="a"><p>Tính tổng connection mọi instance dưới giới hạn DB, hoặc đặt PgBouncer ở chế độ transaction pooling phía trước.</p></div></details></div>
+</article>
+<article class="qa" id="q59" data-q="q59">
+<div class="qa-h"><span class="qa-n">59</span><h3>Memory model: happens-before là gì? Double-checked locking vì sao cần volatile?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> reorder, tính hiển thị giữa thread.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p><b>Happens-before</b> là quy tắc của Java Memory Model: nếu A happens-before B thì <b>mọi thứ A ghi đều được B nhìn thấy</b>, và không bị sắp xếp lại vượt qua mốc đó. Không có quan hệ này thì compiler và CPU được phép <b>reorder</b> lệnh và giữ giá trị trong cache, nên thread khác có thể thấy giá trị cũ hoặc thứ tự lạ.</p>
+<p>Các mốc tạo happens-before: nhả khóa → lấy cùng khóa đó; ghi volatile → đọc cùng biến volatile; <code>Thread.start()</code>; <code>join()</code>; hoàn tất Future.</p>
+<p><b>Double-checked locking:</b></p>
+<pre><code>private static volatile Config instance;
+static Config get() {
+  if (instance == null) {
+    synchronized (Config.class) {
+      if (instance == null) instance = new Config();
+    }
+  }
+  return instance;
+}</code></pre>
+<p><code>instance = new Config()</code> gồm cấp phát, chạy constructor, gán tham chiếu. Không có volatile, bước gán có thể <b>xảy ra trước</b> khi constructor chạy xong. Thread khác ở lần kiểm tra thứ nhất (ngoài khóa) thấy <code>instance != null</code> và dùng một <b>object chưa khởi tạo xong</b>. <code>volatile</code> cấm reorder đó.</p>
+<p>Thực tế em dùng holder class hoặc enum, hoặc để Spring quản lý singleton, khỏi cần tự viết.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Holder class là gì?</summary><div class="a"><p>Class tĩnh lồng bên trong chứa instance; JVM chỉ nạp class đó khi được gọi lần đầu, và việc nạp class đã an toàn đa luồng, nên vừa lazy vừa đúng mà không cần khóa.</p></div></details></div>
+</article>
+<article class="qa" id="q60" data-q="q60">
+<div class="qa-h"><span class="qa-n">60</span><h3>JVM chia vùng nhớ thế nào? Khi nào xảy ra OutOfMemoryError, cách điều tra?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> heap/metaspace/stack, heap dump, leak từ cache/static map.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 90 giây</span></p><p>Vùng nhớ JVM:</p>
+<ul><li><b>Heap:</b> chứa object, chia thế hệ trẻ (Eden, Survivor) và già. Dùng chung giữa các thread.</li><li><b>Stack:</b> mỗi thread một stack chứa frame của method, biến cục bộ. Đệ quy quá sâu → <code>StackOverflowError</code>.</li><li><b>Metaspace:</b> metadata của class (ngoài heap). Sinh class động liên tục (proxy, script) → <code>OutOfMemoryError: Metaspace</code>.</li><li>Ngoài ra <b>direct memory</b> (NIO, Netty) và code cache.</li></ul>
+<p>OOM hay gặp: <code>Java heap space</code> (rò rỉ hoặc nạp dữ liệu quá lớn), <code>GC overhead limit exceeded</code> (GC chạy liên tục mà thu hồi rất ít), <code>Metaspace</code>, <code>unable to create native thread</code> (quá nhiều thread).</p>
+<p><b>Cách điều tra:</b></p>
+<ol><li>Bật sẵn <code>-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=…</code> và GC log.</li><li>Mở heap dump bằng <b>Eclipse MAT</b>, xem <b>dominator tree</b>: object nào giữ nhiều bộ nhớ nhất, và đường tham chiếu tới GC root.</li><li>So hai heap dump cách nhau vài giờ để thấy cái gì tăng.</li></ol>
+<p>Thủ phạm quen thuộc: <b>cache tự viết bằng static HashMap không giới hạn</b>, listener đăng ký mà không hủy, ThreadLocal không <code>remove()</code> trong thread pool, <b>nạp cả bảng vào List</b> thay vì đọc theo trang. Ở WMS, batch em luôn xử lý theo chunk cũng để không nạp vài triệu dòng vào heap cùng lúc.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Rò rỉ bộ nhớ trong Java nghĩa là gì khi đã có GC?</summary><div class="a"><p>Object không còn dùng nhưng vẫn còn tham chiếu từ GC root (static field, cache, thread đang sống), nên GC không thu được.</p></div></details><details class="fu"><summary>Container bị kill nhưng không thấy OOM trong log?</summary><div class="a"><p>Có thể là OOM killer của hệ điều hành/Kubernetes vì tổng bộ nhớ process (heap + metaspace + stack + direct) vượt limit của container. Đặt <code>-XX:MaxRAMPercentage</code> khoảng 70–75% để chừa phần ngoài heap.</p></div></details></div>
+</article>
+<article class="qa" id="q61" data-q="q61">
+<div class="qa-h"><span class="qa-n">61</span><h3>G1 GC hoạt động thế nào? Full GC liên tục nghiền ở đâu và bạn đọc GC log ra sao?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> pause time, allocation rate, đặt -Xmx hợp lý, dùng metric.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 75 giây</span></p><p><b>G1</b> chia heap thành nhiều <b>region</b> bằng nhau (1–32 MB), mỗi region đóng vai Eden, Survivor hoặc Old tùy lúc. Mục tiêu là <b>thời gian dừng dự đoán được</b> (<code>MaxGCPauseMillis</code>, mặc định 200 ms).</p>
+<ul><li><b>Young GC:</b> dừng ứng dụng, copy object còn sống từ Eden sang Survivor hoặc Old. Nhanh vì phần lớn object chết trẻ.</li><li><b>Concurrent marking:</b> khi Old đầy tới ngưỡng, G1 đánh dấu song song với ứng dụng.</li><li><b>Mixed GC:</b> dọn Young kèm các region Old <b>nhiều rác nhất trước</b> (vì vậy gọi là Garbage First).</li><li><b>Full GC:</b> khi không kịp dọn (copy thất bại, heap gần đầy), dừng toàn bộ, rất chậm. Thấy Full GC liên tục là dấu hiệu xấu.</li></ul>
+<p><b>Full GC liên tục thường do:</b> heap quá nhỏ so với dữ liệu sống, <b>rò rỉ bộ nhớ</b> (sau mỗi GC, mức heap còn lại cứ tăng dần), <b>allocation rate</b> quá cao (tạo object tạm hàng loạt), hoặc object khổng lồ (humongous, lớn hơn nửa region).</p>
+<p><b>Đọc GC log</b> (<code>-Xlog:gc*</code>): xem thời gian dừng mỗi lần, tần suất, <b>heap sau GC</b> theo thời gian. Heap sau GC đi ngang là ổn; heap sau GC đi lên như bậc thang là rò rỉ. Em thường xem qua metric JVM trên Datadog trước, cần mới mở log chi tiết.</p>
+<p>Đặt <code>-Xms</code> bằng <code>-Xmx</code> để tránh heap co giãn; đừng tăng heap vô tội vạ vì GC mỗi lần phải xử lý nhiều hơn.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Khi nào chọn ZGC?</summary><div class="a"><p>Khi cần thời gian dừng rất ngắn (dưới mili giây) với heap lớn, ví dụ dịch vụ nhạy độ trễ. Đổi lại tốn CPU hơn và throughput thấp hơn chút.</p></div></details></div>
+</article>
+<article class="qa" id="q62" data-q="q62">
+<div class="qa-h"><span class="qa-n">62</span><h3>Virtual thread (Java 21) và lập trình async khác gì thread truyền thống?</h3><label class="qa-chk"><input type="checkbox"> Đã thuộc</label></div>
+<div class="hint"><b>Ý cần có:</b> hiểu ý tưởng, khi nào hợp cho I/O-bound.</div>
+<button class="btn sm reveal" type="button">Hiện đáp án</button>
+<div class="ans"><p class="lbl">Trả lời mẫu<span class="t">khoảng 60 giây</span></p><p>Thread truyền thống ánh xạ <b>1–1 với thread hệ điều hành</b>, mỗi thread tốn khoảng 1 MB stack và chi phí chuyển ngữ cảnh, nên một server chỉ chạy được vài nghìn thread. Khi thread chờ DB hay HTTP, nó <b>ngồi không</b> mà vẫn chiếm tài nguyên.</p>
+<p><b>Virtual thread</b> (Java 21) do <b>JVM quản lý</b>, rất nhẹ, có thể tạo hàng triệu. Khi virtual thread gặp I/O chặn, JVM <b>tháo nó khỏi thread hệ điều hành</b> (carrier) và cho virtual thread khác chạy. Ta vẫn viết code tuần tự, dễ đọc, dễ debug, mà có khả năng chịu đồng thời gần như lập trình bất đồng bộ.</p>
+<p><b>Async/reactive</b> (CompletableFuture, WebFlux) cũng giải bài toán đó nhưng bằng callback hoặc chuỗi toán tử: hiệu quả nhưng khó đọc, stack trace rời rạc, khó debug.</p>
+<p><b>Hợp:</b> dịch vụ <b>I/O-bound</b> nhiều request chờ mạng/DB. <b>Không giúp:</b> việc CPU-bound. Cần lưu ý: tài nguyên phía sau vẫn có giới hạn (pool DB vẫn 20 connection, nên phải giới hạn bằng semaphore), ThreadLocal tốn bộ nhớ khi có hàng triệu thread, và <code>synchronized</code> quanh I/O có thể ghim thread ở các bản Java cũ.</p>
+<p>Em mới tìm hiểu và thử ở dự án cá nhân, chưa dùng ở production.</p></div>
+<div class="fus"><p class="lbl">Nếu bị hỏi tiếp</p><details class="fu"><summary>Spring Boot bật virtual thread thế nào?</summary><div class="a"><p>Từ Spring Boot 3.2: <code>spring.threads.virtual.enabled=true</code>, Tomcat và executor dùng virtual thread.</p></div></details><details class="fu"><summary>Có nên dùng pool cho virtual thread không?</summary><div class="a"><p>Không, chúng rẻ nên tạo mới cho mỗi task. Muốn giới hạn đồng thời thì dùng Semaphore, không dùng pool.</p></div></details></div>
+</article>
+<section class="cheat" id="cheat"><div class="cheat-h"><h2>Cheat sheet B2 · Concurrency &amp; JVM</h2><span>B2</span></div><div class="cheat-b"><div><h4>Công cụ đồng bộ</h4>
+<ul><li>volatile: thấy, không atomic (count++ sai)</li><li>synchronized: thấy + atomic, đơn giản</li><li>ReentrantLock: tryLock(timeout), ngắt được, Condition</li><li>Atomic*/CAS: một biến; LongAdder khi đếm nóng</li><li>Nhiều instance → khóa ở DB/Redis, không ở JVM</li></ul></div><div><h4>Deadlock</h4>
+<ul><li>4 điều kiện; phá vòng chờ bằng thứ tự khóa nhất quán</li><li>jstack: “Found one Java-level deadlock”; PG: 40P01</li><li>lock_timeout, tryLock; không giữ khóa khi gọi I/O</li></ul></div><div><h4>Thread pool</h4>
+<ul><li>core → queue → max → reject</li><li>Không dùng newFixedThreadPool (queue vô hạn → OOM)</li><li>Queue có giới hạn, CallerRunsPolicy, đặt tên thread</li></ul></div><div><h4>Kích thước</h4>
+<ul><li>Little: L = λ × W (200 rps × 50 ms = 10)</li><li>CPU: ≈ số core; I/O: core × (1 + chờ/tính)</li><li>Pool DB: core DB × 2 + đĩa; nhân số instance</li></ul></div><div><h4>JMM</h4>
+<ul><li>happens-before: unlock→lock, ghi→đọc volatile, start, join</li><li>DCL cần volatile vì gán tham chiếu có thể trước constructor</li></ul></div><div><h4>JVM &amp; GC</h4>
+<ul><li>Heap / stack / metaspace / direct</li><li>HeapDumpOnOutOfMemoryError + MAT dominator tree</li><li>Thủ phạm: static map, listener, ThreadLocal, nạp cả bảng</li><li>G1: region, young → mark → mixed; Full GC = xấu</li><li>Heap sau GC đi lên bậc thang = rò rỉ</li><li>Virtual thread: I/O-bound, giới hạn bằng Semaphore</li></ul></div></div></section>
+</main>
+</body></html>

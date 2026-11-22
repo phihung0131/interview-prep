@@ -1,0 +1,62 @@
+@page a1
+@file a1-gioi-thieu.html
+@code A1
+@group A
+@title Giới thiệu bản thân
+@desc Giới thiệu 90 giây, vì sao backend thay vì AI/ML, điểm khác biệt có bằng chứng.
+@lede Ba câu mở màn quyết định ấn tượng đầu. Mỗi câu phải có **bằng chứng cụ thể** (con số, tình huống) thay vì tính từ. Bản giới thiệu 2 phút cho vòng HR nằm ở trang F (câu 163); bản tiếng Anh ở trang G (câu 176).
+
+@q 1
+@time khoảng 90 giây
+@ans
+Dạ, em là Hưng, **backend engineer khoảng 2 năm kinh nghiệm**, chủ yếu Java, Spring Boot và PostgreSQL.
+
+Hiện em ở **FPT Software**, làm hệ thống quản lý kho cho một hãng thời trang toàn cầu, chạy ở khoảng 15 kho. Hai điểm em muốn nhấn, vì khớp với JD:
+- **Xử lý đồng thời:** em sửa lỗi hai trạm cùng ghi vào một khay robot làm khay vượt giới hạn 30 ký, bằng cách gộp kiểm tra và ghi thành một câu UPDATE có điều kiện, và chứng minh bằng test đồng thời trên DB thật.
+- **Tối ưu PostgreSQL:** API quét thùng trên bảng khoảng 10 triệu dòng đi từ cỡ 1–2 giây xuống **dưới 1 mili giây** ở DB nhờ partial index, có đo cả tác động lên ghi.
+
+Ngoài công việc, em tự xây **Notification Hub** với **Kafka**, gRPC, consumer idempotent và DLQ, để học hệ phân tán bằng tay.
+
+Em ứng tuyển Zalo vì muốn đưa nền đó vào **hệ thống hàng triệu người dùng**, nơi throughput, cache và độ trễ là bài toán hằng ngày.
+@fu Nếu họ ngắt và hỏi “WMS là gì”?
+Trả lời một câu: “Hệ thống điều phối hàng trong kho: nhận hàng từ nhà máy, cất lên kệ, nhặt và xuất cho cửa hàng.” Rồi quay lại mạch chính. Chi tiết ở trang A2.
+@mini Ai em là → 2 điểm nổi bật có số (concurrency, PostgreSQL) → 1 câu Kafka → vì sao Zalo.
+@trap Kể theo thứ tự thời gian từ đại học, hoặc liệt kê công nghệ không có ví dụ.
+
+@q 2
+@time khoảng 60 giây
+@ans
+Vì em thấy **giá trị lõi của mọi dự án em làm nằm ở backend**, còn AI là công cụ.
+
+Ngay cả các dự án “AI” trên CV, phần nặng nhất vẫn là backend: Kestrel có crawl định kỳ, chống trùng, pgvector, auth, billing với webhook idempotent; lớp LLM của em thực chất là bài toán **timeout, retry, fallback và kiểm soát chi phí** khi gọi dịch vụ ngoài. Nền tảng AI ở FPT là tích hợp Jira, Confluence, GitHub và kiểm soát quyền truy cập dữ liệu.
+
+Em không làm nghiên cứu mô hình hay huấn luyện ML; em dùng AI để **làm backend nhanh hơn và review kỹ hơn**. Điều em muốn đào sâu tiếp là hệ thống quy mô lớn: dữ liệu, đồng thời, hệ phân tán. Đó cũng là lý do em chọn vị trí backend ở Zalo Media.
+@fu Vậy sau này em có muốn chuyển sang AI không?
+Em muốn là kỹ sư backend giỏi dùng AI làm công cụ, ví dụ xây hạ tầng phục vụ tính năng AI ở quy mô lớn. Nhưng nền của em vẫn là backend.
+@trap Nói “vì AI khó xin việc” hoặc tỏ ra coi nhẹ AI.
+
+@q 3
+@time khoảng 60 giây
+@ans
+Em nghĩ điểm khác của em là **em chứng minh bằng đo đạc, không bằng cảm giác**, và có ba ví dụ cụ thể:
+
+1. **Tuning query có số:** đọc EXPLAIN ANALYZE, thấy truy vấn quét 10 triệu dòng để lấy 1, thêm partial index tạo bằng CONCURRENTLY, đo cả trước–sau lẫn tác động lên ghi.
+2. **Xử lý đồng thời có tái hiện:** lỗi hiếm khay vượt tải, em biến nó thành lỗi chắc chắn bằng test hai thread trên DB thật trước khi sửa, sau khi sửa chạy lặp hàng trăm lần không lỗi.
+3. **Tự xây hệ sự kiện:** Notification Hub với Kafka, idempotency bằng upsert, DLQ, Saga cơ bản; em cố ý kill consumer để thấy tin bị giao lại và xử lý.
+
+Thêm một điểm: em **chủ động cải tiến quy trình** – xây nền tảng AI mà cả team dùng trên dự án thật.
+@fu Nhiều người 2 năm cũng tối ưu query, em khác gì?
+Em không chỉ thêm index: em giải thích được vì sao chọn partial thay vì composite, thứ tự cột, tác động lên ghi và cách tạo an toàn trên hệ thống đang chạy. Anh/chị có thể hỏi sâu bất kỳ chỗ nào.
+@trap “Em chăm chỉ, ham học hỏi, chịu áp lực tốt.”
+
+@cheat Cheat sheet A1 · Mở màn
+### Giới thiệu 90 giây
+- 2 năm backend · Java, Spring, PostgreSQL
+- WMS 15 kho: khay 30 ký (concurrency) · quét thùng 1–2 s → <1 ms (partial index)
+- Notification Hub: Kafka, idempotent, DLQ
+- Vì sao Zalo: hàng triệu người dùng
+### Vì sao backend
+- Phần nặng của dự án AI vẫn là backend
+- AI = công cụ; không làm nghiên cứu ML
+### Khác biệt
+- Đo thay vì đoán · tái hiện trước khi sửa · tự xây hệ sự kiện · chủ động cải tiến quy trình

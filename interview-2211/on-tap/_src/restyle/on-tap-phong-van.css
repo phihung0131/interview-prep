@@ -1,0 +1,73 @@
+/* Nền tảng AI nội bộ – CSS viết lại theo design system chung (token ở assets/site.css) */
+:root{--card:var(--surface);--green:var(--ok);--green-soft:var(--ok-soft);--warn:var(--hi-ink);--warn-soft:var(--hi-soft)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.68 var(--f-body);-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:1120px;margin:0 auto;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bar h1{font:700 24px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:0;flex:1;min-width:200px}
+.tabs{display:flex;gap:4px}
+.tab{border:0;border-bottom:3px solid transparent;background:none;color:var(--muted);padding:10px 12px 8px;font:600 16px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);border-bottom-color:var(--hi);background:none}
+.tool{border:1.5px solid var(--ink);background:var(--surface);color:var(--ink);padding:6px 11px;border-radius:4px;font:600 13.5px/1.2 var(--f-body);cursor:pointer}
+.tool:hover{background:var(--sunken)}
+main{max-width:1120px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-right,0px)) 30px max(16px,env(safe-area-inset-left,0px))}
+.page{display:none}.page.on{display:block}
+.intro{background:var(--hi-soft);border:1px solid var(--hi);border-radius:6px;padding:16px 20px;margin-bottom:20px}
+.intro h2{margin:0 0 6px;font:700 22px/1.1 var(--f-display);text-transform:uppercase}
+.intro p{margin:6px 0;font-size:15px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:13.5px}
+.toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px;margin-bottom:26px}
+.toc a{display:flex;gap:8px;align-items:baseline;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 14px;color:var(--ink);text-decoration:none;font-size:14.5px}
+.toc a b{flex:none;font:700 14px var(--f-mono);color:var(--accent)}
+.toc a:hover{border-color:var(--ink)}
+section.q{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px 22px;margin-bottom:22px;border-top:4px solid var(--accent);scroll-margin-top:64px}
+section.q h2{margin:0 0 6px;font:600 24px/1.2 var(--f-display);text-wrap:balance}
+section.q h2 .n{display:inline-grid;place-items:center;min-width:40px;height:32px;border:2px solid var(--ink);border-radius:3px;margin-right:10px;font:700 20px/1 var(--f-display);color:var(--ink);background:none;vertical-align:2px;padding:0}
+.hint{color:var(--muted);font-size:14px;margin:0 0 14px;border-left:3px solid var(--line);padding-left:10px}
+.label{font:700 12px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}
+.say{background:linear-gradient(90deg,var(--accent-soft),transparent 55%);border-left:4px solid var(--accent);border-radius:0 4px 4px 0;padding:12px 18px}
+.say p{margin:0 0 10px}.say p:last-child{margin:0}
+.todo{background:var(--hi-soft);color:var(--hi-ink);border:1px dashed var(--hi);border-radius:3px;padding:0 4px;font-weight:600;font-size:.94em}
+.key{font-weight:700;color:var(--accent)}
+details.fu{border:1px solid var(--line);border-radius:4px;margin:6px 0;background:var(--sunken)}
+details.fu summary{cursor:pointer;padding:9px 12px;font-weight:600;font-size:15px;list-style:none;display:flex;gap:10px}
+details.fu summary::before{content:"▸";color:var(--accent);transition:transform .15s}
+details.fu[open] summary::before{transform:rotate(90deg)}
+details.fu summary::-webkit-details-marker{display:none}
+details.fu .ans{padding:2px 16px 12px 34px;color:var(--ink);background:var(--surface);border-top:1px solid var(--line)}
+details.fu .ans p{margin:6px 0}
+.note{background:var(--hi-soft);border:1px solid var(--hi);border-radius:4px;padding:10px 14px;margin-top:14px;font-size:14.5px}
+.note b{color:var(--hi-ink)}
+.fix{background:var(--surface);border:2px solid var(--ink);border-radius:6px;padding:18px 22px;margin-bottom:22px}
+.fix h2{margin:0 0 10px;font:700 24px/1.1 var(--f-display);text-transform:uppercase}
+.fix ol{margin:0;padding-left:20px}.fix li{margin:8px 0}
+.golden{background:var(--ink);color:var(--bg);border-radius:6px;padding:16px 20px;margin-bottom:18px}
+.golden h2{margin:0 0 8px;font:700 22px/1.1 var(--f-display);text-transform:uppercase;color:var(--hi)}
+.golden ul{margin:0;padding-left:18px;columns:2;column-gap:28px;font-size:14.5px}
+.golden li{margin:3px 0;break-inside:avoid}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;border-top:4px solid var(--accent)}
+.card h3{margin:0 0 8px;font:600 20px/1.15 var(--f-display);display:flex;gap:10px;align-items:center}
+.card h3 .n{flex:none;border:2px solid var(--ink);color:var(--ink);background:none;border-radius:3px;min-width:32px;height:28px;display:grid;place-items:center;font:700 17px/1 var(--f-display);padding:0 6px}
+.open{font-size:14.5px;background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;padding:8px 11px;margin-bottom:8px}
+.card ul{margin:0;padding-left:18px;font-size:14.5px}
+.card li{margin:3px 0}
+.tag{display:inline-block;font:700 10.5px/1 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;border-radius:3px;padding:3px 6px;margin-right:4px;vertical-align:1px}
+.t-b{background:var(--blue-soft);color:var(--blue)}
+.t-g{background:var(--ok-soft);color:var(--ok)}
+.t-w{background:var(--hi-soft);color:var(--hi-ink)}
+.row{font-size:14px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.wide{grid-column:1/-1}
+table.mini{width:100%;border-collapse:collapse;font-size:14px}
+table.mini th,table.mini td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+table.mini th{background:var(--sunken);font:700 12px/1.3 var(--f-mono);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+@media(max-width:620px){.grid{grid-template-columns:1fr}.golden ul{columns:1}section.q{padding:16px 14px}}
+@media print{
+  header,.toc{display:none}
+  body{background:#fff;font-size:12.5px}
+  .page{display:block!important;page-break-after:always}
+  details.fu{border:none}details.fu .ans{display:block}
+  section.q,.card,.fix{break-inside:avoid;box-shadow:none}
+}

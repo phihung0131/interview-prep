@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kestrel – Ôn phỏng vấn</title>
+<style>
+/* Kestrel – CSS viết lại theo design system chung (token ở assets/site.css) */
+:root{--warn:var(--hi-ink);--warn-soft:var(--hi-soft);--code:var(--sunken);--radius:6px}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16.5px/1.72 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right,0px)) 30px max(16px,env(safe-area-inset-left,0px))}
+header.top{position:sticky;top:0;z-index:10;background:var(--surface);border-bottom:1px solid var(--line)}
+header.top .in{max-width:1120px;margin:0 auto;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font:700 24px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:0;flex:1 1 auto}
+.tabs{display:flex;gap:4px}
+.tab{border:0;border-bottom:3px solid transparent;background:none;color:var(--muted);padding:10px 12px 8px;font:600 16px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--hi);background:none}
+.btn{border:1.5px solid var(--ink);background:var(--surface);color:var(--ink);padding:6px 11px;border-radius:4px;font:600 13.5px/1.2 var(--f-body);cursor:pointer}
+.btn:hover{background:var(--sunken)}
+#theme.btn{display:none}
+.tab:focus-visible,.btn:focus-visible,summary:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.panel[hidden]{display:none}
+h2{font:600 28px/1.15 var(--f-display);margin:44px 0 8px;scroll-margin-top:72px;text-wrap:balance;padding-top:16px;border-top:2px solid var(--ink)}
+h2 .n{display:inline-grid;place-items:center;min-width:44px;height:34px;border:2px solid var(--ink);border-radius:3px;margin-right:10px;font:700 20px/1 var(--f-display);vertical-align:3px}
+h3{font:700 12px/1.2 var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin:24px 0 8px}
+p{margin:.6em 0}
+ul,ol{margin:.4em 0;padding-left:1.3em}
+li{margin:.3em 0}
+.lead{color:var(--muted)}
+.say{background:linear-gradient(90deg,var(--accent-soft),var(--surface) 45%);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:12px 18px;margin:10px 0}
+.say b.lbl{display:block;font:700 11.5px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.honest{background:var(--hi-soft);border:1px solid var(--hi);border-left-width:4px;border-radius:4px;padding:10px 16px;margin:14px 0;font-size:15.5px}
+.honest b.t{color:var(--hi-ink)}
+.fill{background:var(--ok-soft);border:1px dashed var(--ok);border-radius:4px;padding:10px 16px;margin:14px 0;font-size:15.5px}
+.fill b.t{color:var(--ok)}
+details{background:var(--sunken);border:1px solid var(--line);border-radius:4px;margin:6px 0}
+summary{cursor:pointer;padding:9px 12px;font-weight:600;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";display:inline-block;width:1.3em;color:var(--accent);font:700 16px var(--f-mono)}
+details[open]>summary::before{content:"–"}
+details .body{padding:4px 18px 12px 34px;border-top:1px solid var(--line);background:var(--surface)}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 0}
+nav.toc a{border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;border-radius:4px;padding:6px 10px;font:600 13px/1.2 var(--f-body)}
+nav.toc a:hover{border-color:var(--ink)}
+table{border-collapse:collapse;width:100%;margin:.6em 0;font-size:14.5px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--sunken);font:700 12px/1.3 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;margin:14px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;border-top:4px solid var(--accent)}
+.card h4{margin:0 0 6px;font:600 20px/1.15 var(--f-display)}
+.card h4 .n{color:var(--accent);font-family:var(--f-mono);font-size:15px;margin-right:6px}
+.card ul{padding-left:1.1em;margin:.2em 0}
+.card li{font-size:14.5px;margin:.2em 0;line-height:1.55}
+.num{font:600 .92em var(--f-mono);font-variant-numeric:tabular-nums;color:var(--hi-ink);background:var(--hi-soft);border-radius:3px;padding:0 4px}
+.flash .q{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin:10px 0}
+.flash .a{display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.flash .a.show{display:block}
+.flash button{margin-top:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.small{font-size:13.5px;color:var(--muted)}
+@media print{header.top,nav.toc,.row,.flash{display:none}.panel[hidden]{display:block}body{background:#fff;color:#000}}
+
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"><link rel="stylesheet" href="assets/site.css"><script src="assets/manifest.js"></script><script src="assets/site.js"></script></head>
+<body>
+<header class="top">
+  <div class="in">
+    <h1>Kestrel · Ôn phỏng vấn</h1>
+    <div class="tabs" role="tablist" aria-label="Chế độ">
+      <button class="tab" role="tab" id="t-full" aria-selected="true" aria-controls="p-full">Trả lời đầy đủ</button>
+      <button class="tab" role="tab" id="t-cheat" aria-selected="false" aria-controls="p-cheat">Cheat sheet</button>
+    </div>
+    <button class="btn" id="theme" type="button" aria-label="Đổi giao diện sáng/tối">Sáng/Tối</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ================= TAB 1 ================= -->
+<section class="panel" id="p-full" role="tabpanel" aria-labelledby="t-full">
+  <p class="lead" style="margin-top:22px">Viết theo <b>văn nói</b>, đọc to được luôn. Không dùng tên hàm/bảng trong code; chỉ giữ thuật ngữ ngành và giải thích bằng ví dụ đời thường. Ô <b style="color:var(--warn)">vàng</b> = chỗ phải nói thật là chưa làm. Ô <b style="color:var(--ok)">xanh</b> = số bạn tự điền.</p>
+
+  <div class="honest"><b class="t">Nguyên tắc cả buổi:</b> câu nào cũng cố đi theo nhịp "mình gặp vấn đề gì → mình làm gì → mình đo ra sao → còn thiếu gì". Chỗ chưa làm thì nói thẳng rồi nói luôn "nếu làm thì mình sẽ làm thế này".</div>
+
+  <nav class="toc" aria-label="Mục lục">
+    <a href="#q26">26 Tổng quan</a><a href="#q27">27 Crawl</a><a href="#q28">28 Vector</a><a href="#q29">29 LLM</a>
+    <a href="#q30">30 Không bịa CV</a><a href="#q31">31 Đăng nhập &amp; thanh toán</a><a href="#q32">32 Chịu tải</a>
+  </nav>
+
+  <!-- 26 -->
+  <h2 id="q26"><span class="n">26.</span>Kestrel làm gì, kiến trúc thế nào, vì sao làm?</h2>
+  <div class="say"><b class="lbl">Trả lời (khoảng 40 giây)</b>
+  <p>Kestrel là một web giúp người tìm việc ở Việt Nam đỡ phải lướt tám, chín trang tuyển dụng mỗi ngày. Người dùng dán link tìm kiếm từ các trang như TopCV, ITviec, LinkedIn. Hệ thống tự đi lấy tin định kỳ, rồi so từng tin với CV của họ, trước bằng độ giống về ngữ nghĩa, sau đó nhờ AI đọc kỹ và chấm điểm. Có tin hợp thì báo qua email, Telegram hoặc ngay trong web. Có hai gói, miễn phí và trả phí, thanh toán qua PayOS.</p>
+  <p>Mình làm vì chính mình từng đi tìm việc và gặp ba cái khổ: cùng một tin đăng ở nhiều nơi, tìm bằng từ khoá thì không hiểu CV mình thật sự mạnh gì, và đọc từng bản mô tả công việc rất tốn thời gian.</p></div>
+
+  <h3>Kiến trúc, nói bằng lời</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình chọn một khối thống nhất chia theo module, chứ không tách microservice. Có một ứng dụng web viết bằng FastAPI, một tiến trình chạy nền dùng chung code, cùng một cơ sở dữ liệu PostgreSQL có thêm tiện ích tìm kiếm vector. Thêm Redis để làm hàng đợi, khoá và giới hạn tốc độ.</p>
+  <p>Nguyên tắc chính là <b>việc chậm không làm trong lúc người dùng chờ</b>. Đi lấy tin, gọi AI, tạo PDF, gửi thông báo đều bỏ vào hàng đợi cho tiến trình nền làm; web chỉ nhận yêu cầu rồi trả lời "đã nhận". Dòng chảy là: lên lịch lấy tin, lưu tin, tính vector, so khớp, nhờ AI đánh giá, rồi thông báo.</p>
+  <p>Hai điểm mình làm rất chặt: mọi lần gọi AI đều đi qua đúng một cửa, mọi lần lấy tin từ web ngoài cũng đi qua đúng một cửa. Nhờ vậy giới hạn tốc độ, thử lại khi lỗi, ghi log và đếm chi phí nằm ở một chỗ, không rải khắp code.</p>
+  <p>Một điểm nữa: <b>tin tuyển dụng dùng chung cho mọi người</b>. Một tin chỉ được lưu, phân tích, tính vector một lần, dù một nghìn người cùng theo dõi. Chi phí tăng theo số nguồn khác nhau chứ không tăng theo số người dùng.</p></div>
+
+  <details><summary>Vì sao không tách microservice?</summary><div class="body">
+    <p>Mình làm một mình, chạy trên một máy chủ. Khối thống nhất cho mình một lần triển khai, một giao dịch, một bản sao lưu. Ranh giới giữa các module vẫn được giữ chặt: module này chỉ gọi module kia qua cửa công khai của nó, không chọc vào dữ liệu bên trong. Nên khi cần tách, ví dụ tách phần lấy tin, thì cắt theo module khá rẻ. Thật ra phần chạy nền đã là một tiến trình riêng rồi.</p>
+  </div></details>
+  <details><summary>Vì sao dùng PostgreSQL cho cả tìm kiếm vector, không dùng cơ sở dữ liệu vector riêng?</summary><div class="body">
+    <p>Vì khi tìm việc phù hợp mình vừa cần lọc cứng, ví dụ chỉ trong những nguồn người này đang theo dõi, đúng thành phố, đúng cấp bậc, vừa cần xếp theo độ giống. Để trong cùng một câu truy vấn, cùng một giao dịch thì không phải đồng bộ giữa hai hệ thống. Đánh đổi là quy mô vector bị giới hạn bởi một máy Postgres. Với khối lượng hiện tại thì còn dư xa; khi chỉ mục lớn hơn bộ nhớ thì mình mới cân nhắc tách.</p>
+  </div></details>
+  <details><summary>Vì sao dùng hàng đợi ARQ mà không dùng Celery?</summary><div class="body">
+    <p>Cả ứng dụng của mình chạy bất đồng bộ, ARQ cũng bất đồng bộ nên khớp nhau, lại dùng luôn Redis có sẵn. Celery mạnh hơn nhưng cấu hình nặng hơn mức mình cần. Cái mình đánh đổi là ARQ ít tính năng hơn, nên mình bù bằng khoá trong Redis và lưu trạng thái trong cơ sở dữ liệu.</p>
+  </div></details>
+  <details><summary>Quyết định nào bạn rút kinh nghiệm?</summary><div class="body">
+    <p>Một ví dụ cụ thể là bước lọc bằng vector. Ban đầu mình chỉ giữ 40 tin gần nhất với CV. Sau đó mình lấy 313 tin thật đã được AI chấm điểm để kiểm tra, thì thấy cách đó chỉ giữ được 15% số tin đáng điểm cao, tức bỏ sót rất nhiều. Còn cách đặt ngưỡng độ giống tối thiểu 0,3 thì giữ lại <b>toàn bộ</b> tin AI chấm từ 50 điểm trở lên. Mình đổi vector thành một cái "rây thô" để loại tin rõ ràng không liên quan, rồi để điểm AI quyết định tin nào được hiện. Bài học là phải đo bằng dữ liệu thật trước khi tin vào một con số trông có vẻ hợp lý.</p>
+  </div></details>
+  <details><summary>Có bao nhiêu người dùng?</summary><div class="body">
+    <div class="fill"><b class="t">Tự điền:</b> số người dùng thật, số tin đang lưu. Nếu chưa có người dùng ngoài, nói: "Đây là dự án cá nhân, mình và vài người quen dùng. Mục tiêu của mình là học cách vận hành một hệ thống thật chứ chưa phải làm kinh doanh."</div>
+  </div></details>
+
+  <!-- 27 -->
+  <h2 id="q27"><span class="n">27.</span>Lấy tin từ nhiều trang: trùng lặp, trang đổi giao diện, giới hạn tốc độ, bị chặn</h2>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mỗi trang tuyển dụng mình viết một "bộ đọc" riêng, nhưng tất cả theo cùng một khuôn mẫu: biết trang nào mình đọc được, biết cách liệt kê danh sách tin, biết cách lấy chi tiết một tin. Điều quan trọng là bộ đọc <b>không tự gọi mạng</b>. Mọi yêu cầu đi ra ngoài đều qua một bộ máy chung, nên chuyện lịch sự với trang người ta, thử lại, và tôn trọng file robots đều nằm ở một chỗ.</p>
+  <p>Mình trả lời bốn phần: chống trùng, lên lịch, xử lý khi lỗi hoặc bị chặn, và khi trang đổi cấu trúc.</p></div>
+
+  <h3>Chống trùng</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mỗi tin có địa chỉ gốc đã được làm sạch: mình bỏ các tham số theo dõi quảng cáo trong đường link. Địa chỉ đó là khoá duy nhất trong cơ sở dữ liệu, nên hai tiến trình cùng thấy một tin cũng không tạo ra hai dòng.</p>
+  <p>Ngoài ra mình băm nội dung tin: tiêu đề, công ty, địa điểm, lương, mô tả. Nếu lần sau băm khác đi, nghĩa là tin đã được sửa, mình phân tích và tính vector lại, đúng một lần cho mọi người. Nếu giống y nguyên thì bỏ qua, không tốn tiền AI. Còn nếu hai địa chỉ khác nhau nhưng nội dung giống hệt, mình dùng lại kết quả phân tích của tin đã có.</p>
+  <p>Mình cũng chỉ vào tận trang chi tiết với tin <b>mới</b>, hoặc tin mà dấu hiệu cập nhật trên danh sách thay đổi. Tin cũ thì chỉ đánh dấu "vẫn còn". Nếu một tin biến mất khỏi danh sách ba lần liên tiếp thì mới coi là hết hạn; mình chọn ba để một lần lấy tin lỗi không làm hàng loạt tin chết oan.</p></div>
+
+  <h3>Lịch chạy</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mỗi phút có một việc định kỳ quét xem nguồn nào đến hạn thì xếp vào hàng đợi. Nhiều người theo dõi cùng một link thì chỉ lấy một lần cho tất cả. Gói miễn phí lấy hai lần một ngày, sáng 6 giờ và chiều 6 giờ. Gói trả phí lấy mỗi giờ. Nếu một link có cả hai loại người theo dõi thì lấy theo lịch dày hơn.</p>
+  <p>Mỗi lần chạy có khoá trong Redis để hai tiến trình không chạy chồng lên cùng một link. Khoá có hạn sử dụng, nên tiến trình có chết giữa chừng thì link cũng không bị khoá mãi. Một link lỗi năm lần liên tiếp thì tự tắt và báo lại.</p></div>
+
+  <h3>Thử lại và giữ lịch sự</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Gặp lỗi mạng hoặc lỗi phía máy chủ họ hoặc bị báo "yêu cầu quá nhiều", mình thử lại tối đa ba lần, mỗi lần đợi lâu gấp đôi lần trước, có thêm chút ngẫu nhiên để không đồng loạt dội vào cùng lúc. Nếu họ bảo "đợi chừng này giây", mình đợi đúng như vậy; nếu họ bảo đợi quá năm phút thì mình ngừng gọi tới trang đó luôn. Các lỗi còn lại thì bỏ ngay, không thử lại.</p>
+  <p>Mỗi trang có giới hạn tốc độ riêng. Mình còn có cơ chế tự chỉnh: bị chặn hoặc bị lỗi liên tục thì giảm tốc một nửa, chạy ổn mười lần liên tiếp thì tăng dần lại. Thêm một cái cầu dao: lỗi năm lần liên tiếp thì ngắt hẳn một phút rồi chỉ thử một yêu cầu thăm dò. Mình đọc và tuân theo file robots của từng trang, tin nào họ cấm thì không bao giờ gọi. Mình cũng hỏi "trang này có thay đổi từ lần trước không" và nếu họ nói không thì không phân tích lại gì cả.</p></div>
+
+  <h3>Khi trang đổi giao diện</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình làm hai lớp. Lớp đầu là <b>ưu tiên nguồn dữ liệu ổn định</b>: nếu trang có dữ liệu có cấu trúc dành cho công cụ tìm kiếm thì dùng cái đó trước, rồi tới sơ đồ trang, rồi API công khai, cuối cùng mới đến đọc trực tiếp HTML. Cái nào ra kết quả đủ thì dùng, nên trang đổi giao diện không nhất thiết làm mình hỏng.</p>
+  <p>Lớp hai là <b>theo dõi sức khoẻ từng bộ đọc</b>. Mỗi lần chạy mình ghi lại. Nếu bộ đọc trả về không tin nào trong khi lịch sử của nó thường có tin, mình coi là dấu hiệu xấu. Dấu hiệu xấu liên tiếp thì bộ đọc đó chuyển sang "đáng ngờ", rồi "cách ly"; khi bị cách ly thì hệ thống không chạy nó nữa và báo cho quản trị viên. Ngoài ra mỗi đêm mình chạy bài kiểm tra thật vào từng trang: lấy một danh sách, kiểm tra có đủ tiêu đề, công ty, mô tả không. Bài nào hỏng thì tự mở một issue trên GitHub.</p>
+  <p>Mình còn có bài kiểm tra "trả lời bất thường" cho mọi bộ đọc: nội dung rỗng, JSON cụt, trang đăng nhập, mã lỗi 429, trang nặng 3 MB. Lần chạy đầu tiên bắt được 13 trường hợp để lọt lỗi thô, giờ đều đã được xử lý gọn.</p></div>
+
+  <h3>Khi bị chặn</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Nguyên tắc của mình là <b>không cố vượt rào chống bot</b>. Glints và Glassdoor chặn chương trình tự động bằng tường lửa nên mình không hỗ trợ. Indeed khó lấy chi tiết nên mình gỡ. LinkedIn thì file robots cấm, và điều khoản cũng cấm, nên mặc định bộ đọc đó không hoạt động; chỉ bật được khi chạy thử trên máy cá nhân.</p>
+  <p>Có hai ca mình xử lý theo hướng hợp lệ. TopDev cấm gọi API của họ, nên mình chuyển sang đọc sơ đồ trang và dữ liệu có cấu trúc trên chính trang tin, là phần họ cho phép. VNG từ chối kết nối vì "dấu vân tay" của kết nối trông không giống trình duyệt, nên mình dùng thư viện mô phỏng kết nối kiểu Chrome cho riêng trang đó, nhưng giới hạn tốc độ, robots, mọi thứ vẫn áp dụng. Mình cũng nói thật là cách này không phải lúc nào cũng thành công.</p>
+  <p>Thêm một lớp an toàn: mọi địa chỉ đều được kiểm tra, chỉ cho đi tới máy chủ công cộng, không cho trỏ vào mạng nội bộ, để người dùng không lợi dụng ô dán link mà dò hệ thống của mình.</p></div>
+
+  <details><summary>Làm sao biết trang đổi giao diện khi chưa ai báo?</summary><div class="body">
+    <p>Có hai tín hiệu: theo dõi lúc chạy, thấy bộ đọc đột nhiên ra không tin nào so với thường lệ; và bài kiểm tra thật mỗi đêm. Hạn chế mình thừa nhận: mình đánh giá theo từng bộ đọc chứ không theo từng link, nên một link chết giữa nhiều link khoẻ sẽ bị che mờ. Và mình chưa có cách tự sửa, vẫn phải sửa tay.</p>
+  </div></details>
+  <details><summary>Hai tiến trình cùng lấy một link thì sao?</summary><div class="body">
+    <p>Tiến trình đến sau thấy khoá đang bị giữ nên thoát luôn. Nếu khoá hết hạn đúng lúc thì còn lớp thứ hai: khoá duy nhất ở địa chỉ tin trong cơ sở dữ liệu, nên cùng lắm là một tin được ghi một lần.</p>
+  </div></details>
+  <details><summary>Lấy tin như vậy có hợp pháp không?</summary><div class="body">
+    <p>Mình không dám khẳng định tuyệt đối. Mình nói cách mình giảm rủi ro: chỉ lấy dữ liệu công khai, tuân theo robots, giới hạn tốc độ, chỉ lấy chi tiết tin mới, không đăng nhập thay ai, không vượt rào chống bot, và có công tắc tắt từng nguồn. Với LinkedIn, vì điều khoản cấm nên mặc định không chạy; đường đúng là xin họ cho phép.</p>
+  </div></details>
+  <details><summary>Một lần chạy lấy bao nhiêu tin?</summary><div class="body">
+    <p>Có trần: khoảng 30 tin đầu của danh sách, hoặc theo số trang người dùng chọn (miễn phí ba trang, trả phí mười trang). Mình cố ý giới hạn để vừa lịch sự với trang nguồn, vừa không phát sinh chi phí AI không cần thiết.</p>
+  </div></details>
+
+  <!-- 28 -->
+  <h2 id="q28"><span class="n">28.</span>Tìm kiếm vector: chỉ mục nào, đánh đổi tốc độ và độ chính xác, khối lượng dữ liệu</h2>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình biến mỗi tin và mỗi hồ sơ thành một dãy 1536 con số bằng một mô hình embedding, để hai văn bản giống nghĩa thì hai dãy số nằm gần nhau. Tìm việc hợp với CV là tìm các dãy số gần nhất. Mình dùng chỉ mục <b>HNSW</b> với khoảng cách cosin.</p>
+  <p>Có một điều thú vị: trong đường chạy thật, mình lọc theo các nguồn người đó theo dõi trước, còn khoảng 15% số tin, nên bộ lập kế hoạch của Postgres chọn quét chính xác trên tập nhỏ đó chứ không dùng chỉ mục. Mất khoảng 33 mili giây cho 3 000 ứng viên. Còn tìm toàn bảng thì chỉ mục HNSW cho kết quả trong 1,6 mili giây.</p></div>
+
+  <h3>Vì sao HNSW mà không IVFFlat</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>IVFFlat chia không gian thành các cụm, nên phải huấn luyện các tâm cụm trên dữ liệu có sẵn, và khi dữ liệu thay đổi nhiều thì phải xây lại, nếu không kết quả lệch dần. Dữ liệu của mình có tin mới liên tục. HNSW thì thêm dần được, không cần huấn luyện, độ chính xác và tốc độ thường tốt hơn; đổi lại xây lâu hơn và tốn bộ nhớ hơn. Mình chọn HNSW, các tham số xây chỉ mục để mặc định.</p></div>
+
+  <h3>Con số</h3>
+<table>
+<tr><th>Việc</th><th>Kết quả</th></tr>
+<tr><td>Tìm 200 tin gần nhất trên toàn bảng, dùng chỉ mục</td><td>1,6 mili giây</td></tr>
+<tr><td>Cùng việc đó nhưng Postgres chọn quét tuần tự (20 000 dòng)</td><td>khoảng 175 mili giây</td></tr>
+<tr><td>Đường chạy thật: lọc theo nguồn đang theo dõi rồi sắp xếp chính xác</td><td>66 xuống 33 mili giây cho 3 000 ứng viên</td></tr>
+</table>
+  <div class="honest"><b class="t">Phải nói thật về khối lượng:</b> 20 000 tin và 500 người dùng là <b>dữ liệu mình tự sinh</b> để đo hiệu năng, vector là số ngẫu nhiên. Dữ liệu thật mình dùng để đánh giá chất lượng là 313 tin đã được AI chấm điểm. Nếu hỏi "bao nhiêu dòng thật" thì trả lời đúng như vậy.</div>
+  <div class="fill"><b class="t">Tự điền (chạy trên máy bạn):</b> đếm số dòng trong bảng tin, số dòng đã có vector, và kích thước chỉ mục HNSW. Chỗ này bạn nên có con số thật khi đi phỏng vấn.</div>
+
+  <h3>Độ chính xác (recall) – câu chuyện thật</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>HNSW không đảm bảo tìm đúng hoàn toàn mà là tìm xấp xỉ. Có một cái bẫy mình đã gặp: chỉ mục chỉ trả về một số lượng ứng viên cố định, mặc định là 40, rồi <b>sau đó</b> mới áp bộ lọc. Mình cần 200 kết quả đã qua lọc, nên có thể nhận về ít hơn nhiều mà <b>không có thông báo lỗi nào</b>. Mình phát hiện ra khi rà soát hiệu năng. Cách sửa: mỗi giao dịch mình tăng số ứng viên lên cỡ ít nhất 100 hoặc bằng số cần lấy, và bật chế độ quét lặp lại của pgvector, để nó tiếp tục quét cho đến khi đủ kết quả qua lọc mà vẫn đúng thứ tự. Có kiểm thử cho trường hợp này.</p></div>
+  <div class="honest"><b class="t">Chưa làm:</b> mình chưa đo recall của HNSW so với quét chính xác. Nếu làm: lấy một mẫu CV, chạy một lần bằng chỉ mục và một lần quét chính xác, tính phần giao nhau trên tổng số, rồi vẽ theo số ứng viên. Với đường chạy thật hiện nay thì độ chính xác là 100% theo thiết kế vì quét chính xác trên tập đã lọc; con số này chỉ cần khi có truy vấn toàn bảng.</div>
+
+  <h3>Vì sao ngưỡng 0,3</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình lấy 313 tin thật đã được AI chấm. Đặt ngưỡng độ giống tối thiểu 0,3 thì giữ lại toàn bộ tin được từ 50 điểm trở lên. Cách "lấy 40 tin gần nhất" chỉ giữ 15% trong số đó. Mô hình embedding mình dùng cho hai văn bản không liên quan cỡ 0,2 và cho cặp CV với việc hợp cỡ 0,65 đến 0,8, nên mình còn kéo giãn khoảng đó ra thang 0 đến 1 trước khi cộng vào điểm tổng.</p></div>
+
+  <details><summary>Nếu có mười triệu tin thì sao?</summary><div class="body">
+    <p>Một máy Postgres sẽ chạm trần bộ nhớ vì vector 1536 chiều khá nặng. Mình sẽ làm theo thứ tự: giảm số chiều hoặc nén vector; chỉ lập chỉ mục cho tin còn hạn, vì tin hết hạn rất nhiều; chia bảng theo nguồn hoặc theo ngày; đọc từ máy sao chép. Cuối cùng mới tách sang hệ thống vector chuyên dụng. Mình không tách sớm vì lợi thế lớn nhất hiện giờ là lọc và tìm trong cùng một câu truy vấn.</p>
+  </div></details>
+  <details><summary>Đổi mô hình embedding thì sao?</summary><div class="body">
+    <p>Mình cố định một mô hình cho cả hệ thống, vì độ giống chỉ có nghĩa khi hai vector đến từ cùng một mô hình. Đổi mô hình hoặc số chiều là phải tính lại vector cho toàn bộ tin và hồ sơ, nên mình coi đó là một lần phát hành chứ không phải đổi một cài đặt. Phần embedding luôn dùng khoá của hệ thống, kể cả người dùng mang khoá AI riêng.</p>
+  </div></details>
+  <details><summary>Sao không dùng tìm kiếm từ khoá thông thường?</summary><div class="body">
+    <p>CV và mô tả việc làm của mình trộn tiếng Việt và tiếng Anh, từ đồng nghĩa rất nhiều, nên từ khoá bỏ sót. Nhưng vector lại yếu ở kỹ năng cụ thể. Vì vậy điểm cuối của mình là điểm lai: 40% từ ngữ nghĩa, 30% từ kỹ năng trùng, 15% từ kinh nghiệm, 15% từ địa điểm, rồi AI đọc lại cho những tin vượt qua cổng.</p>
+  </div></details>
+  <details><summary>Vì sao Postgres hay chọn quét tuần tự dù có chỉ mục?</summary><div class="body">
+    <p>Mỗi vector nặng cỡ 6 KB, lưu ở vùng lưu trữ riêng cho dữ liệu lớn. Bộ lập kế hoạch không tính hết chi phí lấy chúng ra, nên ở 20 000 dòng nó tưởng quét tuần tự rẻ hơn, thực tế chậm hơn 100 lần. Hiện ứng dụng của mình không có truy vấn toàn bảng nào, nhưng nếu thêm thì mình sẽ ép tắt quét tuần tự cho riêng giao dịch đó.</p>
+  </div></details>
+
+  <!-- 29 -->
+  <h2 id="q29"><span class="n">29.</span>Lớp AI nhiều nhà cung cấp: thiết kế, thử lại, dự phòng, chi phí, kiểm tra kết quả</h2>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mọi lần gọi AI trong hệ thống đều đi qua một cửa duy nhất. Phía dưới có một giao diện chung, ba việc: yêu cầu AI trả về dữ liệu đúng khuôn, tạo embedding, và kiểm tra khoá có hợp lệ không. Mỗi nhà cung cấp, như OpenAI, Anthropic, Gemini, DeepSeek, OpenRouter, chỉ cần viết phần khác biệt của họ; phần chung như gọi mạng, thử lại, sửa kết quả hỏng thì dùng chung. Thêm nhà cung cấp mới chỉ là thêm một lớp nhỏ.</p>
+  <p>Cửa này cũng quyết định <b>ai trả tiền</b>: nếu người dùng có khoá riêng thì dùng khoá của họ, miễn phí hạn mức; không thì dùng khoá của hệ thống và trừ vào hạn mức của họ. Khoá của người dùng được mã hoá, và không bao giờ ghi log hay trả ngược ra trình duyệt.</p></div>
+
+  <h3>Thời gian chờ, thử lại, lỗi tạm thời và lỗi vĩnh viễn</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình chia lỗi làm hai nhóm. Lỗi <b>tạm thời</b> là hết thời gian chờ, mạng chập chờn, nhà cung cấp báo quá tải hoặc quá nhiều yêu cầu, hoặc lỗi phía họ. Những lỗi này mình thử lại hai lần, đợi lâu dần, tối đa 30 giây, và nếu họ bảo đợi bao lâu thì mình tuân theo. Lỗi <b>vĩnh viễn</b> là khoá sai, quyền bị từ chối, yêu cầu sai. Mấy cái này thử lại cũng vô ích nên mình dừng ngay và báo người dùng khoá có vấn đề. Mỗi lần chờ tối đa 60 giây. Thông báo lỗi luôn được lọc để không lộ khoá.</p>
+  <p>Có một nhóm lỗi thứ ba là AI trả về dữ liệu sai khuôn. Mình cho nó một cơ hội sửa: gửi lại kèm lý do sai. Nếu sai vì bị cắt giữa chừng do hết giới hạn độ dài, thì mình không nhờ nó "sửa nửa tài liệu" mà hỏi lại từ đầu với giới hạn gấp đôi, tối đa 8192.</p></div>
+
+  <h3>Kiểm tra kết quả</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình yêu cầu AI trả về JSON, kèm mô tả khuôn mẫu, rồi kiểm tra bằng Pydantic. Mình cố ý "khoan dung đúng chỗ": đoạn văn dài quá thì cắt bớt thay vì từ chối cả kết quả, vì một câu thừa không đáng tốn thêm một lần gọi. Còn những chỗ quan trọng như điểm phải là số nguyên từ 0 đến 100, danh sách có độ dài tối đa, thì kiểm tra chặt.</p></div>
+
+  <h3>Chi phí</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình quản chi phí bằng nhiều lớp. Thứ nhất là <b>hạn mức theo người dùng</b>: trước khi gọi AI mình "giữ chỗ" một lượt, gọi thành công mới tính thật, thất bại thì trả lại. Việc giữ chỗ làm bằng một câu lệnh nguyên tử trong cơ sở dữ liệu, nên nhiều yêu cầu cùng lúc cũng không thể vượt hạn mức. Thứ hai là <b>đo đếm</b>: mỗi lần gọi ghi lại nhà cung cấp, mô hình, số token vào ra, độ trễ, thành công hay lỗi, nhưng không lưu nội dung. Thứ ba là <b>giới hạn đầu vào</b>: mô tả việc làm, CV đều bị cắt ở độ dài tối đa. Thứ tư là <b>tránh gọi thừa</b>: lọc bằng vector trước nên chỉ tin có khả năng mới nhờ AI đọc; mỗi tin phân tích một lần cho mọi người; cặp CV với tin đã chấm thì lưu lại, không chấm lại. Gói miễn phí được 10 lần phân tích sâu mỗi tháng, gói trả phí 200 lần.</p></div>
+
+  <div class="honest"><b class="t">Phải nói thật về dự phòng:</b> hiện mình <b>chưa có</b> cơ chế tự chuyển từ nhà cung cấp này sang nhà cung cấp khác khi một bên sập. "Dự phòng" hiện tại là thử lại ở cùng nhà cung cấp, sửa kết quả hỏng, và cho người dùng tự chọn nhà cung cấp theo từng việc. Nếu làm, mình sẽ: có danh sách ưu tiên cho từng loại việc; chỉ chuyển khi lỗi tạm thời và đã hết lần thử; có cầu dao riêng cho từng nhà cung cấp để khỏi gọi tiếp vào bên đang sập; kiểm tra lại khuôn kết quả vì mô hình khác có thể trả khác; và ghi lại nhà cung cấp thật sự đã trả lời.</div>
+  <div class="honest"><b class="t">Cũng chưa có:</b> mức trần chi phí tổng bằng tiền cho cả hệ thống. Hiện mình chặn theo từng người dùng. Bổ sung hợp lý là cộng token mỗi ngày theo nhà cung cấp, vượt ngưỡng thì tạm dừng các việc nền không gấp và báo quản trị viên.</div>
+
+  <details><summary>Vì sao tự viết, không dùng LangChain hay LiteLLM?</summary><div class="body">
+    <p>Mình cần kiểm soát những thứ khá cụ thể: phân loại lỗi, che khoá, đếm theo từng tính năng, giữ chỗ và hoàn lại hạn mức, sửa kết quả hỏng. Chỉ có bốn nhà cung cấp, giao diện ổn định, nên tự viết vài trăm dòng rẻ hơn kéo thêm một thư viện lớn với cách xử lý lỗi của riêng họ. Cái giá là mình tự bảo trì khi họ đổi giao diện; mình đã có kiểm thử cho từng nhà cung cấp bằng kết nối giả.</p>
+  </div></details>
+  <details><summary>Worker chết giữa chừng thì người dùng có bị trừ oan không?</summary><div class="body">
+    <p>Mình trừ theo kiểu giữ chỗ rồi chốt. Nếu tiến trình chết sau khi giữ chỗ mà chưa chốt, thì lượt đó vẫn bị giữ, nghĩa là người dùng tạm mất một lượt. Mình biết khoảng hở này và đã ghi trong tài liệu là chưa có bước dọn. Cách sửa dễ là một việc định kỳ trả lại các lượt giữ chỗ quá lâu chưa chốt.</p>
+  </div></details>
+  <details><summary>Nội dung trong tin tuyển dụng hay CV có thể chứa lệnh độc hại (prompt injection) thì sao?</summary><div class="body">
+    <p>Mình coi cả tin lẫn CV là <b>dữ liệu không đáng tin</b>. Khi ghép vào câu lệnh gửi AI, mình ghép một lượt, nên nếu tin tuyển dụng có chứa dấu hiệu giả làm mục khác thì không kéo được CV vào. Mình cũng vô hiệu hoá chuỗi dùng để đóng khối dữ liệu. Câu lệnh nói rõ phần trong khối là dữ liệu, mọi chỉ dẫn bên trong phải bỏ qua. Và kết quả vẫn phải qua kiểm tra khuôn, nên lệnh lạ khó tạo được trường tuỳ ý.</p>
+  </div></details>
+  <details><summary>Làm sao bảo vệ khoá AI của người dùng?</summary><div class="body">
+    <p>Mã hoá bằng AES-GCM, gắn với người dùng và nhà cung cấp. Cơ sở dữ liệu chỉ giữ bản mã và bốn ký tự cuối để người dùng nhận ra khoá. Không bao giờ ghi log hay trả lại. Chế độ khoá chỉ giữ ở trình duyệt luôn hiện cảnh báo, và các việc chạy nền không bao giờ dùng loại khoá này.</p>
+  </div></details>
+
+  <!-- 30 -->
+  <h2 id="q30"><span class="n">30.</span>"Không bịa nội dung CV": đảm bảo thế nào, bộ đánh giá đo gì</h2>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình có ba lớp. Lớp một là <b>ràng buộc trong câu lệnh gửi AI</b>: chỉ được dùng sự thật có trong CV; mỗi ý, mỗi kỹ năng, mỗi con số đều phải chỉ ra được nó đến từ đoạn nào trong CV, không chỉ ra được thì xoá; thiếu thông tin thì bỏ trống, không được điền "không rõ" hay đoán; không được nâng chức vụ, quy mô hay tác động, ví dụ không đổi "hỗ trợ" thành "dẫn dắt"; và <b>không được thêm kỹ năng mà tin tuyển dụng đòi nhưng CV không có</b>. Cái cuối quan trọng nhất, vì đó là chỗ AI dễ chiều lòng nhất.</p>
+  <p>Lớp hai là <b>tách phần thiếu ra riêng</b>. Những yêu cầu của tin mà CV chưa thể hiện, AI liệt kê thành danh sách "còn thiếu", không in lên CV. Như vậy người dùng thấy rõ chỗ yếu thay vì bị độn thêm. Và phần đánh giá độ phù hợp cũng buộc mỗi điểm mạnh phải kèm bằng chứng lấy từ hồ sơ.</p>
+  <p>Lớp ba là <b>nguồn dữ liệu có cấu trúc, có người xác nhận</b>. CV tuỳ biến được sinh từ hồ sơ mà người dùng đã tự xem và sửa, chứ không phải từ file thô. File tải lên chỉ để điền sẵn hồ sơ, rồi người dùng xem lại.</p></div>
+
+  <div class="honest"><b class="t">Nói thật:</b> mình <b>chưa có bộ đo tự động độ trung thực</b>. Bộ đánh giá mình đang có đo chất lượng <i>xếp hạng việc làm</i>: lấy vài CV và vài tin đã gắn nhãn "hợp / không hợp" bằng tay, xem trong top k kết quả có bao nhiêu phần trăm là đúng. Bộ này nhỏ, hai CV và 17 tin, và dùng embedding giả để chạy lại được mà không cần mạng, nên nó chỉ cho thấy phần kỹ năng, kinh nghiệm, địa điểm xếp hạng ổn không, chứ không đo nội dung CV sinh ra có bịa hay không, và quá nhỏ để kết luận thống kê.</div>
+
+  <h3>Nếu được hỏi "vậy bạn sẽ đo độ trung thực thế nào?"</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình sẽ làm theo thứ tự rẻ đến đắt.</p>
+  <p><b>Một là kiểm tra tự động bằng code, không cần AI.</b> Từ CV được sinh ra, mình rút những thứ kiểm chứng được: con số, năm tháng, tên công ty, tên trường, tên công cụ, chứng chỉ, đường link. Rồi kiểm tra từng thứ có xuất hiện trong hồ sơ gốc không, có chuẩn hoá bỏ dấu và chữ hoa thường. Chỉ số là <b>tỷ lệ thứ không có nguồn</b>, mục tiêu gần bằng không.</p>
+  <p><b>Hai là buộc có nguồn ngay lúc sinh.</b> Mỗi gạch đầu dòng AI viết ra phải kèm tham chiếu tới mục nào trong hồ sơ. Code kiểm tra tham chiếu đó có thật và nội dung khớp, gạch nào không có nguồn thì loại, thay vì tin AI.</p>
+  <p><b>Ba là bộ câu hỏi "bẫy".</b> CV cố tình thiếu số liệu, thiếu ngày, ít kỹ năng, cùng tin tuyển dụng đòi những thứ CV không có. Xem AI có thêm kỹ năng đó, làm tròn số, hay nâng chức không. Chỉ số là tỷ lệ vượt qua bẫy.</p>
+  <p><b>Bốn là dùng một AI khác làm giám khảo</b>, kiểm từng khẳng định là có căn cứ, không có căn cứ, hay mâu thuẫn với CV; nhưng phải hiệu chuẩn giám khảo bằng khoảng 50 ví dụ chấm tay để biết nó sai bao nhiêu.</p>
+  <p><b>Năm là đo tách bạch ba thứ:</b> không bịa, sát với tin tuyển dụng, và không bỏ sót ý quan trọng. Tối ưu cái này không được làm hỏng cái kia. Rồi chạy tự động mỗi khi đổi câu lệnh, so với mốc cũ, nếu tỷ lệ bịa tăng thì chặn không cho nhập.</p></div>
+
+  <details><summary>Vì sao không tin câu lệnh là đủ?</summary><div class="body">
+    <p>Câu lệnh chỉ giảm xác suất, không đảm bảo. Cho nên cần lớp kiểm tra nằm ngoài AI, tức đối chiếu thực thể với nguồn, và lớp con người, tức người dùng xem lại hồ sơ và xem CV trước khi gửi. Đó là phòng thủ nhiều lớp.</p>
+  </div></details>
+  <details><summary>"Suy ra trực tiếp từ CV" thì ranh giới ở đâu?</summary><div class="body">
+    <p>Mình cho phép những suy luận hiển nhiên, ví dụ CV nói dùng FastAPI thì suy ra biết Python. Mình cấm suy ra mức độ như "thành thạo", cấm suy ra quy mô, cấm suy ra tác động. Vùng ranh giới này mờ, và đó chính là lý do cần bộ bẫy cùng giám khảo để đo các ca biên.</p>
+  </div></details>
+  <details><summary>Điểm AI chấm từ 0 đến 100 có đáng tin không?</summary><div class="body">
+    <p>Mình coi đó là <i>một ý kiến có căn cứ</i>, không phải chân lý. Thang điểm có tiêu chí rõ ràng, thiếu yêu cầu bắt buộc thì bị trần 49, và AI phải đưa bằng chứng. Nhưng mình chưa đo mức ổn định giữa các lần chạy và so với người chấm. Vì thế mình dùng điểm AI để quyết định có hiện hay có gửi thông báo, và vẫn cho người dùng xem các điểm thành phần để hiểu lý do.</p>
+  </div></details>
+  <details><summary>Nhiệt độ (temperature) bạn đặt bao nhiêu?</summary><div class="body">
+    <p>Với việc cần trung thực thì mình để thấp.</p>
+    <div class="fill"><b class="t">Tự điền:</b> mở cấu hình và nhìn con số thật bạn đang đặt cho phần sinh CV và phần đánh giá, rồi nói đúng con số đó.</div>
+  </div></details>
+
+  <!-- 31 -->
+  <h2 id="q31"><span class="n">31.</span>Đăng nhập và thanh toán: dùng gì, xử lý thông báo thanh toán trùng hoặc đến muộn</h2>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Phần đăng nhập mình tự xây. Mật khẩu băm bằng argon2id, một thuật toán cố ý tốn bộ nhớ và thời gian để khó dò. Sau khi đăng nhập có hai loại thẻ: thẻ truy cập sống 15 phút, và thẻ làm mới là một chuỗi ngẫu nhiên, đổi mới mỗi lần dùng, lưu trong cookie mà JavaScript không đọc được. Nếu một thẻ làm mới cũ bị dùng lại, tức nhiều khả năng bị đánh cắp, thì mình thu hồi cả chuỗi phiên đó. Có thêm đăng nhập Google, xác minh email, đặt lại mật khẩu bằng liên kết dùng một lần, và phân quyền theo vai trò: người dùng, người điều phối, quản trị viên. Thao tác của quản trị viên đều ghi vào nhật ký. Chống dò mật khẩu: sai năm lần với cùng một email từ một địa chỉ mạng thì khoá 15 phút.</p>
+  <p>Một chi tiết hay: ban đầu băm mật khẩu chạy thẳng trong luồng xử lý chính, mỗi lần tốn khoảng 100 mili giây và <b>làm đứng mọi yêu cầu khác</b>. Mình phát hiện ra khi chạy thử tải. Giờ mình để nó chạy ở một nhóm hai luồng riêng, nên thời gian phản hồi trung vị của các thao tác đọc giảm 43 đến 55%.</p></div>
+
+  <h3>Thanh toán và thông báo từ cổng</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Người dùng bấm nâng cấp thì hệ thống tạo một đơn hàng ở trạng thái "chờ" và xin PayOS một đường link thanh toán. Người dùng trả tiền ở PayOS, rồi PayOS gọi ngược về hệ thống mình để báo kết quả. Cuộc gọi ngược đó mình xử lý qua bốn bước.</p>
+  <p><b>Bước một, kiểm tra chữ ký.</b> PayOS ký nội dung bằng một khoá bí mật chung. Mình tính lại chữ ký theo đúng quy tắc của họ và so sánh theo kiểu thời gian không đổi để kẻ xấu không dò từng ký tự. Sai chữ ký thì từ chối ngay. Mình cũng chỉ coi là "đã trả" khi cả hai mã trạng thái của họ đều báo thành công, và chỉ nhận đồng VND.</p>
+  <p><b>Bước hai, khoá dòng đơn hàng.</b> Mình tìm đơn theo mã đơn và khoá dòng đó lại trong cơ sở dữ liệu. Nếu hai thông báo cùng một đơn đến cùng lúc, cái thứ hai phải đợi cái thứ nhất xong.</p>
+  <p><b>Bước ba, xem trạng thái.</b> Đơn đã "đã trả" thì trả lời "trùng", không làm gì thêm. Không tìm thấy đơn thì bỏ qua. Mới chỉ "đang chờ" thì cũng bỏ qua, không đổi gì.</p>
+  <p><b>Bước bốn, kiểm tra số tiền.</b> Số tiền hoặc loại tiền khác đơn hàng thì từ chối và ghi lỗi, không kích hoạt gói. Khớp thì kích hoạt gói đến hết kỳ, và nếu đang dùng gói đó thì cộng dồn vào kỳ hiện tại.</p></div>
+
+  <h3>Trùng và đến muộn</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p><b>Trùng:</b> PayOS gửi lại cho đến khi nhận được trả lời thành công, nên trùng là chuyện bình thường. Cái giữ cho nó an toàn là chính trạng thái của đơn hàng: đã trả là trạng thái cuối, có gửi lại một trăm lần cũng chỉ trả lời "trùng". Mình dùng trạng thái đơn làm khoá chống trùng, chứ không dùng mã sự kiện, vì như vậy đúng cả khi cổng gửi hai sự kiện khác mã cho cùng một khoản tiền.</p>
+  <p><b>Đến muộn:</b> có hai tình huống. Nếu đơn đã bị hệ thống đóng vì quá 24 giờ chưa trả, nhưng tiền vẫn về, thì mình <b>vẫn kích hoạt gói</b>, vì tiền đã nhận thì phải giao quyền lợi. Nếu một thông báo "đang chờ" đến sau thông báo "đã trả" thì không làm lùi trạng thái, vì đơn đã trả luôn được kiểm tra trước.</p>
+  <p><b>Tạo link cũng chống trùng:</b> cùng gói, cùng kỳ trong 30 phút thì trả lại đơn đang mở thay vì tạo đơn mới.</p>
+  <p>Khi gói hết hạn, một việc định kỳ mỗi 15 phút đưa người dùng về gói miễn phí. Dữ liệu không bị xoá, chỉ bị chặn tạo thêm vượt hạn mức miễn phí. Có nhắc trước 7 ngày và 1 ngày. PayOS không có thu tiền định kỳ nên việc gia hạn là thủ công.</p></div>
+
+  <div class="honest"><b class="t">Nói thật:</b> phần tích hợp PayOS mình kiểm thử bằng kết nối giả và dữ liệu mẫu theo tài liệu của họ, <b>chưa gọi môi trường thử nghiệm thật trong bộ kiểm thử</b>. Mình cũng chưa có bước đối soát định kỳ, tức là chủ động hỏi PayOS các đơn đang chờ có thật sự đã trả chưa. Nếu thông báo bị mất, ví dụ máy chủ mình lỗi đúng lúc, thì người dùng đã trả tiền có thể vẫn ở gói miễn phí cho đến khi quản trị viên gán tay, mà mình có sẵn chức năng đó. Cách sửa là một việc định kỳ hỏi lại PayOS cho các đơn chờ.</div>
+
+  <details><summary>Hai thông báo cùng một đơn đến cùng lúc thì sao?</summary><div class="body">
+    <p>Cả hai cùng mở giao dịch và cùng xin khoá dòng đơn hàng. Cái đầu giữ khoá, kích hoạt gói, đánh dấu đã trả, chốt. Cái thứ hai đợi khoá, rồi đọc lại thì thấy đã trả và trả lời "trùng". Gói không bị cộng hai lần.</p>
+  </div></details>
+  <details><summary>Có kẻ gửi lại thông báo cũ hợp lệ (replay) thì sao?</summary><div class="body">
+    <p>Chữ ký chỉ chứng minh thông báo đến từ PayOS, không chống được việc gửi lại. Nhưng gửi lại thông báo đã trả chỉ nhận về "trùng", không có tác dụng phụ. Còn dùng thông báo này cho đơn khác thì không được, vì chữ ký gắn với nội dung, gồm cả mã đơn và số tiền.</p>
+  </div></details>
+  <details><summary>Hạn mức "đọc rồi ghi" có bị đua nhau (race) không?</summary><div class="body">
+    <p>Không có kiểu đọc rồi ghi. Mình dùng một câu lệnh duy nhất trong cơ sở dữ liệu: tăng số đã dùng, nhưng chỉ khi số đã dùng cộng thêm vẫn không vượt hạn mức. Hết hạn mức thì không dòng nào được cập nhật và người dùng nhận lỗi "hết lượt".</p>
+  </div></details>
+  <details><summary>Dữ liệu của người dùng này có bị lộ cho người khác không?</summary><div class="body">
+    <p>Mọi truy vấn trên dữ liệu thuộc về người dùng đều lọc theo mã người dùng, và mình có kiểm thử riêng cho việc người này không đọc được dữ liệu của người kia.</p>
+  </div></details>
+
+  <!-- 32 -->
+  <h2 id="q32"><span class="n">32.</span>Đã test tải chưa? Nếu 10 000 người dùng cùng lúc thì nghẽn đầu tiên ở đâu?</h2>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Có, nhưng ở quy mô nhỏ, và mình nói rõ giới hạn của nó. Mình chạy <b>50 người dùng ảo trong 60 giây</b>, trên một máy cá nhân đang chạy nhiều thứ khác, cơ sở dữ liệu chưa tinh chỉnh, với 20 000 tin và 500 người dùng tự sinh. Kết quả là không có lỗi nào, khoảng 155 yêu cầu mỗi giây khi đã bão hoà. Nhưng con số tuyệt đối không có nhiều ý nghĩa vì máy dùng chung, mình chỉ dùng để so sánh giữa các lần chạy. Mình <b>chưa</b> thử 10 000 người, và cũng chưa thử tải phần gọi AI hay phần chạy nền.</p>
+  <p>Giá trị lớn nhất của bài test này là nó <b>lộ ra một điểm nghẽn thật</b>: băm mật khẩu làm đứng cả luồng xử lý, như mình kể ở câu trước. Sau khi sửa, thời gian phản hồi trung vị giảm gần một nửa. Mình cũng thêm các chỉ mục còn thiếu, ví dụ lấy danh sách tin từ 12–16 xuống còn 0,4 mili giây, đếm khi tìm theo chữ từ 280 xuống 5 mili giây; giới hạn kích thước nhóm kết nối cơ sở dữ liệu; dùng chung kết nối Redis; và chặn số trang quá lớn.</p></div>
+
+  <div class="honest"><b class="t">Phải nói thật:</b> bài test này là "đóng vòng", tức người dùng ảo gửi yêu cầu liên tục không nghỉ, nên đo mức bão hoà chứ không phải tải thực tế. Mình cũng chạy bộ tạo tải trên cùng máy với hệ thống. Vì vậy mình không dùng nó để khẳng định sức chịu tải.</div>
+
+  <h3>Dự đoán nghẽn khi có 10 000 người cùng lúc</h3>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Mình trả lời đây là <b>dự đoán</b> chứ chưa đo. Với các thao tác đọc thông thường thì cơ sở dữ liệu còn dư, vì mấy truy vấn nóng chỉ mất vài phần mười đến vài chục mili giây nhờ có chỉ mục. Điểm nghẽn đầu tiên mình nghĩ sẽ là <b>đường gọi AI cùng hàng đợi việc nền</b>. Mỗi lần gọi AI mất vài giây đến vài chục giây, bị nhà cung cấp giới hạn tốc độ, và tốn tiền. Nếu nhiều người cùng bấm chạy so khớp hay đánh giá thì hàng đợi dồn lại, và hiện mình chưa có cơ chế ưu tiên hay áp lực ngược.</p>
+  <p>Thứ hai là <b>đăng nhập</b> nếu mọi người cùng vào một lúc. Băm mật khẩu tốn 100 mili giây và 64 MB mỗi lần, với nhóm hai luồng thì chỉ làm được cỡ 20 lần mỗi giây, nên 10 000 người sẽ xếp hàng cả vài phút. Cách giảm là cho phiên đang có sống lâu hơn, tăng luồng theo số lõi, hoặc giới hạn tốc độ đăng nhập.</p>
+  <p>Thứ ba là <b>số kết nối cơ sở dữ liệu</b>: hiện mình dùng khoảng 60 trong 100 kết nối tối đa. Mười nghìn yêu cầu cùng xin kết nối sẽ phải đợi. Giải pháp là thêm bộ gom kết nối như PgBouncer và đọc từ máy sao chép.</p>
+  <p>Thứ tư là chạy so khớp định kỳ: mỗi người mất khoảng 33 mili giây, nhân 10 000 người ra khoảng năm phút CPU nếu chạy tuần tự. Chấp nhận được nếu chia nhỏ và chỉ chạy cho người có tin mới.</p>
+  <p>Còn <b>lấy tin từ web ngoài thì ít nghẽn nhất</b>, vì tin dùng chung: tải tăng theo số link khác nhau chứ không theo số người. Mười nghìn người theo dõi những link giống nhau thì rất rẻ. Và việc lấy tin chậm lại do giới hạn lịch sự là cố ý, để không bị chặn.</p></div>
+
+  <div class="say"><b class="lbl">Câu chốt gọn nếu bị ép "một điểm nghẽn đầu tiên"</b>
+  <p>"Mình dự đoán là đường gọi AI. Vừa chậm, vừa bị nhà cung cấp giới hạn, vừa là chi phí. Nếu tải dồn vào đăng nhập thì là băm mật khẩu. Mình chưa đo ở quy mô đó. Việc đầu tiên mình sẽ làm là viết kịch bản kiểm thử có thời gian nghỉ giữa các thao tác và một nhà cung cấp AI giả có độ trễ và tỷ lệ lỗi chỉnh được, để đo độ dài hàng đợi."</p></div>
+
+  <details><summary>Bạn sẽ test tải cho đúng thế nào?</summary><div class="body">
+    <ol>
+      <li>Máy riêng, sạch, cơ sở dữ liệu đã tinh chỉnh, bộ tạo tải đặt ở máy khác.</li>
+      <li>Kiểu "mở": người dùng đến theo tốc độ cho trước và có thời gian nghỉ, chứ không gửi liên tục. Ghi p50, p95, p99, tỷ lệ lỗi, và các chỉ số bão hoà: CPU, số kết nối cơ sở dữ liệu đang dùng, độ dài hàng đợi.</li>
+      <li>Kịch bản hỗn hợp: đọc, đăng nhập, yêu cầu so khớp; nhà cung cấp AI giả có độ trễ 2 đến 20 giây và 5% lỗi.</li>
+      <li>Tăng dần tải đến khi hệ thống gãy; ghi lại giới hạn đầu tiên, sửa, rồi đo lại.</li>
+    </ol>
+  </div></details>
+  <details><summary>Mở rộng thế nào?</summary><div class="body">
+    <p>Phần web không giữ trạng thái trên máy, vì thẻ đăng nhập tự chứa thông tin và Redis giữ giới hạn tốc độ và khoá, nên thêm bản sao phía sau bộ cân bằng tải là được, miễn tổng kết nối cơ sở dữ liệu vẫn dưới mức tối đa. Phần nền thì chạy thêm tiến trình; khoá Redis và các ràng buộc duy nhất trong cơ sở dữ liệu giúp nhiều tiến trình chạy song song vẫn an toàn.</p>
+  </div></details>
+  <details><summary>Bạn theo dõi hệ thống đang chạy thế nào?</summary><div class="body">
+    <p>Log có mã yêu cầu và che dữ liệu nhạy cảm; có đường kiểm tra sống và sẵn sàng; bảng đo đếm AI cho chi phí và độ trễ; bảng lịch sử lần chạy và sức khoẻ bộ đọc cho phần lấy tin.</p>
+    <div class="fill"><b class="t">Tự điền:</b> nếu bạn có dashboard hay cảnh báo thật thì nói; nếu chưa, nói "mình có log và bảng đo đếm, chưa có cảnh báo tự động".</div>
+  </div></details>
+
+  <h2 style="margin-top:52px">Câu chốt khi kết thúc</h2>
+  <div class="say"><b class="lbl">Trả lời</b>
+  <p>Điều mình học được nhiều nhất là <b>đo trước khi tin</b>. Ngưỡng độ giống, lỗi mất kết quả của chỉ mục khi có bộ lọc, hay việc băm mật khẩu làm đứng cả hệ thống, đều là những thứ chỉ lộ ra khi mình đo. Việc mình ưu tiên làm tiếp là bốn thứ: bộ đo độ trung thực của CV theo từng khẳng định, dự phòng giữa các nhà cung cấp AI cùng mức trần chi phí, đối soát định kỳ với PayOS, và test tải kiểu mở có AI giả.</p></div>
+</section>
+
+<!-- ================= TAB 2 ================= -->
+<section class="panel" id="p-cheat" role="tabpanel" aria-labelledby="t-cheat" hidden>
+  <p class="lead" style="margin-top:22px">Ôn nhanh: mỗi thẻ là khung xương để nói. Dưới cùng có <b>flashcard</b> để tự hỏi–đáp. Toàn bộ viết bằng lời thường.</p>
+
+  <div class="honest"><b class="t">3 câu "trung thực" phải thuộc:</b>
+    <ul>
+      <li><b>Dữ liệu:</b> 20 000 tin là dữ liệu tự sinh để đo hiệu năng. Dữ liệu thật đo chất lượng là 313 tin đã được AI chấm.</li>
+      <li><b>Test tải:</b> 50 người ảo, 60 giây, không lỗi, khoảng 155 yêu cầu/giây khi bão hoà. Chưa thử 10 000 người, chưa thử phần AI.</li>
+      <li><b>CV không bịa:</b> có câu lệnh chặt + kiểm tra khuôn + bằng chứng + người xác nhận. <i>Chưa</i> có bộ đo tự động; bộ đánh giá hiện có chỉ đo chất lượng xếp hạng (2 CV, 17 tin).</li>
+    </ul>
+  </div>
+
+  <div class="cards">
+    <div class="card"><h4><span class="n">26</span>Kestrel trong một câu</h4>
+      <ul>
+        <li><b>Dán link tìm việc → tự lấy tin → so với CV (vector rồi AI) → báo.</b></li>
+        <li>Một khối thống nhất chia module; phần web + phần nền + Postgres + Redis.</li>
+        <li>Việc chậm bỏ vào hàng đợi, không bắt người dùng chờ.</li>
+        <li>Chỉ <b>một cửa</b> gọi AI, <b>một cửa</b> gọi web ngoài.</li>
+        <li>Tin <b>dùng chung</b>: lưu và phân tích một lần.</li>
+        <li>Vì sao: gom nhiều trang, hiểu nghĩa chứ không chỉ từ khoá, đỡ đọc mô tả.</li>
+      </ul></div>
+
+    <div class="card"><h4><span class="n">27</span>Lấy tin</h4>
+      <ul>
+        <li><b>Trùng:</b> địa chỉ đã làm sạch là khoá duy nhất + băm nội dung; chỉ vào chi tiết tin mới/đổi.</li>
+        <li><b>Hết hạn:</b> vắng <b>3</b> lần liên tiếp.</li>
+        <li><b>Lịch:</b> quét mỗi phút; miễn phí 6h/18h, trả phí mỗi giờ; khoá Redis chống chạy chồng.</li>
+        <li><b>Thử lại:</b> 3 lần, đợi gấp đôi mỗi lần, có ngẫu nhiên; nghe theo "đợi bao lâu".</li>
+        <li>Giới hạn tốc độ từng trang, tự giảm tốc khi bị chặn, cầu dao 5 lỗi/1 phút, tuân theo robots, hỏi "có đổi không".</li>
+        <li><b>Đổi giao diện:</b> ưu tiên dữ liệu có cấu trúc; theo dõi sức khoẻ → đáng ngờ → cách ly; test thật mỗi đêm.</li>
+        <li><b>Bị chặn:</b> không vượt rào; TopDev đọc sơ đồ trang; VNG mô phỏng Chrome; LinkedIn mặc định tắt.</li>
+      </ul></div>
+
+    <div class="card"><h4><span class="n">28</span>Tìm kiếm vector</h4>
+      <ul>
+        <li>Mỗi tin/CV thành <b>1536 con số</b>; gần nhau = giống nghĩa; chỉ mục <b>HNSW</b>, khoảng cách cosin.</li>
+        <li>IVFFlat phải huấn luyện, xây lại khi dữ liệu đổi; HNSW thêm dần.</li>
+        <li>Toàn bảng dùng chỉ mục: <span class="num">1,6 ms</span>; quét tuần tự: <span class="num">175 ms</span>.</li>
+        <li>Đường thật: lọc theo nguồn (15%) rồi quét chính xác <span class="num">33 ms</span>/3 000.</li>
+        <li><b>Bẫy recall:</b> chỉ mục trả 40 ứng viên rồi mới lọc → thiếu kết quả; sửa bằng tăng ứng viên + quét lặp.</li>
+        <li>Ngưỡng <b>0,3</b> giữ mọi tin AI ≥50; "40 gần nhất" chỉ 15%.</li>
+        <li>Chưa đo recall so với quét chính xác.</li>
+      </ul></div>
+
+    <div class="card"><h4><span class="n">29</span>Lớp AI</h4>
+      <ul>
+        <li>Một cửa; giao diện chung 3 việc: trả JSON đúng khuôn, embedding, kiểm tra khoá.</li>
+        <li>Nhà cung cấp: OpenAI, Anthropic, Gemini, DeepSeek, OpenRouter.</li>
+        <li>Chờ <span class="num">60 s</span>; thử lại <span class="num">2</span> lần, tối đa 30 s.</li>
+        <li><b>Tạm thời</b> (thử lại): hết giờ, mạng, quá tải, lỗi họ. <b>Vĩnh viễn</b> (dừng): khoá sai, bị từ chối, yêu cầu sai.</li>
+        <li>JSON sai → cho sửa 1 lần; bị cắt → hỏi lại với giới hạn gấp đôi.</li>
+        <li><b>Chi phí:</b> giữ chỗ → chốt/trả lại; ghi đếm token; cắt độ dài; phân tích 1 lần/tin.</li>
+        <li><b>Chưa có:</b> tự chuyển nhà cung cấp, trần chi phí tổng.</li>
+      </ul></div>
+
+    <div class="card"><h4><span class="n">30</span>Không bịa CV</h4>
+      <ul>
+        <li>Câu lệnh: chỉ sự thật trong CV; mỗi ý chỉ ra nguồn; không thì xoá; <b>không thêm kỹ năng từ tin tuyển dụng</b>; không nâng chức; thiếu thì bỏ.</li>
+        <li>Danh sách "còn thiếu" tách riêng, không in lên CV.</li>
+        <li>Điểm mạnh phải kèm bằng chứng từ hồ sơ.</li>
+        <li>Đầu vào là hồ sơ người dùng đã xác nhận.</li>
+        <li><b>Có:</b> đo xếp hạng (2 CV, 17 tin, embedding giả).</li>
+        <li><b>Sẽ làm:</b> tỷ lệ chi tiết không có nguồn; mỗi gạch kèm nguồn; bộ bẫy; giám khảo AI hiệu chuẩn; chạy mỗi khi đổi câu lệnh.</li>
+      </ul></div>
+
+    <div class="card"><h4><span class="n">31</span>Đăng nhập &amp; thanh toán</h4>
+      <ul>
+        <li>argon2id (nhóm 2 luồng riêng), thẻ truy cập 15 phút, thẻ làm mới đổi mỗi lần; dùng lại thẻ cũ → thu hồi cả phiên.</li>
+        <li>Sai 5 lần → khoá 15 phút.</li>
+        <li><b>Chữ ký:</b> HMAC-SHA256 trên nội dung, so thời gian không đổi; "đã trả" khi cả hai mã đều thành công; chỉ VND.</li>
+        <li><b>Chống trùng:</b> khoá dòng đơn + trạng thái; đã trả → "trùng".</li>
+        <li><b>Đến muộn:</b> đơn bị đóng mà tiền về vẫn kích hoạt; "chờ" không ghi đè "đã trả".</li>
+        <li>Sai số tiền → từ chối. Gia hạn cộng dồn.</li>
+        <li>Chưa: thử cổng thật, đối soát định kỳ.</li>
+      </ul></div>
+
+    <div class="card"><h4><span class="n">32</span>Chịu tải</h4>
+      <ul>
+        <li><b>Có:</b> 50 người ảo, 60 giây, 20k tin tự sinh; không lỗi; ~155 yêu cầu/giây.</li>
+        <li>Phát hiện: băm mật khẩu làm đứng hệ thống → tách nhóm luồng (trung vị −43–55%); thêm chỉ mục (<span class="num">12→0,4 ms</span>); giới hạn nhóm kết nối.</li>
+        <li><b>Chưa:</b> 10 000 người, phần AI/nền, tải kiểu mở.</li>
+        <li><b>Dự đoán nghẽn:</b> (1) gọi AI + hàng đợi; (2) đăng nhập; (3) kết nối DB 60/100; (4) so khớp định kỳ. Lấy tin ít nghẽn vì tin dùng chung.</li>
+        <li>Test đúng: kiểu mở, có nghỉ, AI giả, máy riêng.</li>
+      </ul></div>
+  </div>
+
+  <h3>Con số cần nhớ</h3>
+<table>
+<tr><th>Thứ</th><th>Số</th><th>Thứ</th><th>Số</th></tr>
+<tr><td>Chiều vector</td><td class="num">1536</td><td>Ngưỡng giống / số tối đa</td><td class="num">0,3 / 200</td></tr>
+<tr><td>Trọng số điểm</td><td>40 ngữ nghĩa, 30 kỹ năng, 15 kinh nghiệm, 15 địa điểm</td><td>Thử lại: lấy tin / AI</td><td class="num">3 / 2</td></tr>
+<tr><td>Chờ: lấy tin / AI</td><td class="num">20 s / 60 s</td><td>Cầu dao</td><td>5 lỗi, thăm dò sau 1 phút</td></tr>
+<tr><td>Tin hết hạn</td><td class="num">vắng 3 lần</td><td>Link lỗi tự tắt</td><td class="num">5 lần</td></tr>
+<tr><td>Thẻ truy cập</td><td>15 phút</td><td>Gói trả phí</td><td>99 000 / 990 000 đồng</td></tr>
+<tr><td>Phân tích sâu/tháng</td><td>Miễn phí 10, trả phí 200</td><td>Link theo dõi</td><td>Miễn phí 3, trả phí 30</td></tr>
+<tr><td>Kết nối DB</td><td>dùng khoảng 60 / tối đa 100</td><td>Test tải</td><td>50 người · 60 giây</td></tr>
+<tr><td>Bộ đánh giá xếp hạng</td><td>2 CV · 17 tin</td><td>Dữ liệu thật đã chấm</td><td>313 tin</td></tr>
+</table>
+
+  <h3>Sai lầm hay gặp – tránh</h3>
+  <ul>
+    <li>Nói "đã test với 20 000 tin" như dữ liệu thật → nói "dữ liệu tự sinh để đo hiệu năng".</li>
+    <li>Nói "có dự phòng nhiều nhà cung cấp AI" → hiện là thử lại + sửa kết quả + người dùng tự chọn.</li>
+    <li>Nói "độ chính xác 99%" → chưa đo; kể bẫy 40 ứng viên và cách sửa.</li>
+    <li>Nói "đảm bảo không bịa" → "giảm bằng câu lệnh, kiểm tra khuôn, nguồn có người xác nhận, và đây là cách mình sẽ đo".</li>
+    <li>Nói "thanh toán đã chạy thật" → chưa thử cổng thật, mới thử bằng dữ liệu mẫu.</li>
+  </ul>
+
+  <h3>Flashcard phản xạ</h3>
+  <div class="row">
+    <button class="btn" id="shuffle" type="button">Xáo trộn</button>
+    <button class="btn" id="revealAll" type="button">Hiện/ẩn tất cả đáp án</button>
+    <span class="small" id="count"></span>
+  </div>
+  <div class="flash" id="flash"></div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var KEY="kestrel-interview-ui";
+  function load(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){return {}}}
+  function save(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
+  var st=load();
+  var tabs=[document.getElementById("t-full"),document.getElementById("t-cheat")];
+  var panels=[document.getElementById("p-full"),document.getElementById("p-cheat")];
+  function show(i){
+    tabs.forEach(function(t,k){t.setAttribute("aria-selected",k===i?"true":"false");panels[k].hidden=k!==i});
+    st.tab=i;save(st);window.scrollTo(0,0);
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener("click",function(){show(i)});
+    t.addEventListener("keydown",function(e){
+      if(e.key==="ArrowRight"||e.key==="ArrowLeft"){var n=(i+1)%2;show(n);tabs[n].focus()}
+    });
+  });
+  if(st.tab===1)show(1);
+  var root=document.documentElement;
+  if(st.theme)root.setAttribute("data-theme",st.theme);
+  document.getElementById("theme").addEventListener("click",function(){
+    var dark=root.getAttribute("data-theme")==="dark"||(!root.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme: dark)").matches);
+    var next=dark?"light":"dark";root.setAttribute("data-theme",next);st.theme=next;save(st);
+  });
+
+  var cards=[
+    ["Kestrel làm gì (một câu)?","Người dùng dán link tìm việc; hệ thống tự lấy tin định kỳ, so với CV bằng vector rồi nhờ AI đọc kỹ chấm điểm, và báo khi có tin hợp. Có gói miễn phí và trả phí qua PayOS."],
+    ["Vì sao làm?","Mình từng tìm việc và khổ vì: một tin đăng nhiều nơi, tìm từ khoá không hiểu CV, và đọc từng mô tả tốn thời gian."],
+    ["Kiến trúc nói bằng lời?","Một khối thống nhất chia module: phần web, phần chạy nền dùng chung code, Postgres có vector, Redis làm hàng đợi. Việc chậm bỏ vào hàng đợi. Chỉ một cửa gọi AI, một cửa gọi web ngoài."],
+    ["Vì sao tin dùng chung?","Một tin lưu, phân tích, tính vector một lần cho mọi người. Chi phí theo số nguồn khác nhau, không theo số người dùng."],
+    ["Vì sao một khối thay vì microservice?","Một người làm, một máy chủ. Một lần triển khai, một giao dịch, một bản sao lưu; ranh giới module vẫn giữ chặt nên tách sau này rẻ."],
+    ["Vì sao Postgres cho cả vector?","Lọc cứng và xếp theo độ giống nằm trong một câu truy vấn, một giao dịch, không phải đồng bộ hai hệ thống. Đánh đổi: giới hạn bởi một máy."],
+    ["Chống tin trùng thế nào?","Địa chỉ đã bỏ tham số quảng cáo là khoá duy nhất; băm nội dung để biết tin có sửa không; chỉ vào chi tiết tin mới hoặc có dấu hiệu đổi."],
+    ["Khi nào tin hết hạn?","Khi mọi link liệt kê nó đều không thấy nó ba lần liên tiếp. Chọn ba để một lần lỗi không làm tin chết oan."],
+    ["Thử lại khi lấy tin?","Ba lần, mỗi lần đợi gấp đôi có chút ngẫu nhiên; nghe theo yêu cầu đợi của họ, quá năm phút thì ngừng gọi trang đó; lỗi khác thì bỏ ngay."],
+    ["Giữ lịch sự với trang nguồn?","Giới hạn tốc độ từng trang, tự giảm tốc khi bị chặn, cầu dao khi lỗi liên tục, tuân theo robots, hỏi 'có đổi không' trước khi tải lại."],
+    ["Trang đổi giao diện, biết bằng cách nào?","Theo dõi sức khoẻ từng bộ đọc: ra không tin nào trong khi lịch sử thường có thì là dấu hiệu xấu; xấu liên tiếp thì cách ly và báo quản trị viên. Thêm test thật mỗi đêm. Ưu tiên dữ liệu có cấu trúc hơn đọc HTML."],
+    ["Bị chặn thì làm gì?","Không vượt rào chống bot. Glints, Glassdoor không hỗ trợ; Indeed gỡ; LinkedIn cấm nên mặc định tắt; TopDev chuyển sang sơ đồ trang; VNG mô phỏng kết nối Chrome nhưng vẫn tuân theo mọi giới hạn."],
+    ["Vì sao HNSW mà không IVFFlat?","IVFFlat phải huấn luyện tâm cụm và xây lại khi dữ liệu đổi. HNSW thêm dần được, nhanh và chính xác hơn, đổi lại tốn bộ nhớ."],
+    ["Số đo vector?","Toàn bảng với chỉ mục 1,6 ms; quét tuần tự khoảng 175 ms. Đường thật: lọc theo nguồn rồi quét chính xác 33 ms cho 3 000 ứng viên."],
+    ["Bẫy độ chính xác của HNSW?","Chỉ mục trả khoảng 40 ứng viên rồi mới áp bộ lọc, nên cần 200 kết quả đã lọc có thể nhận thiếu mà không báo lỗi. Sửa: tăng số ứng viên và bật quét lặp."],
+    ["20 000 dòng là thật không?","Không, là dữ liệu tự sinh với vector ngẫu nhiên để đo hiệu năng. Dữ liệu thật dùng đánh giá là 313 tin đã được AI chấm."],
+    ["Ngưỡng 0,3 từ đâu?","Đo trên 313 tin thật: ngưỡng 0,3 giữ mọi tin AI chấm từ 50; cách giữ 40 tin gần nhất chỉ giữ 15%."],
+    ["Thiết kế lớp AI?","Một cửa; giao diện chung gồm trả JSON đúng khuôn, tạo embedding, kiểm tra khoá. Phần chung (gọi mạng, thử lại, sửa kết quả) dùng chung; mỗi nhà cung cấp chỉ viết phần khác."],
+    ["Lỗi tạm thời và vĩnh viễn?","Tạm thời, thử lại hai lần tối đa 30 giây: hết giờ, mạng, quá tải, lỗi phía họ. Vĩnh viễn, dừng ngay: khoá sai, bị từ chối, yêu cầu sai. Chờ tối đa 60 giây mỗi lần."],
+    ["AI trả JSON hỏng thì sao?","Gửi lại kèm lý do để nó sửa một lần. Nếu bị cắt vì hết giới hạn thì hỏi lại từ đầu với giới hạn gấp đôi, tối đa 8192."],
+    ["Quản chi phí AI?","Giữ chỗ một lượt trước, thành công thì chốt, lỗi thì trả lại, làm bằng một câu lệnh nguyên tử; ghi đếm token và độ trễ; cắt độ dài đầu vào; lọc vector trước; phân tích mỗi tin một lần."],
+    ["Có tự chuyển nhà cung cấp AI chưa?","Chưa. Hiện chỉ thử lại cùng nhà cung cấp, sửa kết quả hỏng, và người dùng tự chọn. Nếu làm: danh sách ưu tiên, chỉ chuyển khi lỗi tạm thời, cầu dao riêng, kiểm tra lại khuôn."],
+    ["Có trần chi phí tổng chưa?","Chưa, mới chặn theo từng người dùng. Sẽ thêm cộng token mỗi ngày, vượt ngưỡng thì tạm dừng việc nền không gấp và báo quản trị viên."],
+    ["Chống lệnh độc trong tin tuyển dụng?","Coi tin và CV là dữ liệu; ghép một lượt để không kéo phần khác vào; vô hiệu chuỗi đóng khối; câu lệnh dặn bỏ qua chỉ dẫn bên trong; kết quả vẫn qua kiểm tra khuôn."],
+    ["Đảm bảo không bịa CV?","Câu lệnh chặt (mỗi ý chỉ ra nguồn, không thêm kỹ năng từ tin tuyển dụng, không nâng chức), danh sách 'còn thiếu' tách riêng, điểm mạnh kèm bằng chứng, đầu vào là hồ sơ người dùng đã xác nhận. Chưa có bộ đo tự động."],
+    ["Bộ đánh giá hiện có đo gì?","Chất lượng xếp hạng việc làm (phần trăm đúng trong top k) trên 2 CV và 17 tin có nhãn, embedding giả. Không đo độ trung thực CV."],
+    ["Bộ đo trung thực sẽ làm thế nào?","Rút số, ngày, tên từ CV sinh ra rồi đối chiếu với hồ sơ gốc; buộc mỗi gạch kèm nguồn; bộ câu hỏi bẫy; giám khảo AI hiệu chuẩn bằng chấm tay; chạy mỗi khi đổi câu lệnh, tăng bịa thì chặn."],
+    ["Đăng nhập dùng gì?","argon2id, thẻ truy cập 15 phút, thẻ làm mới đổi mỗi lần và thu hồi cả phiên nếu bị dùng lại, đăng nhập Google, phân quyền theo vai trò, nhật ký quản trị, khoá 15 phút sau 5 lần sai."],
+    ["Phát hiện nào từ test tải?","Băm mật khẩu chạy trong luồng chính làm đứng mọi yêu cầu. Tách sang nhóm hai luồng riêng, thời gian trung vị giảm 43–55%."],
+    ["Xác minh thông báo thanh toán?","Tính lại chữ ký HMAC-SHA256 theo quy tắc cổng, so theo thời gian không đổi; chỉ coi là đã trả khi cả hai mã đều thành công, chỉ nhận VND."],
+    ["Chống xử lý trùng thanh toán?","Khoá dòng đơn hàng; đơn đã trả là trạng thái cuối, gửi lại chỉ nhận 'trùng'. Trạng thái đơn là khoá chống trùng thật."],
+    ["Thông báo đến muộn?","Đơn đã bị đóng quá hạn mà tiền về vẫn kích hoạt gói vì đã nhận tiền; thông báo 'chờ' đến sau không ghi đè 'đã trả'; sai số tiền thì từ chối."],
+    ["Hạn chế phần thanh toán?","Mới thử bằng kết nối giả, chưa gọi môi trường thử nghiệm thật; chưa có đối soát định kỳ; gia hạn thủ công."],
+    ["Đã test tải chưa?","Có, nhỏ: 50 người ảo, 60 giây, máy dùng chung, không lỗi, ~155 yêu cầu/giây khi bão hoà. Chưa thử 10 000 người, chưa thử phần AI và nền."],
+    ["10 000 người cùng lúc, nghẽn đầu tiên?","Dự đoán: gọi AI và hàng đợi việc nền (chậm, bị giới hạn, tốn tiền). Nếu dồn đăng nhập thì băm mật khẩu. Sau đó kết nối DB. Lấy tin ít nghẽn vì tin dùng chung. Chưa đo."],
+    ["Test tải đúng cách?","Kiểu mở có thời gian nghỉ, máy riêng, DB tinh chỉnh, AI giả có độ trễ và 5% lỗi, tăng dần đến khi gãy, đo p95/p99 và độ dài hàng đợi."]
+  ];
+  var box=document.getElementById("flash"),count=document.getElementById("count");
+  var order=cards.map(function(_,i){return i});
+  function render(){
+    box.innerHTML="";
+    order.forEach(function(idx,n){
+      var c=cards[idx];
+      var q=document.createElement("div");q.className="q";
+      var p=document.createElement("div");
+      var b0=document.createElement("b");b0.textContent=(n+1)+". ";
+      p.appendChild(b0);p.appendChild(document.createTextNode(c[0]));
+      var b=document.createElement("button");b.type="button";b.className="btn";b.textContent="Hiện đáp án";
+      var a=document.createElement("div");a.className="a";a.textContent=c[1];
+      b.addEventListener("click",function(){var s=a.classList.toggle("show");b.textContent=s?"Ẩn đáp án":"Hiện đáp án"});
+      q.appendChild(p);q.appendChild(b);q.appendChild(a);box.appendChild(q);
+    });
+    count.textContent=cards.length+" thẻ";
+  }
+  document.getElementById("shuffle").addEventListener("click",function(){
+    for(var i=order.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=order[i];order[i]=order[j];order[j]=t}
+    render();
+  });
+  var all=false;
+  document.getElementById("revealAll").addEventListener("click",function(){
+    all=!all;
+    Array.prototype.forEach.call(box.querySelectorAll(".q"),function(q){
+      q.querySelector(".a").classList.toggle("show",all);
+      q.querySelector("button").textContent=all?"Ẩn đáp án":"Hiện đáp án";
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

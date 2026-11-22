@@ -1,0 +1,230 @@
+@page d1
+@file d1-su-co-production.html
+@code D1
+@group D
+@title Sự cố production
+@desc p99 tăng sau deploy, cạn pool, consumer lag, OOM, cache lạnh, thông báo trùng, replica lag, tồn kho lệch, đĩa đầy, retry storm, postmortem.
+@lede Mọi câu trả lời theo cùng thứ tự: **cầm máu → thu thập dữ liệu → giả thuyết → kiểm chứng → sửa gốc → ngăn tái diễn**. Người phỏng vấn chấm cách bạn nghĩ có thứ tự, không chấm việc đoán trúng ngay.
+@intro
+**Câu mở đầu mẫu:** “Việc đầu tiên em làm là giảm ảnh hưởng tới người dùng, sau đó mới tìm nguyên nhân.” Rồi nói rõ em **nhìn vào số nào** trước khi kết luận.
+
+@q 133
+@time khoảng 90 giây
+@ans
+**Cầm máu:** sự cố bắt đầu **ngay sau deploy** nên nghi phạm số một là bản mới. Em **rollback** (hoặc tắt feature flag) trước, xác nhận p99 về lại 80 ms, rồi mới điều tra trên bản lỗi ở staging hoặc một canary nhỏ.
+
+**CPU 20% và DB bình thường** nghĩa là thread **đang chờ**, không phải đang tính. Các khả năng:
+1. **Chờ khóa hoặc chờ pool:** bản mới thêm `synchronized` quanh đoạn nóng, hoặc giữ connection lâu hơn (transaction bọc lời gọi HTTP) → **thread dump** (`jstack` ba lần) thấy nhiều thread `BLOCKED` cùng một monitor hoặc `WAITING` ở `HikariPool.getConnection`. Metric pool: pending tăng.
+2. **Gọi dependency chậm:** bản mới gọi thêm một service hoặc API ngoài, hoặc đổi timeout → **trace APM** thấy span mới chiếm phần lớn thời gian.
+3. **GC:** bản mới tạo nhiều object (nạp list lớn, cache không giới hạn) → GC log hoặc metric JVM thấy pause dài, heap tăng.
+4. **Cấu hình:** pool nhỏ đi, log mức DEBUG đồng bộ ghi đĩa, thread pool mới với queue lớn.
+
+**Kiểm chứng:** so sánh trace của request chậm giữa hai phiên bản, đọc diff của bản deploy theo các giả thuyết trên.
+
+**Sửa gốc** rồi deploy lại kiểu **canary** (5% traffic) và theo dõi p99. **Ngăn tái diễn:** cảnh báo p99 theo phiên bản, load test cho đường nóng trong pipeline, canary tự động rollback khi SLO xấu đi.
+@fu Không rollback được (có migration DB) thì sao?
+Tắt tính năng bằng feature flag; nếu migration là thêm cột tương thích ngược thì code cũ vẫn chạy được. Đây là lý do migration luôn phải tương thích ngược.
+
+@q 134
+@time khoảng 75 giây
+@ans
+Lỗi kiểu `Connection is not available, request timed out after 30000ms` mà **DB không nặng** nghĩa là connection bị **giữ ở phía ứng dụng** chứ DB không bận xử lý.
+
+**Cầm máu:** restart một instance để xác nhận có giải phóng tạm (nếu có thì đúng là giữ/rò rỉ), giới hạn tải vào endpoint nghi ngờ.
+
+**Đo:**
+- Metric HikariCP: `active` sát `max`, `pending` tăng, `usage` (thời gian giữ connection) tăng.
+- Phía DB: `pg_stat_activity` xem các connection của ứng dụng đang **`idle in transaction`** (mở transaction mà không chạy gì) hay đang chạy query nào lâu.
+- Thread dump: thread nào đang giữ connection và đang làm gì (thường đang chờ socket HTTP).
+
+**Ba nguyên nhân hay gặp:**
+1. **Transaction mở trong lúc gọi HTTP/gRPC** chậm → giữ connection vài giây.
+2. **Rò rỉ connection:** code tự lấy connection mà không đóng trong `finally`/try-with-resources. Bật `leakDetectionThreshold` để có stack trace chỗ lấy.
+3. **Một query chậm** (vẫn ít tải trên DB tổng) chiếm nhiều connection lâu, ví dụ một báo cáo.
+
+**Sửa** theo đúng nguyên nhân; thêm `connectionTimeout` ngắn để fail fast, `idle_in_transaction_session_timeout` phía DB, alert theo pending.
+
+@q 135
+@time khoảng 75 giây
+@ans
+Lag tăng mà không có lỗi nghĩa là consumer **chậm hơn tốc độ đến**, hoặc **đang bị kẹt mà không ném lỗi**.
+
+1. **Lag đều mọi partition hay một partition?** Một partition → **hot key** hoặc một **tin poison** khiến consumer retry tại chỗ trong im lặng (retry vô hạn nuốt lỗi).
+2. **Thời gian xử lý mỗi tin** có tăng không: dependency bên ngoài chậm (DB, nhà cung cấp SMS), query chậm dần do bảng lớn lên.
+3. **Rebalance liên tục:** log consumer thấy “revoking/assigned partitions” lặp lại; nguyên nhân là xử lý một lô lâu hơn `max.poll.interval.ms` → bị đá khỏi group, mọi consumer dừng để chia lại, rồi lặp lại.
+4. **Tốc độ đến tăng** (chiến dịch marketing) vượt năng lực.
+5. **Số consumer < số partition** hoặc có consumer chết mà không ai thay.
+
+**Xử lý:** poison → đẩy DLQ sau N lần; chậm → gom lô, gọi ngoài bất đồng bộ có giới hạn, thêm consumer (≤ partition), tăng partition nếu cần; rebalance → giảm `max.poll.records`, cooperative sticky; tách luồng ưu tiên thấp ra topic riêng.
+
+**Ngăn tái diễn:** alert theo **thời gian trễ** của tin cũ nhất, metric thời gian xử lý mỗi tin, DLQ có alert.
+
+@q 136
+@time khoảng 75 giây
+@ans
+Mẫu “heap tăng dần, Full GC dày dần, sau 6 giờ OOM” là **rò rỉ bộ nhớ**, không phải tải đột biến.
+
+**Cầm máu:** restart luân phiên các instance trước khi tới ngưỡng (đặt lịch tạm), tăng số instance nếu cần; đây chỉ là băng tạm.
+
+**Thu thập:**
+- Đảm bảo có `-XX:+HeapDumpOnOutOfMemoryError`; chủ động lấy **heap dump** ở 1 giờ và 4 giờ (`jcmd <pid> GC.heap_dump`), cẩn thận vì lấy dump sẽ dừng ứng dụng vài giây.
+- Mở bằng **Eclipse MAT**: Leak Suspects, **dominator tree**, so hai dump xem class nào tăng.
+
+**Nghi phạm quen thuộc:**
+- **Cache tự viết bằng `static Map` không giới hạn, không TTL.**
+- Listener/callback đăng ký mà không hủy.
+- **ThreadLocal** trong thread pool không `remove()`.
+- Gom kết quả vào list trong bộ nhớ (session, batch).
+- Thư viện client tạo mới mỗi request (HTTP client, connection) không đóng.
+
+**Sửa:** thay bằng cache có giới hạn kích thước và TTL (Caffeine `maximumSize`, `expireAfterWrite`), hủy listener, `try/finally remove()`.
+
+**Ngăn tái diễn:** alert theo **heap sau GC** tăng liên tục, mọi cache bắt buộc có giới hạn, test chạy dài (soak test) vài giờ trước khi release.
+
+@q 137
+@time khoảng 75 giây
+@ans
+Hai khả năng chính sau deploy:
+1. **Cache lạnh:** cache cục bộ (Caffeine) rỗng sau khi restart toàn bộ instance cùng lúc, hoặc Redis bị xả.
+2. **Đổi key:** bản mới đổi định dạng key (thêm version, đổi tiền tố, đổi cách serialize) → **toàn bộ key cũ không còn khớp**, như thể cache trống. Hoặc lỗi deserialize khiến mọi lần đọc cache đều coi là miss.
+
+**Cầm máu:**
+- Rollback nếu do đổi key; giới hạn tải vào DB (rate limit, circuit breaker, trả dữ liệu dự phòng cho tính năng phụ).
+- Bật **khóa dựng lại**: mỗi key chỉ một request đọc DB, còn lại chờ, tránh stampede.
+
+**Kiểm chứng:** xem log lỗi deserialize, so key mẫu trong Redis giữa hai phiên bản, metric hit/miss theo thời gian bắt đầu đúng lúc deploy.
+
+**Ngăn tái diễn:**
+- **Làm nóng cache** trước khi chuyển traffic: nạp sẵn key nóng nhất.
+- **Triển khai từng phần** (rolling, canary), không restart tất cả cùng lúc.
+- Đổi định dạng key thì **đọc cả key cũ và mới** trong giai đoạn chuyển, hoặc ghi kép.
+- Alert theo hit ratio và theo tải DB.
+
+@q 138
+@time khoảng 75 giây
+@ans
+Hệ thống gửi theo **at-least-once**, nên trùng xảy ra khi **một bước bị làm lại mà không có chặn trùng**:
+
+1. **Consumer chưa idempotent:** xử lý xong (đã gửi) nhưng chưa kịp commit offset thì **rebalance** hoặc crash → tin được giao lại, gửi lần nữa.
+2. **Xử lý lâu hơn `max.poll.interval.ms`** → bị đá khỏi group, partition giao cho consumer khác làm lại.
+3. **Retry phía gọi nhà cung cấp:** gọi API push bị timeout nhưng thực ra nhà cung cấp **đã nhận**, retry thành gửi hai lần.
+4. **Producer phía trên gửi trùng** sự kiện (dual write, retry không idempotence).
+
+**Điều tra:** lấy vài người dùng bị trùng, tra theo `notification_id` trong log: hai lần gửi từ cùng consumer hay khác consumer, cách nhau bao lâu, có trùng thời điểm rebalance không.
+
+**Sửa:**
+- Bảng ghi nhận `(notification_id, device_id)` **unique**, ghi **trước** khi gửi với trạng thái SENDING, gửi xong chuyển SENT; tin đến lại mà đã SENT thì bỏ.
+- Gửi kèm **idempotency key / collapse key** cho nhà cung cấp nếu hỗ trợ (APNs `apns-collapse-id`, FCM `collapse_key`) để thiết bị chỉ hiện một.
+- Producer `enable.idempotence=true`.
+
+Đây là lý do Notification Hub của em có lớp idempotency bằng upsert PostgreSQL.
+
+@q 139
+@time khoảng 60 giây
+@ans
+Bài **biến mất rồi hiện lại** gần như chắc chắn là **replica lag kết hợp đọc từ nhiều replica khác nhau**: lần tải đầu rơi vào primary hoặc replica đã có bài; lần sau rơi vào replica trễ hơn chưa có; lần sau nữa replica đã bắt kịp.
+
+**Kiểm chứng:** xem metric replica lag (`pg_stat_replication`, `replay_lag`) đúng lúc người dùng báo, log request ghi lại replica nào phục vụ.
+
+**Sửa:**
+- **Read-your-writes:** người vừa ghi thì đọc primary trong vài giây, hoặc đọc theo LSN/version đã ghi.
+- **Monotonic reads:** gắn user vào một replica (sticky) để dữ liệu không “đi lùi”.
+- Rút replica có lag vượt ngưỡng khỏi nhóm đọc.
+- Phía client: giữ bài vừa đăng trong danh sách hiển thị.
+
+Nguyên nhân phụ cần loại trừ: cache feed nhiều tầng có TTL khác nhau, hoặc CDN cache API.
+
+@q 140
+@time khoảng 90 giây
+@ans
+Đây là chuyện có thật ở loại hệ thống em làm (WMS).
+
+**Cầm máu:** tạm dừng các job liên quan, chặn thao tác xuất kho trên những mặt hàng bị lệch để không bán/xuất thứ không có.
+
+**Nguyên nhân:** hai lần chạy cùng một batch (lịch chồng, hoặc người chạy tay khi bản theo lịch chưa xong) cùng đọc tồn kho, cùng tính và cùng trừ → trừ hai lần; hoặc một lần chạy chết giữa chừng, lần chạy lại xử lý lại phần đã xong.
+
+**Điều tra:** bảng nhật ký chạy batch (giờ bắt đầu/kết thúc, ai chạy), log theo id lần chạy, so **lịch sử biến động tồn** (bảng movement) với kết quả mong đợi để biết dòng nào bị trừ trùng.
+
+**Sửa gốc:**
+1. **Khóa chống chạy chồng:** advisory lock hoặc dòng khóa có hạn; lần sau thấy lần trước còn RUNNING thì thoát.
+2. **Idempotent:** mỗi biến động tồn có **khóa nghiệp vụ** (id lệnh + dòng) với unique constraint, chạy lại không tạo biến động mới; trừ tồn bằng conditional update.
+3. Chia chunk, đánh dấu trạng thái từng phần để chạy lại chỉ làm phần thiếu.
+
+**Sửa dữ liệu an toàn:** tính lại tồn đúng từ lịch sử biến động (nguồn sự thật), sinh **bút toán điều chỉnh** (không UPDATE đè trực tiếp), chạy trên bản sao trước, có người duyệt, lưu lại bằng chứng, và đối soát với kiểm kê thực tế nếu cần.
+
+**Ngăn tái diễn:** job đối soát tồn hằng ngày, alert khi tồn âm hoặc lệch.
+@fu Ở WMS em đã gặp chính xác chuyện này chưa?
+Kể theo trang “Case kiện Retired” (tồn kho âm do race condition) hoặc câu 5 ở trang WMS (batch chạy lại). Đừng nhận đã gặp nếu chưa.
+
+@q 141
+@time khoảng 60 giây
+@ans
+**Cầm máu trước:** đĩa đầy làm DB ngừng ghi, ứng dụng không ghi log được, có thể sập dây chuyền.
+1. `df -h` xem phân vùng nào; `du -sh /* | sort -h` lần thư mục to; `lsof +L1` tìm file đã xóa mà process còn giữ.
+2. **Dọn an toàn:** log cũ đã quay vòng, file tạm, heap dump cũ, image Docker không dùng (`docker system prune` cẩn thận). **Không xóa file WAL của PostgreSQL bằng tay** (làm hỏng DB).
+
+**Nguyên nhân hay gặp:**
+- **Log** không quay vòng, hoặc bật DEBUG.
+- **WAL phình** vì **replication slot** của replica hoặc CDC (Debezium) đã chết không đọc → PostgreSQL giữ WAL mãi. Kiểm `pg_replication_slots`.
+- Archive WAL lỗi; **file tạm** của query sort lớn; backup cục bộ.
+- Heap dump tự động nhiều lần.
+
+**Sửa gốc** theo nguyên nhân: logrotate và giới hạn kích thước, xóa slot hỏng, `max_slot_wal_keep_size`, chuyển log ra hệ thống tập trung.
+
+**Ngăn tái diễn:** alert ở **75–80%** và theo **tốc độ tăng** (dự đoán đầy trong 4 giờ), để có người xử lý trong giờ làm thay vì 3 giờ sáng.
+
+@q 142
+@time khoảng 75 giây
+@ans
+Dependency vừa hồi phục thì mọi client **dồn toàn bộ request đang chờ và retry vào cùng một lúc**: hàng đợi tồn đọng, retry 3 lần ở nhiều tầng, cache đã hết hạn, các instance khởi động lại cùng lúc → dependency nhận gấp nhiều lần tải bình thường và **sập lại** (thundering herd).
+
+**Cầm máu:** chặn bớt tải vào dependency (rate limit ở gateway, tạm tắt luồng không quan trọng), mở dần.
+
+**Sửa gốc:**
+- **Backoff mũ + jitter** để các client không retry cùng nhịp.
+- **Retry budget:** tổng retry không vượt 10–20% request; chỉ một tầng retry.
+- **Circuit breaker** với trạng thái **nửa mở**: chỉ cho vài request thử, thành công mới mở rộng dần.
+- **Tăng tải dần** (ramp-up) khi hồi phục, xả hàng đợi tồn đọng với tốc độ giới hạn.
+- Phía dependency: **load shedding**, trả 503 nhanh khi quá tải thay vì xử lý chậm tất cả; giới hạn đồng thời.
+
+Ở Notification Hub, retry đi qua topic có độ trễ tăng dần thay vì retry ngay, nên khi nhà cung cấp hồi phục, lượng retry đến rải đều.
+
+@q 143
+@time khoảng 75 giây
+@ans
+Postmortem **không đổ lỗi cá nhân**: mục tiêu là sửa hệ thống để người khác không mắc lại, không tìm ai có lỗi. Cấu trúc em dùng:
+
+1. **Tóm tắt:** chuyện gì, ảnh hưởng ai, bao lâu, mức độ (bao nhiêu người dùng, đơn hàng, lỗi).
+2. **Dòng thời gian** theo phút: lúc bắt đầu, lúc phát hiện (và phát hiện bằng gì), lúc cầm máu, lúc khắc phục xong. Khoảng từ bắt đầu tới phát hiện thường là chỗ cần cải thiện nhất.
+3. **Nguyên nhân gốc** bằng **5 Whys**: không dừng ở “code có NPE” mà hỏi tiếp vì sao dữ liệu đó tới được đây, vì sao test không bắt, vì sao không có alert.
+4. **Điều gì làm tốt, điều gì làm chưa tốt, chỗ nào gặp may.**
+5. **Hành động** cụ thể, mỗi hành động có **người chịu trách nhiệm và hạn chót**, phân loại: phát hiện sớm hơn, giảm ảnh hưởng, ngăn tái diễn.
+
+Ở WMS, khi sửa lỗi NPE do dữ liệu từ hệ thống ngoài chưa được xử lý, phần em đóng góp vào báo cáo là [[root cause, test hồi quy tái hiện đúng dữ liệu lỗi, và đề xuất kiểm tra dữ liệu đầu vào ở bước nạp]].
+@fu Nếu lỗi do chính em gây ra?
+Nói thẳng, mô tả sự việc khách quan, và tập trung vào vì sao hệ thống cho phép lỗi đó lọt (thiếu review, thiếu test, thiếu cảnh báo). Xem câu 152 phần E.
+
+@cheat Cheat sheet D1 · Sự cố
+### !Thứ tự luôn dùng
+- Cầm máu (rollback, flag, giới hạn tải) → dữ liệu → giả thuyết → kiểm chứng → sửa gốc → ngăn tái diễn
+### p99 tăng, CPU thấp
+- Thread đang chờ: khóa, pool, dependency, GC
+- jstack ×3, trace APM, diff bản deploy, canary
+### Pool cạn, DB rảnh
+- idle in transaction, HTTP trong transaction, rò rỉ, query chậm
+- Hikari active/pending, leakDetectionThreshold
+### Kafka lag
+- Một partition: hot key/poison; tất cả: chậm hoặc rebalance
+- DLQ, gom lô, max.poll, alert theo thời gian trễ
+### Bộ nhớ, cache
+- Heap sau GC tăng bậc thang = rò rỉ → heap dump + MAT
+- static map, listener, ThreadLocal
+- Cache về 0: lạnh hoặc đổi key → khóa dựng lại, warm-up, rolling
+### Dữ liệu
+- Trùng thông báo: at-least-once + unique (noti, device) + collapse key
+- Bài biến mất: replica lag → read-your-writes, sticky
+- Tồn lệch: khóa job, idempotent, sửa bằng bút toán điều chỉnh
+### Hạ tầng
+- Đĩa đầy: log, WAL do replication slot chết; alert 80% + tốc độ
+- Retry storm: backoff + jitter, budget, half-open, ramp-up, load shedding
+- Postmortem: timeline, 5 Whys, action có chủ + hạn, không đổ lỗi
