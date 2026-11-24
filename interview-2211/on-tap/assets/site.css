@@ -374,6 +374,3 @@ html.tts-on .tts-bar{display:flex}
 ::highlight(tts-sent){background-color:color-mix(in srgb,var(--accent) 24%,transparent)}
 ::highlight(tts-word){background-color:#FFC233;color:#15202B}
 @supports selector(::highlight(a)){.tts-cur{background:transparent!important}}
-.tts-bar [data-a="mix"]{font:700 12px/1 ui-monospace,monospace;min-width:40px}
-.tts-bar [data-a="mix"].off{opacity:.4;text-decoration:line-through}
-.tts-bar button[hidden]{display:none}
